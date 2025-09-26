@@ -1,0 +1,748 @@
+{% extends "partial/app.html" %}
+{% load static %}
+{% load part_filters %}
+{% load kwacros %}
+{% load attachments_tags %}
+{% load utils %}
+
+{% block title %}
+<title>{{part.reference}} / Part / Bomnado</title>
+{% endblock %}
+
+{% block header %}
+
+    <style type="text/css">
+        tbody td kbd a {
+            color: white;
+        }
+
+        div#partsTable_length label, div#partsTable_length input, 
+        div#partsTable_filter label, div#partsTable_filter input {
+            width: 100%;
+        }
+
+        div#existingPartsContainer {
+            font-size: 80%;
+        }
+        #partsTable tr td kbd { 
+            display: block;
+        }
+        #partsTable tr td kbd a:hover { 
+            color: white;
+        }
+
+        /* Show the toggle sidebar button on this screen. */
+        #app_sidebar_toggle_btn { display: block; }
+    </style>
+{% endblock %}
+
+
+
+<!-- MACRO FOR RENDERING FORM FIELDS -->
+{% kwacro bootstrapfield field %}
+<small class="text-muted">
+    <a href="#" tabindex="-1" rel="tooltip" title="{{ field.help_text }}">🙋</a>
+    <strong>{{ field.label_tag }}</strong>
+</small>
+{{ field }}
+<span class="field-errors">
+{% for error in field.errors %}
+    <small class="text-danger"> {{ error|escape }}</small> 
+{% endfor %}
+</span>
+{% endkwacro %}
+
+
+{% block content-right %}
+
+<!-- New Part -->
+<div class="p-3" style="min-width: 600px;">
+
+    <!-- ADD PART -->
+    <h5>Edit Part</h5>
+
+    <!-- Open comments warning -->
+    {% if form.review_notes.value %}
+    <div class="alert alert-warning" role="alert">
+        👀 <strong>Open feedback</strong> - review this document before use.
+    </div>
+    {% endif %}
+
+    <!-- Deprecation warnings -->
+    {% if form.deprecated.value|date_in_past %}
+    <div class="alert alert-warning" role="alert">
+        ⚠️ Deprecated on {{ form.deprecated.value|date:"dS M Y" }} ≈V{{ form.deprecated.value|date:"yW" }}
+    </div>
+    {% endif %}
+
+    {% if form.end_of_life.value|date_in_past %}
+    <div class="alert alert-danger" role="alert">
+        Passed End of Life on {{ form.end_of_life.value|date:"dS M Y" }} ≈V{{ form.end_of_life.value|date:"yW" }}
+    </div>
+    {% endif %}
+
+
+    <!-- Part fields -->
+    <form id="bomando-part-form" method="post" action="{% url "bom:part_editor_update" pk=part.id %}" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <!-- {{ form.management_form }} -->
+
+        {% for hidden_field in form.hidden_fields %}
+            {{ hidden_field }}
+        {% endfor %}
+
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger" role="alert">
+            {% for error in form.non_field_errors %}
+            {{ error }}
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if form.errors %}
+        <div class="alert alert-danger" role="alert">
+            <strong>Please correct the errors below.</strong>
+            <!-- {{ form.errors }} -->
+        </div>
+        {% endif %}
+
+        <div class="form-row">
+
+            <div class="col-4" style="display: flex;" >
+                <!-- PICTURE -->
+                <div class="form-group" style="flex-grow: 1; display: flex; flex-direction: column;">
+                    {% usekwacro bootstrapfield form.picture %}
+                </div>
+            </div>
+
+            <div class="col-8">
+                <!-- REFERENCE -->
+                <div class="form-group">
+                    {% usekwacro bootstrapfield form.reference %}
+                </div>
+
+                <!-- NAME -->
+                <div class="form-group">
+                    {% usekwacro bootstrapfield form.name %}
+                </div>
+
+                <!-- DESIGN NATURE -->
+                <div class="row">
+                    <div class="form-group col-6 pr-1">
+                        {% usekwacro bootstrapfield form.nature %}
+                    </div>
+                </div>
+                <div class="row">
+                    <!-- SALES CODE -->
+                    <div class="form-group col-6 pr-1">
+                        {% usekwacro bootstrapfield form.sale_code %}
+                    </div>
+                    <!-- HS CODE -->
+                    <div class="form-group col-6 pl-1">
+                        {% usekwacro bootstrapfield form.hs_code %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <!-- <div class="col-12"> -->
+                <!-- DIMENSIONS -->
+                <div class="form-group col-4">
+                    {% usekwacro bootstrapfield form.dimensions %}
+                </div>
+
+                <!-- WEIGHT -->
+                <div class="form-group col-4">
+                    {% usekwacro bootstrapfield form.kgs %}
+                </div>
+
+                <!-- COLOUR -->
+                <div class="form-group col-4">
+                    {% usekwacro bootstrapfield form.colour %}
+                </div>
+            <!-- </div> -->
+        </div>
+
+        <div class="form-group">
+            {% usekwacro bootstrapfield form.spec %}
+        </div>
+
+        <div class="form-group">
+            {% usekwacro bootstrapfield form.qc_steps %}
+        </div>
+
+        <div class="form-row">
+            <!-- EOL -->
+            <div class="form-group col-4 pl-1">
+                {% usekwacro bootstrapfield form.end_of_life %}
+            </div>
+
+            <div class="form-group col-4 pl-1">
+                {% usekwacro bootstrapfield form.deprecated %}
+            </div>
+        </div>
+
+        <!-- SUPPLIERS -->
+        <div class="form-group">
+            <small class="text-muted mb-2 d-block">
+                <a href="#" rel="tooltip" title="The sections below contain supplier details for this part.">🙋</a>
+                <strong>Suppliers:</strong>
+            </small>
+
+            <div id="partSourcesAccordion">
+                {{ ps_formset.management_form }}
+                {% for sub_form in ps_formset %}
+            {% if sub_form.id.value %}
+                <div class="card mb-1">
+                    <!-- ADD THE HEADER BAR FOR THIS SUPPLIER -->
+                    <div class="card-header">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+
+                            <strong>{{ sub_form.url.value | get_domain }}</strong>
+                            
+                            <div class="btn-group btn-group-sm" role="group" aria-label="Basic example">
+                                <button class="btn btn-outline-primary" type="button" data-toggle="collapse"
+                                    data-target="#collapsePartSource-{{forloop.counter}}">
+                                    Edit Source
+                                </button>
+                                <a type="button" href="{{ sub_form.url.value }}" target="_blank" class="btn btn-outline-secondary">Visit Source</a>
+                                <button onclick="deletePartSource(this, '{{ sub_form.id.value }}')" 
+                                    type="button"
+                                    class="btn btn-outline-danger">Delete
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- ADD THE CONTENT FORM FOR THIS SUPPLIER -->
+                    <div id="collapsePartSource-{{forloop.counter}}"
+                        class="collapse {% if ps_formset|length <= 1 or sub_form.errors %}show{% endif %}">
+                        <div class="card-body">
+
+
+                            {% if sub_form.non_field_errors %}
+                            <div class="alert alert-danger" role="alert">
+                                {% for error in sub_form.non_field_errors %}
+                                {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+
+                            {% if sub_form.errors %}
+                            <div class="alert alert-danger" role="alert">
+                                {{ sub_form.errors }}
+                            </div>
+                            {% endif %}
+
+                            {% for hidden_field in sub_form.hidden_fields %}
+                                {{ hidden_field }}
+                            {% endfor %}
+
+                            <div class="form-row">
+                                <div class="form-group col-md-3">
+                                    {% usekwacro bootstrapfield sub_form.partcode %}
+                                </div>
+                                <div class="form-group col-md-9">
+                                    {% usekwacro bootstrapfield sub_form.url %}
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group col-md-6">
+                                    {% usekwacro bootstrapfield sub_form.rrp %}
+                                </div>
+                                <div class="form-group col-md-6">
+                                    {% usekwacro bootstrapfield sub_form.minimum_order %}
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group col-md-6">
+                                    {% usekwacro bootstrapfield sub_form.shipping %}
+                                </div>
+                                <div class="form-group col-md-6">
+                                    {% usekwacro bootstrapfield sub_form.lead_time %}
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group col-md-12">
+                                    {% usekwacro bootstrapfield sub_form.order_notes %}
+                                </div>
+                            </div>
+
+                            <!-- DELETE TOGGLE -->
+                            <!-- {% if ps_formset.can_delete %}
+                            {{ sub_form.DELETE }}
+                            {% endif %} -->
+                            <!-- <button type="submit" class="btn btn-success">Save Changes</button> -->
+
+                        </div>
+                    </div>
+                </div>
+                    {% endif  %}
+                {% endfor %}
+            </div>
+            <div id="dealAccordion">
+                {{ d_formset.management_form }}
+                {% for sub_form in d_formset %}
+            {% if sub_form.id.value %}
+                <div class="card mb-1">
+                    <!-- ADD THE HEADER BAR FOR THIS SUPPLIER -->
+                    <div class="card-header">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+
+                                <strong>In Deal: <em>{{ sub_form.instance.deal|safe }}</em></strong>
+
+                            <div class="btn-group btn-group-sm" role="group" aria-label="Basic example">
+                                <button class="btn btn-outline-primary" type="button" data-toggle="collapse"
+                                    data-target="#collapseDeal-{{forloop.counter}}">
+                                    Edit Deal
+                                </button>
+                                <a type="button" href="{{ sub_form.instance.deal.url|safe }}" target="_blank" class="btn btn-outline-secondary">Visit Supplier</a>
+                                <button onclick="deleteDealLineItem(this, '{{ sub_form.id.value }}')"
+                                    type="button"
+                                    class="btn btn-outline-danger">Delete Link to Deal
+                                </button>
+                            </div>
+
+                        </div>
+                    </div>
+                    <!-- ADD THE CONTENT FORM FOR THIS SUPPLIER -->
+                    <div id="collapseDeal-{{forloop.counter}}"
+                        class="collapse {% if sub_form.errors %}show{% endif %}">
+                        <div class="card-body">
+
+                            {% if sub_form.non_field_errors %}
+                            <div class="alert alert-danger" role="alert">
+                                {% for error in sub_form.non_field_errors %}
+                                {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+
+                            {% if sub_form.errors %}
+                            <div class="alert alert-danger" role="alert">
+                                {{ sub_form.errors }}
+                            </div>
+                            {% endif %}
+
+                            {% for hidden_field in sub_form.hidden_fields %}
+                                {{ hidden_field }}
+                            {% endfor %}
+
+                            <div class="form-row">
+                                <div class="form-group col-md-6">
+                                    {% usekwacro bootstrapfield sub_form.deal %}
+                                </div>
+                                <div class="form-group col-md-6">
+                                    {% usekwacro bootstrapfield sub_form.quantity %}
+                                </div>
+                            </div>
+
+
+                            <div class="form-row">
+                                <div class="form-group col-md-12">
+                                    {% usekwacro bootstrapfield sub_form.notes %}
+                                </div>
+                            </div>
+
+                            <!-- DELETE TOGGLE -->
+                            <!-- {% if d_formset.can_delete %}
+                            {{ sub_form.DELETE }}
+                            {% endif %} -->
+                            <!-- <button type="submit" class="btn btn-success">Save Changes</button> -->
+
+                        </div>
+                    </div>
+                </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            <div id="newAccordian">
+                {{ ps_formset.management_form }}
+                {% for sub_form in ps_formset %}
+                    {% if not sub_form.id.value %}
+                <div class="card mb-1">
+                    <!-- ADD THE HEADER BAR FOR THIS SUPPLIER -->
+                    <div class="card-header">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+
+                            <button class="btn btn-outline-secondary" type="button" data-toggle="collapse"
+                                data-target="#collapsePartSource-{{forloop.counter}}">
+                                New Supplier
+                            </button>
+                        </div>
+                    </div>
+                    <!-- ADD THE CONTENT FORM FOR THIS SUPPLIER -->
+                    <div id="collapsePartSource-{{forloop.counter}}"
+                        class="collapse {% if ps_formset|length <= 1 or sub_form.errors %}show{% endif %}">
+                        <div class="card-body">
+
+
+                            {% if sub_form.non_field_errors %}
+                            <div class="alert alert-danger" role="alert">
+                                {% for error in sub_form.non_field_errors %}
+                                {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+
+                            {% if sub_form.errors %}
+                            <div class="alert alert-danger" role="alert">
+                                {{ sub_form.errors }}
+                            </div>
+                            {% endif %}
+
+                            {% for hidden_field in sub_form.hidden_fields %}
+                                {{ hidden_field }}
+                            {% endfor %}
+
+                            <div class="form-row">
+                                <div class="form-group col-md-3">
+                                    {% usekwacro bootstrapfield sub_form.partcode %}
+                                </div>
+                                <div class="form-group col-md-9">
+                                    {% usekwacro bootstrapfield sub_form.url %}
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group col-md-6">
+                                    {% usekwacro bootstrapfield sub_form.rrp %}
+                                </div>
+                                <div class="form-group col-md-6">
+                                    {% usekwacro bootstrapfield sub_form.minimum_order %}
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group col-md-6">
+                                    {% usekwacro bootstrapfield sub_form.shipping %}
+                                </div>
+                                <div class="form-group col-md-6">
+                                    {% usekwacro bootstrapfield sub_form.lead_time %}
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group col-md-12">
+                                    {% usekwacro bootstrapfield sub_form.order_notes %}
+                                </div>
+                            </div>
+
+                            <!-- DELETE TOGGLE -->
+                            <!-- {% if ps_formset.can_delete %}
+                            {{ sub_form.DELETE }}
+                            {% endif %} -->
+                            <!-- <button type="submit" class="btn btn-success">Save Changes</button> -->
+
+                        </div>
+                    </div>
+                </div>
+                    {% endif %}
+                {% endfor %}
+            {{ d_formset.management_form }}
+                {% for sub_form in d_formset %}
+                    {% if not sub_form.id.value %}
+                <div class="card mb-1">
+                    <!-- ADD THE HEADER BAR FOR THIS SUPPLIER -->
+                    <div class="card-header">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+
+                            <button class="btn btn-outline-secondary" type="button" data-toggle="collapse"
+                                data-target="#collapseDeal-{{forloop.counter}}">
+                                Link To Deal
+                            </button>
+
+                        </div>
+                    </div>
+                    <!-- ADD THE CONTENT FORM FOR THIS SUPPLIER -->
+                    <div id="collapseDeal-{{forloop.counter}}"
+                        class="collapse {% if sub_form.errors %}show{% endif %}">
+                        <div class="card-body">
+
+                            {% if sub_form.non_field_errors %}
+                            <div class="alert alert-danger" role="alert">
+                                {% for error in sub_form.non_field_errors %}
+                                {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+
+                            {% if sub_form.errors %}
+                            <div class="alert alert-danger" role="alert">
+                                {{ sub_form.errors }}
+                            </div>
+                            {% endif %}
+
+                            {% for hidden_field in sub_form.hidden_fields %}
+                                {{ hidden_field }}
+                            {% endfor %}
+
+                            <div class="form-row">
+                                <div class="form-group col-md-6">
+                                    {% usekwacro bootstrapfield sub_form.deal %}
+                                </div>
+                                <div class="form-group col-md-6">
+                                    {% usekwacro bootstrapfield sub_form.quantity %}
+                                </div>
+                            </div>
+
+
+                            <div class="form-row">
+                                <div class="form-group col-md-12">
+                                    {% usekwacro bootstrapfield sub_form.notes %}
+                                </div>
+                            </div>
+
+                            <!-- DELETE TOGGLE -->
+                            <!-- {% if d_formset.can_delete %}
+                            {{ sub_form.DELETE }}
+                            {% endif %} -->
+                            <!-- <button type="submit" class="btn btn-success">Save Changes</button> -->
+
+                        </div>
+                    </div>
+                </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- ATTACHMENTS -->
+        <div class="form-group">
+            <small class="text-muted mb-2 d-block">
+                <a href="#" rel="tooltip" title="A list of files attached to this part and that can be referenced in the markdown fields.">🙋</a>
+                <strong>Attachments:</strong>
+            </small>
+            {%with entity=part widget_id="mainAttachments" %}
+                {% include "partial/attachment_list.html" %}
+            {%endwith%}
+        </div>
+
+        <!-- BUTTONS -->
+        <div class="text-right w-100">
+            <button type="button" class="btn btn-outline-danger float-left" onclick="deletePart(this, '{{ form.instance.id }}', '{{form.instance.reference}}')" >Delete Part</button>
+            <button type="button" class="btn btn-outline-secondary float-left ml-1" onclick="duplicatePart(this, '{{ form.instance.id }}', '{{form.instance.reference}}')" >Duplicate Part</button>
+            <button type="submit" class="btn btn-success">Save Changes</button>
+        </div>
+
+        <br />
+        <br />
+
+        <!-- REVIEW NOTES -->
+        <div class="form-group">
+            {% usekwacro bootstrapfield form.review_notes %}
+        </div>
+    </form>
+
+    <!-- RELATED ASSEMBLIES -->
+    <div>
+        <small class="text-muted">
+            <a href="#" tabindex="-1" rel="tooltip" title="List of assemblies that use this part.">🙋</a>
+            <strong><label>Assemblies using this part:</label></strong>
+        </small>
+        <div class="alert alert-secondary bomnado-usedby-list" role="alert">
+            {% find_assemblies_using_part part as assemblies %}
+            {% for assy in assemblies %}
+            {{ assy|stylised_assembly }}
+            {% empty %}
+            <span>This part is not used in any assemblies.</span>
+            {% endfor %}
+        </div>
+    </div>
+    <br>
+</div>
+{% endblock %}
+
+{% block content-left %}
+<!-- Existing Parts -->
+<div class="p-3" style="min-width: 400px;">
+
+    <h5>New Part</h5>
+    
+    {% if part_error_message %}
+    <div class="alert alert-danger" role="alert">
+        {{ part_error_message }}
+    </div>
+    {% endif %}
+    
+    <form method="post" action="{% url "bom:part_editor_create" %}">
+        {% csrf_token %}
+        <div class="input-group mb-2">
+            <!-- <div class="input-group-prepend"><span class="input-group-text">URL / REF</span></div> -->
+            <input placeholder="e.g. M8-NUT or https://parts.com/mypart" type="text" name="url" class="form-control" style="width:40%;">
+            <select name="team" class="custom-select" style="width:20%;">
+                <!-- <option selected value="">Choose Team...</option> -->
+                {% for team in user.team_set.all %}
+                    <option {% if forloop.last %}selected{% endif %} value="{{ team.id }}">{{ team.name }}</option>
+                {% endfor %}
+            </select>
+            <div class="input-group-append">
+                <button type="submit" class="btn btn-outline-primary"><span>Create</span></button>
+            </div>
+        </div>
+        <small class="text-muted">Enter (1) the reference name of the part, or (2) copy and paste a link to attempt fetching details from the supplier.</small>
+    </form>
+
+
+
+    <!-- EXISTING PARTS -->
+    <hr/>
+    <h5>Existing Parts</h5>
+    <div id="existingPartsContainer" class="d-none">
+        <table id="partsTable" class='table table-striped table-sm table-hover' style="width: 100%!important;">
+            <thead>
+            <tr>
+                <td class="">Icon</td>
+                <td class="">Reference</td>
+                <td class="">Name</td>
+            </tr>
+            </thead>
+            <tbody>
+                {% for item in parts %}
+                <tr class="{% if item.id == part.id %}table-primary{% endif %}">
+                    <td class="icon"><div class="table-icon"><img src="{{item.picture_url}}"></img></div></td>
+                    <td>{{ item|stylised_part }}</td>
+                    <td>{{item.name}}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot></tfoot>
+        </table>
+    </div>
+
+</div>
+{% endblock %}
+
+
+{% block jslibs %}
+
+<!-- <script src="https://pagecdn.io/lib/ace/1.4.5/ace.js" integrity="sha256-5Xkhn3k/1rbXB+Q/DX/2RuAtaB4dRRyQvMs83prFjpM="
+    crossorigin="anonymous"></script>
+<script src="https://cdn.datatables.net/1.10.20/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.20/js/dataTables.bootstrap4.min.js"></script> -->
+
+<script type="text/javascript">
+
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    /** Duplicate a given part. */
+    async function duplicatePart(event, partID, reference) {
+        bootbox.confirm(`Are you sure you want to duplicate the ${reference} part?`, (result) => {
+            if (!result) { return; }
+            let call = async () => {
+                let url = `{% url "bom:part_duplicate" %}?source_id=${partID}`;
+                window.location = url;
+            }
+            call();
+        });
+    }
+
+    /** Delete a given part source. */
+    async function deletePartSource(el, partSourceID) {
+        bootbox.confirm('Are you sure you want to delete this part source?', (result) => {
+            if (!result) { return; }
+            let call = async () => {
+                let response = await fetch(`/api/partsources/${partSourceID}/`,
+                    {
+                        method: 'DELETE',
+                        headers: {"X-CSRFToken": csrftoken}
+                    });
+                await processErrors(response);
+                window.location = window.location;
+            }
+            call();
+        });
+    }
+
+    /** Delete a given deal line item. */
+    async function deleteDealLineItem(el, dealLineItemID) {
+        bootbox.confirm('Are you sure you want to delete this deal?', (result) => {
+            if (!result) { return; }
+            let call = async () => {
+                let response = await fetch(`/api/deallineitems/${dealLineItemID}/`, {
+                        method: 'DELETE',
+                        headers: {"X-CSRFToken": csrftoken}
+                    });
+                await processErrors(response);
+                window.location = window.location;
+            }
+            call();
+        });
+    }
+
+    /** Delete a given part. */
+    async function deletePart(el, partID, reference) {
+        bootbox.confirm(`Are you sure you want to delete ${reference}?`, (result) => {
+            if (!result) { return; }
+            let call = async () => {
+                let response = await fetch(`/api/parts/${partID}/`, {
+                        method: 'DELETE',
+                        headers: {"X-CSRFToken": csrftoken}
+                    });
+                await processErrors(response);
+                window.location = '{% url "bom:part_editor" %}';
+            }
+            call();
+        });
+    }
+
+    /** Setup the parts table. */
+    async function configurePartsTable() {
+        const options = {
+            language: {
+                lengthMenu: "Parts per page: _MENU_",
+            },
+            autoWidth: false,
+            columnDefs: [
+                { width: "20px", targets: 0 },
+            ],
+        };
+
+        $('#partsTable').DataTable(options);
+        document.querySelector('#existingPartsContainer').classList.remove('d-none')
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        await configurePartsTable();
+        
+        // Add picture_url if it doesn't exist (for backwards compatibility)
+        document.querySelectorAll('img[src="undefined"], img[src="null"]').forEach(img => {
+            img.src = '{% static "assets/placeholders/part_placeholder.svg" %}';
+        });
+
+        // Get the `paste` event from the Weight field.
+        // Look inside a Fusion360 property string for the mass.
+        // If we find it, insert it. If we don't: paste as normal.
+        document.querySelector('#id_kgs').addEventListener('paste', function (event) {
+            try {
+                this.value = fusion360_readMass(event.clipboardData.getData('text'));
+                event.preventDefault();
+            }
+            catch {
+            }
+        });
+
+        // Get the `paste` event from the Bounding Box field.
+        // Look inside a Fusion360 property string for the Length, Width, Height.
+        // If we find it, insert it. If we don't: paste as normal.
+        document.querySelector('#id_dimensions').addEventListener('paste', function (event) {
+            try {
+                this.value = fusion360_readAABB(event.clipboardData.getData('text'));
+                event.preventDefault();
+            }
+            catch {
+            }
+        });
+
+        // Allow the user to submit the part form without the warning.
+        const partForm = document.querySelector('#bomando-part-form');
+        PageChanges.allow(partForm);
+        PageChanges.enableCtrlS(partForm);
+    });
+
+</script>
+{% endblock %}

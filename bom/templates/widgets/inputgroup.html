@@ -1,0 +1,32 @@
+{# A Boostrap `input-group` used to create form-fields with a consistent style. #}
+{# This is a `django.forms.widget.` #}
+
+
+<div class="input-group bomnado-savechanges-note {{ widget.custom.input_group_classes|default_if_none:'' }}">
+     
+     {% if widget.custom.prepend != None %}
+     <div class="input-group-prepend">
+          <div class="input-group-text">{{ widget.custom.prepend|stringformat:'s' }}</div>
+     </div>
+     {% endif %}
+
+     <input type="{{ widget.type }}" 
+          name="{{ widget.name }}"
+          class="form-control bomnado-savechanges {{ widget.custom.input_el_classes|default_if_none:'' }}"
+          
+          {% if widget.custom.placeholder != None %}
+          placeholder="{{ widget.custom.placeholder|stringformat:'s' }}"
+          {% endif %}
+
+          {% if widget.value != None %}
+          value="{{ widget.value|stringformat:'s' }}"
+          {% endif %}
+
+          {% include "django/forms/widgets/attrs.html" %}>
+     
+     {% if widget.custom.append != None %}
+     <div class="input-group-append">
+          <div class="input-group-text">{{ widget.custom.append|stringformat:'s' }}</div>
+     </div>
+     {% endif %}
+</div>

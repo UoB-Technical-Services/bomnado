@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    {% csrf_token %}
+    
+    <!-- Bootstrap CSS -->
+    {% load static %}
+    <link href="{% static 'lib/bootstrap-4.3.1/bootstrap.min.css' %}" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'lib/font-awesome-5.14.0/css/all.min.css' %}">
+    
+    <title>Bomnado - Setup Complete</title>
+    
+    <style>
+        .setup-container {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .setup-card {
+            max-width: 600px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            border: none;
+            border-radius: 15px;
+        }
+        
+        .setup-header {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border-radius: 15px 15px 0 0;
+            padding: 2rem;
+            text-align: center;
+        }
+        
+        .setup-body {
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+        
+        .success-icon {
+            font-size: 5rem;
+            color: #28a745;
+            margin-bottom: 1.5rem;
+            animation: bounceIn 1s ease-out;
+        }
+        
+        @keyframes bounceIn {
+            0% { transform: scale(0.3); opacity: 0; }
+            50% { transform: scale(1.05); }
+            70% { transform: scale(0.9); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        .btn-launch {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            padding: 15px 40px;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-launch:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-demo {
+            border: 2px solid #6c757d;
+            padding: 15px 40px;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            color: #6c757d;
+        }
+        
+        .btn-demo:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(108, 117, 125, 0.3);
+            border-color: #5a6268;
+            color: #5a6268;
+        }
+        
+        .feature-list {
+            text-align: left;
+            max-width: 400px;
+            margin: 2rem auto;
+        }
+        
+        .feature-item {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .feature-item:last-child {
+            border-bottom: none;
+        }
+        
+        .feature-icon {
+            color: #28a745;
+            margin-right: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="setup-container d-flex align-items-center justify-content-center">
+        <div class="setup-card card">
+            <div class="setup-header">
+                <h2><i class="fas fa-check-circle mr-2"></i>Setup Complete!</h2>
+                <p class="mb-0">Bomnado is ready to manage your BOMs</p>
+            </div>
+            
+            <div class="setup-body">
+                <div class="success-icon">
+                    <i class="fas fa-rocket"></i>
+                </div>
+                
+                <h3 class="mb-4">Welcome to Bomnado!</h3>
+                
+                <p class="text-muted mb-4">
+                    Your Bill of Materials management system is now configured and ready to use. 
+                    You can start creating projects, managing parts, and organizing your BOMs.
+                </p>
+                
+                <div class="feature-list">
+                    <div class="feature-item">
+                        <i class="fas fa-plus-circle feature-icon"></i>
+                        Create and manage projects
+                    </div>
+                    <div class="feature-item">
+                        <i class="fas fa-cogs feature-icon"></i>
+                        Organize parts and assemblies
+                    </div>
+                    <div class="feature-item">
+                        <i class="fas fa-users feature-icon"></i>
+                        Collaborate with team members
+                    </div>
+                    <div class="feature-item">
+                        <i class="fas fa-file-excel feature-icon"></i>
+                        Export BOMs and purchasing lists
+                    </div>
+                    <div class="feature-item">
+                        <i class="fas fa-search feature-icon"></i>
+                        Find and manage part sources
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <a href="{{ dashboard_url }}" class="btn btn-launch text-white btn-lg btn-block">
+                                <i class="fas fa-arrow-right mr-2"></i>Start Using Bomnado
+                            </a>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <button id="createDemoBtn" class="btn btn-demo btn-lg btn-block">
+                                <i class="fas fa-bicycle mr-2"></i>Create Demo Project
+                            </button>
+                        </div>
+                    </div>
+                    <small class="text-muted d-block mt-3">
+                        <i class="fas fa-lightbulb mr-1"></i>
+                        Try the demo project to see how Bomnado works with a sample bicycle assembly
+                    </small>
+                </div>
+                
+                <div class="mt-4">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        You can access the admin panel at any time through the user menu
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bootstrap JS -->
+    <script src="{% static 'lib/jquery-3.3.1/jquery-3.3.1.slim.min.js' %}"></script>
+    <script src="{% static 'lib/bootstrap-4.3.1/bootstrap.min.js' %}"></script>
+    
+    <script>
+        // Demo creation functionality
+        document.getElementById('createDemoBtn').addEventListener('click', function() {
+            const btn = this;
+            const originalText = btn.innerHTML;
+            
+            // Disable button and show loading state
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Creating Demo...';
+            
+            // Send demo creation request
+            const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            fetch('{{ demo_url }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                },
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message
+                    btn.innerHTML = '<i class="fas fa-check mr-2"></i>Demo Created!';
+                    btn.classList.remove('btn-demo');
+                    btn.classList.add('btn-success');
+                    
+                    // Show success message to user
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = 'alert alert-success mt-3';
+                    alertDiv.innerHTML = `
+                        <i class="fas fa-check-circle mr-2"></i>
+                        ${data.message || 'Demo project created successfully!'}
+                    `;
+                    btn.parentNode.parentNode.parentNode.appendChild(alertDiv);
+                    
+                    // Redirect after a short delay
+                    setTimeout(() => {
+                        window.location.href = data.redirect_url || "{{ dashboard_url }}";
+                    }, 2000);
+                } else {
+                    // Show error message
+                    btn.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>Error Creating Demo';
+                    btn.classList.remove('btn-demo');
+                    btn.classList.add('btn-danger');
+                    
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = 'alert alert-danger mt-3';
+                    alertDiv.innerHTML = `
+                        <i class="fas fa-exclamation-triangle mr-2"></i>
+                        ${data.error || 'Failed to create demo project. Please try again.'}
+                    `;
+                    btn.parentNode.parentNode.parentNode.appendChild(alertDiv);
+                    
+                    // Re-enable button after delay
+                    setTimeout(() => {
+                        btn.disabled = false;
+                        btn.innerHTML = originalText;
+                        btn.classList.remove('btn-danger');
+                        btn.classList.add('btn-demo');
+                    }, 3000);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                btn.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>Network Error';
+                btn.classList.remove('btn-demo');
+                btn.classList.add('btn-danger');
+                
+                // Re-enable button after delay
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                    btn.classList.remove('btn-danger');
+                    btn.classList.add('btn-demo');
+                }, 3000);
+            });
+        });
+    </script>
+</body>
+</html>

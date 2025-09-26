@@ -1,0 +1,71 @@
+/*
+ * Style for the "attachment_list.html" template.
+ */
+
+ /** TODO: This should really go in the application pages as a like a component base. */
+.bomnado-attachment-list {
+    font-size: 0.8em;
+    background: #FFFFFF88;
+    border: 1px solid #ced4da;
+    border-radius: 0.2rem;  
+}
+
+/** Make the border go blue and dashed when dragging a file. */
+.bomnado-attachment-list.dz-drag-hover {
+    border: 1px dashed #0087F7;
+}
+
+/** The drop target message. */
+.bomnado-attachment-list p.usermessage {
+    /* font-style: italic; */
+    width: 100%;
+    display: block;
+    pointer-events: none;
+    margin: 10px;
+}
+
+/** Table of attachements. */
+.bomnado-attachment-list table {
+    table-layout: fixed;
+    word-wrap: break-word;
+}
+
+/** 
+ * Table row styling bootstrap overrides.
+ * Revert to correct bootstrap row colour after background is `unset` by attachment-list JS.
+ */
+.bomnado-attachment-list tbody tr:nth-of-type(odd) {
+    background-color: rgba(0,0,0,.05)!important;  
+}
+.bomnado-attachment-list tbody tr:hover {
+    background-color: rgba(0,0,0,.075)!important;
+}
+
+/**
+ * Attachment row background. Background position set to transition for animated loading.
+ * This works by creating an oversized gradiant and sliding it backwards and forwards.
+ */
+.bomnado-attachment-list tbody tr {
+    transition: background-position 0.5s ease;
+    background: linear-gradient(90deg, #96cafac7 50%, #96cafac7 50%, transparent 0%);
+    background-size: 200% 200%;
+    background-position: 100% 0%;
+}
+
+/** Attachment cell headings (th is like td but a "heading" cell). */
+.bomnado-attachment-list thead th { text-align: left; }
+.bomnado-attachment-list tr th { vertical-align: middle; text-align: center; }
+.bomnado-attachment-list tr td { vertical-align: middle; }
+
+/** Thumbnail styling.  Add a grey background to reveal transparent images against the background. */
+.bomnado-attachment-list img[data-dz-thumbnail] {
+    max-width: 50px;
+    max-height: 25px;
+    background-color: grey;
+}
+
+/** The `.nothumb` class is added when an attachment is not an image. This shows the file extension. */
+.bomnado-attachment-list .nothumb {
+    font-size: 1em;
+    text-transform: uppercase;
+}

@@ -1,0 +1,96 @@
+version: '3'
+
+x-postgres-vars: &postgres-vars
+  POSTGRES_HOST: db
+  POSTGRES_DB: ${POSTGRES_DB:-bomnado}
+
+x-bomnado-image: &bomnado-image
+  image: bomnado
+  build: .
+  env_file: .env
+  environment:
+    << : *postgres-vars
+
+services:
+  db:
+    image: postgres:14.19
+    restart: always
+    env_file: .env
+    expose:
+      - "5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - db_backups:/pg_backups
+    environment:
+      << : *postgres-vars
+
+  migration:
+    << : *bomnado-image
+    command: pdm run migrate
+    links:
+      - db
+    depends_on:
+      - db
+
+  django:
+    << : *bomnado-image
+    restart: always
+    command: pdm run gunicorn bomnado.wsgi:application --bind 0.0.0.0:8000
+    volumes:
+      - /home/deploy/media:/code/media
+    expose:
+      - "8000"
+    links:
+      - db
+    depends_on:
+      - db
+      - migration
+
+
+  # A script that is runs Redis (Used as real time communication layer for Web Sockets, Regular Events (Celery))
+  redis:
+    image: redis:8.2.1-alpine
+    restart: always
+
+  # A script that runs Celery Worker (Used to carry out regular and scheduled events)
+  celery:
+    << : *bomnado-image
+    restart: always
+    volumes:
+      - /home/deploy/media:/code/media
+    command: pdm run celery -A bomnado worker -l info
+    depends_on:
+      - django
+
+  # A script that runs Celery Beat (Used to carry out regular and scheduled events)
+  celery-beat:
+    << : *bomnado-image
+    restart: always
+    command: pdm run celery -A bomnado beat -l info
+    volumes:
+      - /home/deploy/media:/code/media
+    depends_on:
+      - django
+
+  caddy:
+    restart: always
+    image: caddy:2.8.4-alpine
+    ports:
+      - "443:443"
+      - "80:80"
+    depends_on:
+      - django
+    env_file: .env
+    environment:
+      - BOMNADO_DOMAIN=${BOMNADO_DOMAIN}
+    volumes:
+      - /home/deploy/media:/code/media
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  db_data:
+  db_backups:
+  caddy_data:
+  caddy_config:

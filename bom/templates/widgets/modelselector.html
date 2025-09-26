@@ -1,0 +1,18 @@
+{# A select dropdown widget that renders multiple deals pre filtered and passed in by the view #}
+{# Pretty much copied verbatim from the django default Select widget #}
+
+<div class="bomnado-savechanges-note">
+        <select name="{{ widget.name }}"
+                class="form-control form-control-sm bomnado-savechanges"
+                {% include "django/forms/widgets/attrs.html" %}>
+
+                {% for group_name, group_choices, group_index in widget.optgroups %}
+                    {% if group_name %}<optgroup label="{{ group_name }}">{% endif %}
+                {% for option in group_choices %}
+                        {% include option.template_name with widget=option %}
+                {% endfor %}
+                {% if group_name %}
+                        </optgroup>
+                {% endif %}{% endfor %}
+        </select>
+</div>

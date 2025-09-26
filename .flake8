@@ -1,0 +1,77 @@
+[flake8]
+# Configuration for flake8 linting - Balanced for existing codebase
+
+# Maximum line length (increased to 120 for existing code compatibility)
+max-line-length = 120
+
+# Ignore specific error codes (permissive for existing codebase)
+ignore = 
+    E501,
+    E126,
+    E128,
+    E131,
+    E301,
+    E302,
+    W503,
+    W292,
+    W391,
+    F403,
+    F405,
+    N802,
+    N806,
+    C901
+
+# Exclude files and directories from checking
+exclude = 
+    # Version control
+    .git,
+    __pycache__,
+    .tox,
+    .coverage,
+    .coverage.*,
+    .cache,
+    nosetests.xml,
+    coverage.xml,
+    *.cover,
+    *.log,
+    .venv,
+    
+    # Build and distribution directories
+    build,
+    dist,
+    *.egg-info,
+    
+    # Django-specific
+    */migrations/*,
+    static,
+    media,
+    
+    # Analysis and utility scripts (exclude from strict linting)
+    check_*.py,
+    generate_*.py,
+    *_migration_plan*,
+    analysis/,
+    scripts/,
+    
+    # Deployment and documentation
+    deployment/,
+    docs/,
+    
+    # Test and coverage reports
+    cover/,
+    htmlcov/,
+    
+    # Backup files
+    backups/
+
+# Maximum complexity for functions (increased for existing code)
+max-complexity = 20
+
+# Show source code for each error
+show-source = True
+
+# Count errors and warnings
+count = True
+
+# Print total number of errors and warnings to stderr
+statistics = True

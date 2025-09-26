@@ -1,0 +1,31 @@
+# Caddy configuration for Bomnado
+# Uses BOMNADO_DOMAIN environment variable
+
+{$BOMNADO_DOMAIN} {
+    # Reverse proxy all requests to Django
+    reverse_proxy django:8000
+    
+    # Handle media files directly
+    handle /media/* {
+        file_server {
+            root /code/media
+        }
+    }
+    
+    # Security headers
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        X-XSS-Protection "1; mode=block"
+        -Server
+    }
+    
+    # Enable compression
+    encode gzip
+    
+    # Enable logging
+    log {
+        output stdout
+        format console
+    }
+}

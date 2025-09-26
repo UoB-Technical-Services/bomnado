@@ -1,0 +1,26 @@
+{# Upload pictures by pasting in from the clipboard or browsing the disk. #}
+{# This is a `django.forms.widget.` #}
+
+{# Requires: markdown_widget.js #}
+
+{% with widget.custom.monotonic_id as mono %}
+
+    <div class="bomnado-savechanges-note">
+        <div id="{{ widget.attrs.id }}{{ mono }}-root" class="bomnado-markdown-widget {{ widget.custom.wrapper_classes|default_if_none:'' }}">
+                <textarea class="bomnado-markdown-widget-textarea d-none bomnado-savechanges {{ widget.custom.textarea_classes|default_if_none:'' }}"
+                        name="{{ widget.name }}"
+                        {% include "django/forms/widgets/attrs.html" %}>{{ widget.value|default_if_none:'' }}</textarea>
+                <div id="{{ widget.attrs.id }}-ace" class="bomnado-markdown-widget-ace bomnado-savechanges {{ widget.custom.markdown_classes|default_if_none:'' }}">
+                </div>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        (function () {
+            // Get our newly created DOM elements (from above).
+            const element = document.querySelector('#{{ widget.attrs.id }}{{ mono }}-root');
+            const field = new MarkdownField(element);
+        })();
+    </script>
+
+{% endwith %}

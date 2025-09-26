@@ -1,0 +1,108 @@
+{% extends "partial/app.html" %}
+{% load static %}
+{% load part_filters %}
+{% load kwacros %}
+{% load attachments_tags %}
+{% load utils %}
+
+{% block title %}
+<title>Orphan Finder / Bomnado</title>
+{% endblock %}
+
+{% block header %}
+
+<style type="text/css">
+    .orphan-list {
+        font-size: 0.8em;
+    }
+
+    .orphan-list .icon {
+        width: 30px;
+    }
+    .orphan-list table {
+        width: 100%;
+    }
+    .orphan-list tr:hover {
+        background: lightgrey;
+    }
+    .orphan-list tr {
+        padding-bottom: 5px;
+        border-bottom: 1px solid rgb(237, 237, 237);
+    }
+    .orphan-list td {
+        padding-left: 10px;
+    }
+    .orphan-list td:nth-child(2) {
+        width: 40%;
+    }
+    .orphan-list h2 {
+        margin-top: 10px;
+        margin-bottom: 10px;
+        text-transform: capitalize;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- New Part -->
+<div class="p-3" style="min-width: 600px;">
+
+    <h1>Orphans</h1>
+    <p>There are <code>{{ orphan_parts|length }}</code> orphan parts and <code>{{ orphan_assemblies|length }}</code> orphan assemblies.</p>
+
+
+    <!-- ADD PART -->
+    <section class="orphan-list">
+        <table>
+
+            <!-- ASSEMBLIES -->
+            {% for assembly in orphan_assemblies %}
+            <tr>
+                <td>
+                    <img class="icon" src="{{ assembly.picture_url }}" />
+                </td>
+                <td>{{ assembly|stylised_assembly }}</td>
+                </td>
+                <td><span>{{ assembly.name }}</span></td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="3">There are no orphan assemblies 👏🥳.</td>
+            </tr>
+            {% endfor %}
+
+            <!-- PARTS -->
+            {% for part in orphan_parts %}
+            <tr>
+                <td>
+                    <img class="icon" src="{{ part.picture_url }}" />
+                </td>
+                <td>{{ part|stylised_part }}</td>
+                <td><span>{{ part.name }}</span></td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="3">There are no orphan parts 👏🥳.</td>
+            </tr>
+            {% endfor %}
+
+        </table>
+    </section>
+
+
+
+</div>
+{% endblock %}
+
+
+
+{% block jslibs %}
+
+<script type="text/javascript">
+
+    document.addEventListener('DOMContentLoaded', async () => {
+    });
+
+</script>
+{% endblock %}

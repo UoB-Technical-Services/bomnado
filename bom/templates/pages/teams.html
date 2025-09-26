@@ -1,0 +1,163 @@
+{% extends "partial/app.html" %}
+{% load static %}
+{% load part_filters %}
+{% load kwacros %}
+
+{% block title %}
+<title>{{user.team_set.first}} / Bomnado</title>
+{% endblock %}
+
+<!-- MACRO FOR RENDERING FORM FIELDS -->
+{% kwacro bootstrapfield field %}
+<small class="text-muted">
+    <a href="#" rel="tooltip" tabindex="-1" title="{{ field.help_text }}">️🙋🏽‍♂️</a>
+    <strong>{{ field.label_tag }}</strong>
+</small>
+{{ field }}
+<span class="field-errors">
+    {% for error in field.errors %}
+    <small class="text-danger"> {{ error|escape }}</small> 
+    {% endfor %}
+</span>
+{% endkwacro %}
+
+{% block header %}
+
+<style type="text/css">
+    tbody td kbd a {
+        color: white;
+    }
+
+    .icon-line {
+        position:relative;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+
+        padding: 1em;
+        overflow: hidden;
+    }
+
+    .icon-line::before {
+        position: absolute;
+        top: calc(50% - 1px);
+        right: 0;
+        left: 0;
+        Content: "";
+        Background-color: grey;
+        height: 2px;
+    }
+
+    .icon-line-icon {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 4rem;
+        height: 4rem;
+        font-size: 3rem;
+        color: #777;
+        border: 2px solid #777777;
+        border-radius: 50%;
+        padding: 1rem;
+        background: #F9F9F9;
+        box-shadow: 0 0 0 0.5em #F9F9F9;
+    }
+
+</style>
+{% endblock %}
+
+{% block content %}
+    <div class="w-100">
+        <h2 class="m-5">Team Management</h2>
+
+            {% for team in user.team_set.all %}
+                <div class="card w-75 card-bg-light m-3 mx-auto">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ team.name }}</h5>
+                        <p class="card-text">Number of Projects: {{ team.projects.count }}</p>
+                        <p class="card-text"><small class="text-muted">Number of Users: {{ team.users.count }}</small></p>
+                        <hr/>
+                        <h5>Members</h5>
+                        <table class="table table-striped table-hover table-sm">
+                            <tbody>
+                                {% for user in team.users.all %}
+                                <tr>
+                                    <th scope="row">
+                                        {{ user.username }}
+                                        {% if team.owner and user.id == team.owner.id %}
+                                            <span class="badge badge-info">owner</span>
+                                        {% endif %}
+                                    </th>
+                                    <td>
+                                        {% if team.owner and team.owner.id == request.user.id %}
+                                            <form method="post" action="{% url "bom:teams_remove" pk=team.id %}">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="username" value="{{ user.username }}">
+                                                <button type="submit" class="btn btn-danger btn-sm" tabindex="-1" role="button" aria-disabled="true">Remove</button>
+                                            </form>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            </table>
+                        <div class="p-2">
+                            {% if team.owner and team.owner.id == request.user.id %}
+                                <form method="post" action="{% url "bom:teams_add" pk=team.id %}">
+                                    {% csrf_token %}
+                                    <div class="form-group">
+                                        <div class="input-group m-2">
+                                            <input placeholder="Invite User/Email" type="text" name="username" class="form-control">
+                                            <div class="input-group-append">
+                                                <button type="submit" class="btn btn-primary" tabindex="-1" role="button" aria-disabled="true">Invite to Team</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% empty %}
+                <p class="text-center mx-auto">You are not a member of any teams. Either create one, or wait to be invited.</p>
+            {% endfor %}
+
+
+            <div class="icon-line">
+                <i></i>
+                <i class="fa fa-plus fa-lg icon-line-icon"></i>
+                <i></i>
+            </div>
+
+        {% if error_message %}
+        <div class="alert alert-danger m-2" role="alert">
+            {{ error_message }}
+        </div>
+        {% endif %}
+
+        <div class="mb-5 p-2">
+            <form method="post" action="{% url "bom:teams_create" %}">
+                {% csrf_token %}
+                <div class="form-group">
+
+                    <div class="input-group m-2">
+                        <input placeholder="New Team Name" type="text" name="name" class="form-control">
+                        <div class="input-group-append">
+                            <button type="submit" class="btn btn-outline-primary"><span>Create</span></button>
+                        </div>
+                    </div>
+
+                </div>
+            </form>
+        </div>
+
+        </div>
+    </div>
+{% endblock %}
+
+
+
+{% block jslibs %}
+{% endblock %}

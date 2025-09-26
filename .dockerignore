@@ -1,0 +1,46 @@
+# Git and version control
+.git
+.gitignore
+.gitkeep
+
+# Python cache and virtual environments
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+.venv
+.env
+.pdm-build
+.pytest_cache
+.coverage
+
+
+# IDE and editor files
+.vscode
+.idea
+*.swp
+*.swo
+
+# Documentation and deployment
+docs/
+deployment/
+cover/
+htmlcov/
+*.pem
+
+# Database and media files (for production builds)
+db.sqlite3
+database.json
+db.zip
+media/
+backups/
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# OS files
+.DS_Store
+Thumbs.db

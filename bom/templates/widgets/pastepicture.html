@@ -1,0 +1,35 @@
+{# Upload pictures by pasting in from the clipboard or browsing the disk. #}
+{# This is a `django.forms.widget.` #}
+
+{# Requires: pastepicture_widget.js #}
+{% load static %}
+
+
+<div id="{{ widget.attrs.id }}-root" class="bomnado-pastepicture-widget bomnado-savechanges-note {{ widget.custom.wrapper_classes|default_if_none:'' }}" style="display:flex; flex-grow:1;">
+     <input type="{{ widget.type }}"
+          name="{{ widget.name }}"
+          class="bomnado-pastepicture-widget-input d-none bomnado-savechanges {{ widget.custom.input_el_classes|default_if_none:'' }}" 
+          {% if widget.custom.accept != None %}
+          accept="{{ widget.custom.accept|stringformat:'s' }}"
+          {% endif %}
+          {% if widget.value != None %} value="{{ widget.value|stringformat:'s' }}"{% endif %}
+          {% include "django/forms/widgets/attrs.html" %}>
+
+     <div class="img-thumbnail d-flex flex-column" style="flex-grow: 1; justify-content: flex-end;">
+          <!-- <img src="{{ widget.url_value }}" style="align-self: center; object-fit: contain; margin-bottom: 4px; border-radius: 3px;" class="pastepicture-thumb img-fluid" /> -->
+          <div class="bomnado-pastepicture-widget-thumb" style="background: url('{{ widget.url_value }}'); background-size: contain; background-repeat: no-repeat; background-position: center; flex-grow: 1; margin-bottom: 4px; border-radius: 4px;"></div>
+          <div class="btn-group btn-group-sm d-flex justify-content-between" role="group" aria-label="Basic example">
+               <button type="button" class="btn btn-primary bomnado-pastepicture-widget-paste" style="flex-grow: 1;">Paste</button>
+               <button type="button" class="btn btn-secondary bomnado-pastepicture-widget-browse" style="flex-grow: 1;">Browse</button>
+          </div>
+     </div>
+
+</div>
+
+<script type="text/javascript">
+     (function () {
+          // Get our newly created DOM elements (from above).
+          const element = document.querySelector('#{{ widget.attrs.id }}-root');
+          const field = new PastePictureField(element);
+     })();
+</script>

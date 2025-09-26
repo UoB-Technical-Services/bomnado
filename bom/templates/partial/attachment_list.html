@@ -1,0 +1,59 @@
+{# Renders an interactive list of attachments that can be uploaded and deleted. #}
+
+{# Args: `entity` - The model instance (e.g. part) that files will be attached/deleted/listed from. #}
+{# Args: `widget_id` - The "id" attribute string for this widget. #}
+
+{# Requires: attachment_list.css #}
+{# Requires: attachment_list.js #}
+
+{# Usage: {%with entity=assembly widget_id="mainAttachments" %}{% include "partial/attachment_list.html" %}{%endwith%}  #}
+
+{% load attachments_tags %}
+
+
+
+<div id="{{ widget_id }}" class="bomnado-attachment-list">
+    <p class="usermessage">
+        Drag and drop attachments or press to browse.
+    </p>
+
+    <table class="table table-striped table-sm table-hover">
+        <thead>
+            <tr>
+                <th width="80px"></th>
+                <th>Name</th>
+                <th width="80px">Size</th>
+                <th class="" width="170px">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+</div>
+
+<script type="text/javascript">
+
+    (function () {
+        // Get our newly created DOM elements (from above).
+        const element = document.querySelector('#{{ widget_id }}');
+        const uploader = new AttachmentList(element, {
+            // The upload URL requires the model type and primary key of the instance being attached to (e.g. Part)
+            uploadView: '{% url "bom:attachment_attach" model_name=entity|to_model_name model_pk=entity.id %}',
+            uploadParams: { 'csrfmiddlewaretoken': '{{csrf_token}}' },
+            uploadFieldName: 'attachment_file'
+        });
+
+        // For each attachment that already exists on the server, add a representaiton.
+        {% get_attachments_for entity as attachments %}
+        {% for attachment in attachments %}
+        uploader.showFileFromServer({
+            name: '{{ attachment.filename }}',
+            size: parseInt('{{ attachment.attachment_file.size }}'),
+            delete_link: '{{ attachment.delete_link }}',
+            existing_url: '{{ attachment.attachment_file.url }}'
+            // imageUrl
+        });
+        {% endfor %}
+    })();
+
+</script>

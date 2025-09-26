@@ -1,0 +1,31 @@
+{%extends "registration/base.html"%}
+{% load static %}
+{% load part_filters %}
+{% load kwacros %}
+
+{%  block body %}
+
+
+    <section class="app-body app-viewport">
+
+        <div class="text-center mt-5">
+            <form class="form-signin" method="post">
+                <h1 class="h3 mb-3 font-weight-normal">Please sign in</h1>
+
+                {% csrf_token %}
+
+                <label for="inputEmail" class="sr-only">Email address</label>
+                <input type="email" id="{{ form.username.id }}" name="{{ form.username.name }}" class="form-control" placeholder="Email Address" required autofocus>
+
+                <label for="inputPassword" class="sr-only">Password</label>
+                <input type="password" id="{{ form.password.id }}" name="{{ form.password.name }}" class="form-control" placeholder="Password" required>
+
+                <button class="btn btn-lg btn-primary btn-block" type="submit">Sign in</button>
+                <br/>
+                <a href="{% url "password_reset" %}">Forgot your password?</a>
+            </form>
+        </div>
+
+    </section>
+
+{% endblock %}

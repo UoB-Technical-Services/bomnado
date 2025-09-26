@@ -1,0 +1,13 @@
+{# A select dropdown widget that renders multiple options specified by the Django form. #}
+{# This is a `django.forms.widget.` #}
+
+<div class="bomnado-savechanges-note">
+        <select name="{{ widget.name }}" 
+                class="form-control form-control-sm bomnado-savechanges" 
+                {% include "django/forms/widgets/attrs.html" %}>
+
+                {% for item in widget.custom.items %}
+                <option value="{{ item.value|default_if_none:'' }}" {% if item.value == widget.value %} selected{% endif %}>{{ item.text|default_if_none:'' }}</option>
+                {% endfor %}
+        </select>
+</div>

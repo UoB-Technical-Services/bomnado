@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    {% csrf_token %}
+    
+    <!-- Bootstrap CSS -->
+    {% load static %}
+    <link href="{% static 'lib/bootstrap-4.3.1/bootstrap.min.css' %}" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'lib/font-awesome-5.14.0/css/all.min.css' %}">
+    
+    <title>Bomnado - First Time Setup</title>
+    
+    <style>
+        .setup-container {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .setup-card {
+            max-width: 500px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            border: none;
+            border-radius: 15px;
+        }
+        
+        .setup-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px 15px 0 0;
+            padding: 2rem;
+            text-align: center;
+        }
+        
+        .setup-body {
+            padding: 2rem;
+        }
+        
+        .step {
+            display: none;
+        }
+        
+        .step.active {
+            display: block;
+        }
+        
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 2rem;
+        }
+        
+        .step-item {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #e9ecef;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 10px;
+            font-weight: bold;
+            color: #6c757d;
+        }
+        
+        .step-item.active {
+            background-color: #667eea;
+            color: white;
+        }
+        
+        .step-item.completed {
+            background-color: #28a745;
+            color: white;
+        }
+        
+        .step-connector {
+            width: 40px;
+            height: 2px;
+            background-color: #e9ecef;
+            margin-top: 19px;
+        }
+        
+        .step-connector.completed {
+            background-color: #28a745;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .btn-setup {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+        }
+        
+        .btn-setup:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .alert {
+            border-radius: 8px;
+        }
+        
+        .loading-spinner {
+            display: none;
+        }
+        
+        .password-strength {
+            margin-top: 5px;
+            font-size: 0.875rem;
+        }
+        
+        .strength-weak { color: #dc3545; }
+        .strength-medium { color: #ffc107; }
+        .strength-strong { color: #28a745; }
+    </style>
+</head>
+<body>
+    <div class="setup-container d-flex align-items-center justify-content-center">
+        <div class="setup-card card">
+            <div class="setup-header">
+                <h2><i class="fas fa-cogs mr-2"></i>Bomnado Setup</h2>
+                <p class="mb-0">Welcome! Let's get your BOM management system ready.</p>
+            </div>
+            
+            <div class="setup-body">
+                <!-- Step Indicator -->
+                <div class="step-indicator">
+                    <div class="step-item active" id="step-1-indicator">1</div>
+                    <div class="step-connector" id="connector-1"></div>
+                    <div class="step-item" id="step-2-indicator">2</div>
+                    <div class="step-connector" id="connector-2"></div>
+                    <div class="step-item" id="step-3-indicator">3</div>
+                </div>
+                
+                <!-- Error/Success Messages -->
+                <div id="message-container"></div>
+                
+                <!-- Step 1: Welcome & Database Setup -->
+                <div class="step active" id="step-1">
+                    <h4 class="mb-4"><i class="fas fa-database mr-2"></i>Database Setup</h4>
+                    <p>First, we need to set up the database for your Bomnado installation.</p>
+                    
+                    {% if needs_migration %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        The database needs to be initialized with the required tables.
+                    </div>
+                    <button type="button" class="btn btn-setup text-white w-100" onclick="runMigration()">
+                        <span class="loading-spinner spinner-border spinner-border-sm me-2"></span>
+                        Initialize Database
+                    </button>
+                    {% else %}
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle mr-2"></i>
+                        Database is already set up!
+                    </div>
+                    <button type="button" class="btn btn-setup text-white w-100" onclick="nextStep()">
+                        Continue to User Setup
+                    </button>
+                    {% endif %}
+                </div>
+                
+                <!-- Step 2: Create Admin User -->
+                <div class="step" id="step-2">
+                    <h4 class="mb-4"><i class="fas fa-user-shield mr-2"></i>Create Administrator</h4>
+                    <p>Create your administrator account to manage Bomnado.</p>
+                    
+                    <form id="superuser-form">
+                        <div class="form-group">
+                            <label for="username" class="form-label">Username</label>
+                            <input type="text" class="form-control" id="username" name="username" required>
+                            <small class="form-text text-muted">Choose a username for your administrator account.</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" name="email" required>
+                            <small class="form-text text-muted">This will be used for account recovery and notifications.</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="password" class="form-label">Password</label>
+                            <input type="password" class="form-control" id="password" name="password" required>
+                            <div class="password-strength" id="password-strength"></div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="confirm_password" class="form-label">Confirm Password</label>
+                            <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-setup text-white w-100">
+                            <span class="loading-spinner spinner-border spinner-border-sm me-2"></span>
+                            Create Administrator Account
+                        </button>
+                    </form>
+                </div>
+                
+                <!-- Step 3: Setup Complete -->
+                <div class="step" id="step-3">
+                    <div class="text-center">
+                        <i class="fas fa-check-circle text-success" style="font-size: 4rem;"></i>
+                        <h4 class="mt-3 mb-4">Setup Complete!</h4>
+                        <p>Your Bomnado installation is ready to use. You can now start managing your BOMs and projects.</p>
+                        
+                        <a href="{% url 'bom:start' %}" class="btn btn-setup text-white btn-lg">
+                            <i class="fas fa-rocket mr-2"></i>Launch Bomnado
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bootstrap JS -->
+    <script src="{% static 'lib/jquery-3.3.1/jquery-3.3.1.slim.min.js' %}"></script>
+    <script src="{% static 'lib/bootstrap-4.3.1/bootstrap.min.js' %}"></script>
+    
+    <script>
+        let currentStep = 1;
+        
+        function showMessage(message, type = 'info') {
+            const container = document.getElementById('message-container');
+            container.innerHTML = `
+                <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                    <i class="fas fa-${type === 'danger' ? 'exclamation-triangle' : type === 'success' ? 'check-circle' : 'info-circle'} mr-2"></i>
+                    ${message}
+                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+            `;
+        }
+        
+        function updateStepIndicator(step) {
+            // Update step indicators
+            for (let i = 1; i <= 3; i++) {
+                const indicator = document.getElementById(`step-${i}-indicator`);
+                const connector = document.getElementById(`connector-${i}`);
+                
+                if (i < step) {
+                    indicator.classList.remove('active');
+                    indicator.classList.add('completed');
+                    indicator.innerHTML = '<i class="fas fa-check"></i>';
+                    if (connector) connector.classList.add('completed');
+                } else if (i === step) {
+                    indicator.classList.add('active');
+                    indicator.classList.remove('completed');
+                    indicator.innerHTML = i;
+                    if (connector) connector.classList.remove('completed');
+                } else {
+                    indicator.classList.remove('active', 'completed');
+                    indicator.innerHTML = i;
+                    if (connector) connector.classList.remove('completed');
+                }
+            }
+        }
+        
+        function nextStep() {
+            document.getElementById(`step-${currentStep}`).classList.remove('active');
+            currentStep++;
+            document.getElementById(`step-${currentStep}`).classList.add('active');
+            updateStepIndicator(currentStep);
+        }
+        
+        function showLoading(button, show) {
+            const spinner = button.querySelector('.loading-spinner');
+            if (show) {
+                spinner.style.display = 'inline-block';
+                button.disabled = true;
+            } else {
+                spinner.style.display = 'none';
+                button.disabled = false;
+            }
+        }
+        
+        async function runMigration() {
+            const button = event.target;
+            showLoading(button, true);
+            
+            try {
+                const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                const response = await fetch('{% url "bom:first_time_setup_api" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken
+                    },
+                    body: JSON.stringify({ action: 'migrate' })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showMessage(data.message, 'success');
+                    setTimeout(() => {
+                        nextStep();
+                    }, 1500);
+                } else {
+                    showMessage(data.error, 'danger');
+                }
+            } catch (error) {
+                showMessage('Failed to connect to server', 'danger');
+            } finally {
+                showLoading(button, false);
+            }
+        }
+        
+        // Password strength checker
+        document.getElementById('password').addEventListener('input', function() {
+            const password = this.value;
+            const strengthDiv = document.getElementById('password-strength');
+            
+            let strength = 0;
+            let message = '';
+            
+            if (password.length >= 8) strength++;
+            if (/[a-z]/.test(password)) strength++;
+            if (/[A-Z]/.test(password)) strength++;
+            if (/[0-9]/.test(password)) strength++;
+            if (/[^A-Za-z0-9]/.test(password)) strength++;
+            
+            if (password.length === 0) {
+                strengthDiv.innerHTML = '';
+                return;
+            }
+            
+            if (strength < 3) {
+                message = 'Weak - Add uppercase, numbers, or special characters';
+                strengthDiv.className = 'password-strength strength-weak';
+            } else if (strength < 4) {
+                message = 'Medium - Consider adding more character types';
+                strengthDiv.className = 'password-strength strength-medium';
+            } else {
+                message = 'Strong password';
+                strengthDiv.className = 'password-strength strength-strong';
+            }
+            
+            strengthDiv.innerHTML = `<i class="fas fa-shield-alt mr-1"></i>${message}`;
+        });
+        
+        // Handle superuser form submission
+        document.getElementById('superuser-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const button = this.querySelector('button[type="submit"]');
+            showLoading(button, true);
+            
+            const formData = new FormData(this);
+            const data = {
+                action: 'create_superuser',
+                username: formData.get('username'),
+                email: formData.get('email'),
+                password: formData.get('password'),
+                confirm_password: formData.get('confirm_password')
+            };
+            
+            try {
+                const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                const response = await fetch('{% url "bom:first_time_setup_api" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showMessage(result.message, 'success');
+                    setTimeout(() => {
+                        if (result.redirect_url) {
+                            window.location.href = result.redirect_url;
+                        } else {
+                            nextStep();
+                        }
+                    }, 1500);
+                } else {
+                    showMessage(result.error, 'danger');
+                }
+            } catch (error) {
+                showMessage('Failed to create administrator account', 'danger');
+            } finally {
+                showLoading(button, false);
+            }
+        });
+        
+        // Initialize
+        updateStepIndicator(currentStep);
+    </script>
+</body>
+</html>

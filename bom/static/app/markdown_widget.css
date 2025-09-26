@@ -1,0 +1,9 @@
+/*
+ * Style for the "markdown.html" template.
+ */
+
+ /** TODO: This should really go in the application pages as a like a component base. */
+.bomnado-markdown-widget {
+    border: 1px solid #ced4da;
+    border-radius: 0.2rem;
+}

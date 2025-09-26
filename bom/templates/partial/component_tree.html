@@ -1,0 +1,44 @@
+{# Renders an element within the assembly component tree. #}
+{# This is included by the assembly editor. #}
+{# It uses template recursion. #}
+
+{# Args: `node`         - The `SubAssembly` to render. #}
+{# Args: `treename`     - String used to form an "id" and reference elements unique to the tree being built. #}
+
+{# Usage: {%with treename="orphans" node=orphan template_name="partial/component_tree.html" %}{% include template_name %}{%endwith%}} #}
+{% load utils %}
+{% load random_extras %}
+
+<li class="{% if node.selected %}selected{% endif %}">
+
+    {% if node.children %}
+    {% random_uuid as random_id %}
+    <input type="checkbox" {% if node.selected or node.expanded %}checked{% endif %} id="tree_{{treename}}_{{node.assembly.id}}_{{random_id}}" />
+    <label for="tree_{{treename}}_{{node.assembly.id}}_{{random_id}}" class="tree_label">
+        <div class="labelcontent w-100">
+            {{ node.assembly|stylised_assembly }}
+            <div class="btn-group">
+                <a href="{% url "bom:assembly_documentation_view" pk=node.assembly.id %}" class="btn btn-sm btn-outline-primary">View</a>
+                <a href="{% url "bom:assembly_editor_update" pk=node.assembly.id %}" class="btn btn-sm btn-outline-primary">Edit</a>
+            </div>
+        </div>
+    </label>
+    <ul>
+        {%for child in node.children %}
+            {%with node=child template_name="partial/component_tree.html" %}
+                {% include template_name %}
+            {%endwith%}
+        {%endfor%}
+    </ul>
+    {% else %}
+    <span class="tree_label">
+        <div class="labelcontent w-100">
+            {{ node.assembly|stylised_assembly }}
+            <div class="btn-group">
+                <a href="{% url "bom:assembly_documentation_view" pk=node.assembly.id %}" class="btn btn-sm btn-outline-primary">View</a>
+                <a href="{% url "bom:assembly_editor_update" pk=node.assembly.id %}" class="btn btn-sm btn-outline-primary">Edit</a>
+            </div>
+        </div>
+    </span>
+    {% endif %}
+</li>

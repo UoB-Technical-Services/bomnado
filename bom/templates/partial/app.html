@@ -1,0 +1,436 @@
+{% load static %}
+{% load part_filters %}
+{% load kwacros %}
+{% load utils %}
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <!-- Meta tags. -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- 3rd party style sheets. -->
+    <link rel="stylesheet" href="{% static 'lib/font-awesome-5.14.0/css/all.min.css' %}" />
+    <link rel="stylesheet" href="{% static 'lib/bootstrap-4.3.1/bootstrap.min.css' %}" />
+    <link rel="stylesheet" href="{% static 'lib/select2-4.0.13/css/select2.min.css' %}" />
+    <link rel="stylesheet" href="{% static 'lib/select2-bootstrap4-theme-1.4.0/select2-bootstrap4.min.css' %}" />
+
+    <!-- <link href="{% static 'plugins/css/ace.min.css' %}" type="text/css" media="all" rel="stylesheet" /> -->
+    <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@100&display=swap" rel="stylesheet">
+
+    <!-- Application style sheets. -->
+    <link rel="stylesheet" href="{% static 'app/style.css' %}" type="text/css" media="all" />
+    <link rel='icon' href="{% static 'assets/favicon.svg' %}" type='image/x-icon' />
+
+    <!-- 3rd party software. -->
+    <script src="{% static 'lib/popper-1.14.7/popper.min.js' %}"></script>
+    <script src="{% static 'lib/split-1.5.9/split.min.js' %}"></script>
+    <script src="{% static 'lib/dropzonejs-5.7.0/dropzone.js' %}"></script>
+    <script src="{% static 'lib/ace-1.4.5/ace.js' %}"></script>
+    <script src="{% static 'lib/ace-1.4.5/ext-language_tools.js' %}"></script>
+    <script src="{% static 'lib/jquery-3.3.1/jquery-3.3.1.slim.min.js' %}"></script>
+    <script src="{% static 'lib/bootbox-5.4.0/bootbox.js' %}"></script>
+
+    <!-- 3rd party software (that depend on those above). -->
+    <script src="{% static 'lib/bootstrap-4.3.1/bootstrap.min.js' %}"></script>
+    <script src="{% static 'lib/select2-4.0.13/js/select2.full.min.js' %}"></script>
+    <script src="https://cdn.datatables.net/1.10.20/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.10.20/js/dataTables.bootstrap4.min.js"></script>
+
+    <!-- Bomnado widgets and partial templates. -->
+    <script src="{% static 'app/attachment_list.js' %}"></script>
+    <link rel="stylesheet" href="{% static 'app/attachment_list.css' %}" type="text/css" media="all" />
+
+    <script src="{% static 'app/markdown_widget.js' %}"></script>
+    <link rel="stylesheet" href="{% static 'app/markdown_widget.css' %}" type="text/css" media="all" />
+
+    <script src="{% static 'app/pastepicture_widget.js' %}"></script>
+    <script src="{% static 'app/inputgroup_widget.js' %}"></script>
+
+
+    {% block title %}
+    <title>Bomnado</title>
+    {% endblock %}
+
+    {% block header %}
+    {% endblock %}
+
+    {% kwacro isactiveurl link value %}
+    <!-- LINK: {{ link }} -->
+    <!-- REQUEST: {{ request.path }} -->
+        {% if link in request.path %}{{value}}{% endif %}
+    {% endkwacro %}
+
+</head>
+
+<body>
+
+    {% if SHOW_KEY_WARNING %}
+    <div class="alert alert-danger m-0 text-center" role="alert" style="border-radius: 0;">
+        <strong>⚠️ Security Warning:</strong> Application is using default security credentials. 
+        This is not secure for production use! Please set a proper DJANGO_SECRET_KEY environment variable.
+    </div>
+    {% endif %}
+
+
+    <header class="app-header">
+
+        <nav class="navbar navbar-expand-md navbar-dark bg-primary">
+
+            <!-- Left side. -->
+            <div class="d-flex order-0">
+                <img src="{% static 'assets/logo.svg' %}"  height="30" />
+            </div>
+
+            <!-- Central. -->
+            <div class="navbar-collapse collapse justify-content-center order-2" id="app-header-collapsing-nav">
+                <ul class="navbar-nav mr-auto">
+                    <li class="nav-item {% if "part" not in request.path and "assembly" not in request.path %}active{% endif %}">
+                        <a class="nav-link" href="{% url "bom:start" %}">Dashboard</a>
+                    </li>
+                    <li class="nav-item dropdown {% usekwacro isactiveurl "assembly" "active" %}">
+                        <a class="nav-link dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                           href="{% url "bom:assembly_editor" %}">Assembly Editor</a>
+                        <div class="dropdown-menu dropdown-menu-right">
+                            <p class="ml-1"><small class="text-muted">Recent Assemblies</small></p>
+                            {% for cache_assembly in request.session.recent_assemblies %}
+                                <a class="dropdown-item" href="{% url "bom:assembly_editor_update" pk=cache_assembly|first %}">{{cache_assembly|last}}</a>
+                            {% empty %}
+                                <p class="ml-4"><small class="text-muted">No recent assemblies</small></p>
+                            {% endfor %}
+                        </div>
+                    </li>
+                    <li class="nav-item {% usekwacro isactiveurl "part" "active" %}">
+                        <a class="nav-link" href="{% url "bom:part_editor" %}">Part Editor</a>
+                    </li>
+
+                </ul>
+            </div>
+
+            <!-- Right side. -->
+            <div class="d-flex order-1 order-md-last text-right">
+                <button id="app_search" class="btn btn-outline-light mr-4">🔍</button>
+                <button type="button" id="app_sidebar_toggle_btn" class="btn btn-outline-light mr-4">⬅️</button>
+                <button class="navbar-toggler ml-1" type="button" data-toggle="collapse" data-target="#app-header-collapsing-nav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <div class="nav-item dropdown ml-2">
+                    <button type="button" class="btn btn-outline-light dropdown-toggle" data-toggle="dropdown" aria-haspopup="true"
+                                aria-expanded="false">🧑🏽‍🤝‍🧑🏼</button>
+                    <div class="dropdown-menu dropdown-menu-right">
+                        <a class="dropdown-item" href="{% url "bom:teams" %}">Manage Teams</a>
+                    </div>
+                </div>
+
+                <div class="nav-item dropdown ml-2">
+                    <button type="button" class="btn btn-outline-light dropdown-toggle" data-toggle="dropdown" aria-haspopup="true"
+                                aria-expanded="false">🧠</button>
+                    <div class="dropdown-menu dropdown-menu-right">
+                        {% is_superuser user as is_user_superuser %}
+                        {% if is_user_superuser is True %}
+                            <a class="dropdown-item" download href="{% url "bom:export_backup" %}">Export Database Backup</a>
+                            <div class="dropdown-divider"></div>
+                        {% endif %}
+                        {% if is_user_superuser is True %}
+                            <a class="dropdown-item" href="{% url 'admin:index' %}">Django Admin</a>
+                            <div class="dropdown-divider"></div>
+                        {% endif %}
+                        <form method="post" action="{% url 'logout' %}" style="margin:0;">
+                            {% csrf_token %}
+                            <button type="submit" class="dropdown-item" style="width:100%;text-align:left;">Logout</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+        </nav>
+
+    </header>
+
+    <section class="app-body app-viewport">
+        {% block content %}
+        <section id="app_left" class="split app-viewport ">
+            {% block content-left %}
+            {% endblock %}
+        </section>
+        <section id="app_right" class="split app-viewport ">
+            {% block content-right %}
+            {% endblock %}
+        </section>
+        {% endblock %}
+    </section>
+
+
+    <footer class="app-footer bg-dark">
+        <small class="m-2">🛠️ with ❤️ by </small>
+        <img src="{% static 'assets/HETiny.png' %}" height="14" class="d-inline-block align-center" alt="HE Inventions LTD">
+    </footer>
+
+
+    <script type="text/javascript">
+
+
+        // Try to load the previous split position.
+        let SPLIT_KEY = 'split';
+        if (window.location.pathname.indexOf('/part')) { SPLIT_KEY += '_part'; }
+        if (window.location.pathname.indexOf('/assembly')) { SPLIT_KEY += '_assembly'; }
+
+        const loadSplit = (size) => JSON.parse(window.localStorage.getItem(SPLIT_KEY) || size);
+        const saveSplit = (size) => window.localStorage.setItem(SPLIT_KEY, JSON.stringify(size));
+
+        // Split the page - but only if the page is multi-pane.
+        const hasBothPanes = document.querySelectorAll('#app_left, #app_right').length == 2;
+        if (hasBothPanes) {
+
+            // Get the button (we update the arrows based on position).
+            const btnToggle = document.querySelector('#app_sidebar_toggle_btn');
+            const updateButton = () => {
+                const [left, right] = split.getSizes();
+                btnToggle.textContent = left <= 2 ? '➡️' : '⬅️';
+            };
+    
+            // Create the app split.
+            const split = Split(['#app_left', '#app_right'], {
+                sizes: loadSplit("[25, 75]"),
+                minSize: [0, 0],
+                gutterSize: 20,
+                direction: 'horizontal',
+                gutterAlign: 'center',
+                onDragEnd: (size) => {
+                    const [left, right] = split.getSizes();
+                    if (left > 2 && right > 2) {
+                        saveSplit(size);
+                    }
+                    updateButton();
+                },
+            });
+
+            // First update.
+            updateButton();
+
+            // Toggle the split pane.
+            btnToggle.addEventListener('click', () => {
+                const [left, right] = split.getSizes();
+                if (left <= 2 || right <= 2) {
+                    split.setSizes(loadSplit("[25, 75]"));
+                }
+                else {
+                    split.collapse(0);
+                }
+                updateButton();
+            });
+        }
+
+        // Search bar.
+        // When the search button is clicked, open a dialog box that shows the search bar.
+        // In the background, issue the REST requests to get the data.
+        document.querySelector('#app_search').addEventListener('click', async () => {
+
+            // Open a new dialog box.
+            const dialog = bootbox.dialog({
+                onEscape: true,
+                closeButton: true,
+                backdrop: true,
+                animate: false,
+                size: 'large',
+                title: '<span class="icon"><i class="fa fa-fw fa-spin fa-spinner"></i></span> Search',
+                message: '<div id="app_search_box"><input type="search" class="d-none" id="app_search_bar" /></div>'
+            });
+
+            // Query the DB for parts and asssembles.
+            let partsResponse = fetch('/api/parts/');
+            let assembliesResponse = fetch('/api/subassemblies/');
+
+            // Formatting function for each search bar row.
+            function searchBarRowFormat(item) {
+
+                // Skip groups.
+                if (!item.id) {
+                    return item.text;
+                }
+
+                // Generate content.
+                let cssClass = item.type === 'part' ? 'part' : 'assembly';
+                let deprecated = item.data.deprecated ? '⚠️ ' : '';
+                let sale_code = item.data.sale_code ? ' 📑' : '';
+                let review = item.data.review_notes ? '👀 ' : '';
+
+                // Generate URLS
+                const editURL = item.type === 'part' ? `/part/${item.data.id}` : `/assembly/${item.data.id}`;
+                const viewURL = item.type === 'part' ? `/part/${item.data.id}` : `/assembly/doc/${item.data.id}`;
+
+                // Generate row.
+                let html = `
+                <span style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div class="table-icon">
+                            <img src="${item.data.picture_url}"/>
+                        </div>
+                        <a class="bomlink ${cssClass}">
+                            <kbd>${review}${deprecated}${item.data.reference}${sale_code}</kbd>
+                        </a>
+                        <small>${item.data.name}</small>
+                    </div>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <a href=${viewURL} class="app-search-view btn btn-outline-light">📖</a>
+                        <a href=${editURL} class="app-search-edit btn btn-outline-light">✏️</a>
+                    </div>
+                </span>`;
+
+                // Generate HTML objects.
+                return $(html);
+            }
+
+            // When the dialog has started - remove the loading notice.
+            dialog.init(async () => {
+
+                // Search text transformer - combine reference, name, and (optionally) spec.
+                // const searchText = (p) => `${p.reference} ${p.name} ${p.spec}`.toUpperCase().substring(0, 100);
+                const searchText = (p) => `${p.review_notes ? '👀review' : ''}${p.reference} ${p.name}`.toUpperCase();
+
+                // Transform a "part" into a select2-compatible data item.
+                partsResponse = await partsResponse;
+                const parts = await partsResponse.json();
+                const txPart = p => { return { type: 'part', text: searchText(p), id: p.reference, data: p }; };
+
+                // Transform an "assembly" into a select2-compatible data item.
+                assembliesResponse = await assembliesResponse;
+                const assemblies = await assembliesResponse.json();
+                const txAssembly = p => { return { type: 'assembly', text: searchText(p), id: p.reference, data: p }; };
+
+                // Change the icon.
+                dialog.get(0).querySelector('.modal-header h5').innerHTML = '🔍 Search';
+
+                // Create the search bar with the downloaded content.
+                let partSearch = null;
+                partSearch = $("#app_search_bar").select2({
+                    allowClear: true,
+                    placeholder: "",
+                    multiple: 'multiple',
+                    data: [...assemblies.map(txAssembly), ...parts.map(txPart)],
+                    width: 'style',
+                    closeOnSelect: false,
+                    templateResult: searchBarRowFormat,
+                    dropdownParent: '#app_search_box',
+                });
+
+                // Prevent selections from occuring.
+                partSearch.on("select2:selecting", (e) => e.preventDefault());
+
+                // Open the dropdown and focus on the selection so the user can just start typing.
+                partSearch.select2("open");
+
+                // Calculate and apply the desired height of the dropdown.
+                const marginPX = 50;
+                const dialogBounds = $("#app_search_box").get(0).getBoundingClientRect();
+                const target = window.innerHeight - dialogBounds.bottom - marginPX;
+                $('#app_search_box .select2-results__options').css('max-height', `${target}px`);
+            });
+        });
+
+        /**
+         * Keep track of when the user edits a form field
+         * and check they want to save / discard changes.
+         */
+        class PageChanges {
+
+            static TRIGGER_CLASS = '.bomnado-savechanges'
+
+            /** 
+             * Indicate the a specific input control has changed.
+             * All elements that have a `bomnado-savechanges` can call this function and pass themselves.
+             */
+            static flag(control) {
+                // Find the closest parent that has the class: `bomnado-savechanges-note`
+                // Then add the `bomnado-savechanges-flagged` to indicate they should show the change marker (e.g. blue dot).
+                const flagElement = control.closest('.bomnado-savechanges-note');
+                if (flagElement) {
+                    flagElement.classList.add('bomnado-savechanges-flagged');
+                }
+
+                // Make the window show the save changes dialog when we move away.
+                window.onbeforeunload = () => true;
+            }
+
+            /** Allow a form-submit button to supress the save changes note. */
+            static allow(form) {
+                form.addEventListener('submit', function (event) {
+                    PageChanges.supressNote();
+                    return true;
+                });
+            }
+
+            /** Catch CTRL+S to save the current changes. */
+            static enableCtrlS(form) {
+                document.addEventListener('keydown', e => {
+                    if (e.ctrlKey && e.key === 's') {
+                        e.preventDefault();
+                        console.log("form", form)
+                        bootbox.confirm("Save changes?", (result) => {
+                            if (result) {
+                                PageChanges.supressNote();
+                                form.submit();
+                            }
+                        });
+                    }
+                });
+            }
+            
+            /** Supress the save changes note. Note this will not reset the change marker. */
+            static supressNote() {
+                window.onbeforeunload = null;
+            }
+            
+            /** 
+             * Install the change tracking behaviour on this page.
+             * This will find all input fields with the class `bomnado-savechanges` and
+             * set a `dirty` flag when the field changes.
+             */
+            static install() {
+                document.querySelectorAll(PageChanges.TRIGGER_CLASS).forEach(input => {
+                    // console.log("Watching for changes on ",input.id)
+                    input.addEventListener('change', () => PageChanges.flag(input))
+                })
+            }
+        }
+        
+
+
+        /**
+         * Process any errors in a resonse request to try and get useful information
+         * out of them and up to sentry / into the user.
+         * @param response The response from a call to `fetch`
+         * @throws An error indicating the nature of the error.
+         */
+        async function processErrors(response) {
+            // Nothing to do.
+            if (response.ok) {
+                return response;
+            }
+
+            // Try to get some notes.
+            let notes = await response.text();
+            if (notes) {
+                console.warn(notes);
+            }
+
+            // Raise the error.
+            throw new Error(`${response.url}: ${response.status} ${response.statusText}`);
+        }
+
+        $.fn.select2.defaults.set("theme", "bootstrap4");
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log("APP LOADED");
+            PageChanges.install();
+        });
+    </script>
+
+    {% block jslibs %}
+    {% endblock %}
+</body>
+
+</html>

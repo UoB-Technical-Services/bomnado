@@ -1,0 +1,333 @@
+{% load static %}
+{% load markdown_render %}
+{% load part_filters %}
+{% load kwacros %}
+{% load attachments_tags %}
+{% load utils %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    {% block title %}
+    <title>{{assembly.reference}} / Assembly Documentation / Bomnado</title>
+    {% endblock %}
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Work+Sans');
+        @page { margin: 10mm; size: A4; }
+        body { margin: 0 }
+        .sheet {
+            height: auto!important;
+            margin: 0;
+            overflow: hidden;
+            position: relative;
+            box-sizing: border-box;
+            page-break-after: always;
+        }
+
+        /** Paper sizes **/
+        body.A4               .sheet { width: 210mm; height: 296mm }
+        body.A4.landscape     .sheet { width: 297mm; height: 209mm }
+
+        /** For screen preview (same padding as page margin). **/
+        @media screen {
+            body { background: #e0e0e0 }
+            .sheet {
+                background: white;
+                box-shadow: 0 .5mm 2mm rgba(0,0,0,.3);
+                margin: 5mm auto;
+                padding: 10mm;
+            }
+        }
+
+        /** Fix for Chrome issue #273306 **/
+        @media print {
+            body.A4.landscape { width: 297mm }
+            body.A4 { width: 210mm }
+            table,img,figure { break-inside: avoid; page-break-inside: avoid; }
+            input[type=text] { border: 1px solid #888888; border-radius: 2px; }
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-family: 'Work Sans', sans-serif;
+            font-size: 0.8em;
+        }
+
+        /* Images placed on their own -- render full width. */
+        .sheet article img { max-width: 100%; }
+        .sheet p img:only-child { width: 100%; }
+
+        /* The last image should not be larger than 14cm high and fill the width.  */
+        .sheet p img:last-child { display: block; max-width: 100%; object-fit: contain; max-height: 140mm; height: auto; }
+        .sheet li img:last-child { display: block; max-width: 100%; object-fit: contain; max-height: 140mm; height: auto; }
+
+        /* Page title text.  */
+        .sheet header div.title {
+            font-size: 2.4em;
+            margin: 0;
+            font-weight: bolder;
+            display: block;
+            margin-bottom: 3mm;
+
+            border-left: 2mm solid #007bff;
+            border-right: 2mm solid #007bff;
+            padding: 5mm;
+            background: #f5f5f5;
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
+        }
+
+        /* Spacing between sections of the sheet. */
+        .sheet section {
+            margin-bottom: 3mm;
+            display: flex;
+        }
+
+        /* Level 1 Headings - document structure */
+        .sheet > h1 {
+            border-left: 2mm solid #858585;
+            padding-left: 5mm;
+            padding-bottom: 2mm;
+            padding-top: 2mm;
+            background: #f5f5f5;
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
+        }
+
+        /* Attributes table at the top of the page */
+        .sheet section.attributes div { margin-right: 3mm; border: 1px solid grey; align-items: center; justify-content: center; display: flex; width: 6cm; }
+        .sheet section.attributes div>img { max-width: 100%; max-height: 200px; }
+        .sheet section.attributes table { width: 100%; }
+        .sheet section.attributes table tr:nth-child(odd) { background-color: #f2f2f2; -webkit-print-color-adjust: exact; color-adjust: exact; }
+
+        /* Forms for this particular build that we fill in */
+        .sheet .buildform { width: 100%; display: flex; justify-content: space-between; gap: 3mm; flex-flow: row wrap; }
+        .sheet .buildform div { flex-grow:1; }
+        .sheet .buildform div span { display: block; margin: 1mm; }
+        .sheet .buildform div input[type=text] { height: 14mm; box-sizing:border-box; width: 100%; text-align:center; font-size: 1.5em; font-family: monospace; }
+
+        .sheet .buildform.parts>span { width: 100%; margin-bottom: -5px;}
+        .sheet .buildform.parts input[type=text]{ height: 12mm; }
+        .sheet .buildform.parts .partentry { background:#f5f5f5; border-radius: 2px; flex: 1; min-width: 300px; max-width: calc(50% - 5px); }
+        .sheet .buildform.parts .partentry span.inline { display: flex; align-items: center; margin-left:0; }
+        .sheet .buildform.parts .partentry span.inline input[type=checkbox]:not(:first-child) { margin-left: 20px;}
+
+        /* List styles within the markdown. */
+        /* .sheet article ul { list-style-type: none; padding-inline-start: 10mm; } */
+        .sheet article li { margin-bottom: 2mm; }
+        .sheet article h1 { font-size: 1.6em; }
+
+        /* Component parts table */
+        .sheet article.parts table {  width: 100%; text-align: left; }
+        .sheet article.parts table th,
+        .sheet article.parts table td { min-height: 10mm; padding: 1mm;  }
+        .sheet article.parts table tr:nth-child(odd) { background-color: #f2f2f2; -webkit-print-color-adjust: exact; color-adjust: exact; }
+        .sheet article.parts table td.icon { text-align: center; }
+        .sheet article.parts table td.qty { text-align: center; font-weight: bolder; font-size: 1.2em; min-width: 20mm; }
+        .sheet article.parts table td.qty:after { content: 'x'}
+        .sheet article.parts table td.icon img { height: 10mm; }
+        .sheet article.parts table td>span.icon { display: inline-block; width: 5mm; }
+        .sheet article.parts table td>span.name { display: block; margin-top: 0.5mm; }
+    </style>
+
+</head>
+
+<!-- Set "A5", "A4" or "A3" for class name -->
+<!-- Set also "landscape" if you need -->
+
+<body class="A4">
+    <!-- Each sheet element should have the class "sheet" -->
+    <!-- "padding-**mm" is optional: you can set 10, 15, 20 or 25 -->
+    <section class="sheet">
+        
+        <header>
+            <div class="title">{{ assembly.reference }}</div>
+
+            <section class="attributes">
+                <div>
+                    <img src="{{ assembly.picture_url }}">
+                </div>
+                <table>
+                    <tr><td>Name</td><td><strong>{{ assembly.name }}</strong></td></tr>
+                    <tr><td>Revision</td><td>{{ assembly.revision }}</td></tr>
+                    <tr><td>Phase</td><td>{{ assembly.production_phase }}</td></tr>
+                    <tr><td>Updated</td><td>{{ assembly.updated|date:"M d Y" }}</td></tr>
+                    <tr><td>Printed</td><td>{% now "M d Y" %}</td></tr>
+                    <tr>
+                        <td>Deprecated</td>
+                        <td>
+                            {% if assembly.deprecated|date_in_past %}
+                            <strong>⚠️ {{ assembly.deprecated|date:"dS M Y" }} ≈V{{ assembly.deprecated|date:"yW" }}</strong>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Used In</td>
+                        <td>
+                            {% find_assemblies_using_part assembly as parents %}
+                            {% for parent in parents %}
+                            <kbd class="assembly">
+                                <a title="{{ parent.reference }}" href="{% url "bom:assembly_editor_update" pk=parent.id %}">
+                                {{ parent.reference }}</a></kbd>{% if not forloop.last %},{% endif %}
+                            {% empty %}
+                            -
+                            {% endfor %}
+                        </td>
+                    </tr>
+                    <!-- <tr><td>Generated</td><td>TODAY</td></tr> -->
+                </table>
+            </section>
+        </header>
+
+        <!-- <h1>Build Information</h1> -->
+        {% if assembly.sale_code %}
+        <section class="buildform">
+            <div>
+                <span>Our Serial Number</span>
+                <input type="text" />
+            </div>
+        </section>
+        {% endif %}
+        <section class="buildform">
+            <div><span>Date Assembled</span><input type="text" /></div>
+            <div><span>QC Approved</span><input type="text" /></div>
+            <div><span>Photos and Process Complete</span><input type="text" /></div>
+        </section>
+
+        <section class="buildform parts">
+            <span>Recorded Parts</span>
+            {% for line in assembly.sellable_line_items %}
+                {% for idx in line.quantity|numeric_range %}
+
+                {# Hack to keep the sheets tidy with this magic sales_code string. #}
+                {% if line.item.sale_code != "NOT TRACKED" %} 
+                <div class="partentry">
+                    <span><kbd>{{ line.item.reference }} [📑 {{ line.item.sale_code }}]</kbd> {%if line.quantity > 1 %}({{forloop.counter}} of {{line.quantity}}){% endif %}</span>
+                    <div>
+                        <span>Our Serial <input type="text" /></span>
+                        {% if line.child_part %}
+                        <span>Manufacturer Serial <input type="text" /></span>
+                        {% endif %}
+                        <span class="inline">
+                            <input type="checkbox" value="Label applied"> Part Labeled
+                            <input type="checkbox" value="Recorded in registry"> Part Registered
+                        </span>
+                    </div>
+                </div>
+                {% endif %}
+                {% endfor %}
+            {% empty %}
+                <span>&nbsp;&nbsp;This assembly has no parts or subassemblies with sales codes.</span>
+            {% endfor %}
+        </section>
+
+        <h1>Specification</h1>
+        {% if assembly.spec %}
+        <article class="spec">{{ assembly.spec | as_markdown:assembly | safe }}</article>
+        {% else %}
+        <article class="spec">No Specification</article>
+        {% endif %}
+
+
+    
+    </section>
+    
+    <!-- QC - New Page -->
+    {% if assembly.qc_steps %}
+    <section class="sheet">
+        <h1>Quality Control</h1>
+        <p>QC must not be carried out by the same person who made the assembly.</p>
+        <article class="qc">{{ assembly.qc_steps | as_markdown:assembly | safe }}</article>
+
+        <!-- Parts with QC steps. -->
+        {% filter_by_attr assembly.sellable_line_items 'child_part' True 'bool' as parts %}
+        {% filter_by_attr parts 'item.qc_steps' True 'bool' as parts_with_qc %}
+        {% if parts_with_qc %}
+            <h1>Quality Control for Parts</h1>
+            {% for line in parts_with_qc %}
+            <h2><code>{{line.quantity}}x</code> <kbd>{{ line.item.reference }}</kbd></h2>
+            <article class="qc">
+                {{ line.item.qc_steps | as_markdown:line.item | safe }}
+            </article>
+            {% endfor %}
+        {% endif %}
+    </section>
+    {% endif %}
+
+    <!-- Assembly Instructions - New Page -->
+    {% if assembly.instructions %}
+    <section class="sheet">
+        <h1>Assembly Instructions</h1>
+        {% if assembly.instructions %}
+        <article class="instructions">{{ assembly.instructions | as_markdown:assembly | safe }}</article>
+        {% else %}
+        <article class="instructions">No assembly instructions for this item.</article>
+        {% endif %}
+    </section>
+    {% endif %}
+
+    <!-- Parts Table - New Page -->
+    <section class="sheet">
+        <h1>Components</h1>
+        <p>The parts and subassemblies listed below are used to create this assembly:</p>
+        <article class="parts">
+            <table>
+                <thead class="">
+                    <tr>
+                        <th>#</th>
+                        <th></th>
+                        <th>Qty</th>
+                        <th>Reference</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in assembly.line_items.all %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td class="icon">
+                            {% if item.child_part %}
+                                <img src="{{ item.child_part.picture_url }}"></img>
+                            {% elif item.child_subassembly %}
+                                <img src="{{ item.child_subassembly.picture_url }}"></img>
+                            {% endif %}
+                        </td>
+                        <td class="qty">{{ item.quantity }}</td>
+                        <td class="ref">
+                            {% if item.child_part %}
+                            <span class="icon">🔩</span>
+                            <kbd class="part">
+                                <a href="{% url "bom:part_editor_update" pk=item.child_part.id %}">{{ item.child_part.reference }}</a>
+                            </kbd>
+                            <span class="name">{{ item.child_part.name }}</span>
+                            {% elif item.child_subassembly %}
+                            <span class="icon">📦</span>
+                            <kbd class="assembly">
+                                <a href="{% url "bom:assembly_editor_update" pk=item.child_subassembly.id %}">{{ item.child_subassembly.reference }}</a>
+                            </kbd>
+                            <span class="name">{{ item.child_subassembly.name }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ item.notes }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td scope="row">-</td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </article>
+
+    </section>
+</body>
+</html>

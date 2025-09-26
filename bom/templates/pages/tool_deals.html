@@ -1,0 +1,265 @@
+{% extends "partial/app.html" %}
+{% load static %}
+{% load part_filters %}
+{% load kwacros %}
+{% load attachments_tags %}
+{% load utils %}
+
+{% block title %}
+<title>Deals / Bomnado</title>
+{% endblock %}
+
+<!-- MACRO FOR RENDERING FORM FIELDS -->
+{% kwacro bootstrapfieldinline field %}
+{{ field }}
+<span class="field-errors">
+{% for error in field.errors %}
+    <small class="text-danger"> {{ error|escape }}</small>
+{% endfor %}
+</span>
+{% endkwacro %}
+
+{% kwacro bootstrapfield field %}
+<small class="text-muted">
+    <a href="#" tabindex="-1" rel="tooltip" title="{{ field.help_text }}">🙋</a>
+    <strong>{{ field.label_tag }}</strong>
+</small>
+{{ field }}
+<span class="field-errors">
+{% for error in field.errors %}
+    <small class="text-danger"> {{ error|escape }}</small>
+{% endfor %}
+</span>
+{% endkwacro %}
+
+{% block header %}
+
+<style type="text/css">
+    .deal-part-table table { width: 100%; }
+    .deal-part-table td { vertical-align: top; }
+    .deal-part-table td:not(:last-child) .form-group { margin-right: 5px; }
+    .deal-part-table td input[type=text] { height: 31px; }
+    .deal-part-table .field-errors { font-size: 0.6em; color: darkred; }
+
+    .deal-part-table td.qty { width: 100px; }
+    .deal-part-table td.qty { width: 100px; }
+    .deal-part-table td.btns { width: 80px; text-align: right; }
+    .deal-part-table td.btns button { width: 100%;  }
+
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- New Part -->
+<div class="p-3" style="min-width: 600px;">
+
+    <h1>Supplier Deals</h1>
+    <p>Certain suppliers offer set prices when buying multiple items.</p>
+    <p>
+        Your selected project is {{product|stylised_assembly}}.
+    </p>
+    <p>Each deal has a <em>supplier</em>.  Pressing <em>collect parts</em> will count the parts used in the <em>selected project</em> from that supplier and add them to the deal.</p>
+
+    <!-- EACH DEAL -->
+    {% for deal, deal_fs in dealparts.items %}
+    <section class="deals">
+
+        <!-- Deal Display -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5>{{ deal }}</h5>
+
+                <div class="btn-group" role="group" aria-label="Button group with nested dropdown">
+                    <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#dealEditForm{{ deal.id }}">Edit Deal</button>
+                    <button type="button" class="btn btn-secondary" onclick="collectParts(this, '{{ deal.id }}', '{{ deal.url|safe }}', '{{ product.id }}')">Collect Parts</button>
+                    <button type="button" class="btn btn-danger" onclick="deleteDeal(this, '{{ deal.id }}')">Delete Deal</button>
+                </div>
+            </div>
+            
+            <div class="card-body">
+                <p class="card-text">Buy <kbd>{{ deal.size }} parts</kbd> from <a href="{{ deal.supplier }}">{{ deal.url }}</a> for <kbd>£{{ deal.rrp|floatformat:2 }} (ex VAT)</kbd></p>
+                <p class="card-text">🚚 Shipping Cost: <kbd>£{{ deal.shipping|floatformat:2 }} (ex VAT)</kbd> 📅 Lead Time: <kbd>{{ deal.lead_time }} days</kbd></p>
+                {% if deal.order_notes %}<p class="card-text">Order Notes: <em>{{ deal.order_notes }}</em></p>{% endif %}
+                
+                <form method="post" action="{% url "bom:tools_deals_update" pk=pk deal_id=deal.id %}"
+                    class="deal-part-table deal-form" >
+                    {% csrf_token %}
+                    <table>
+                        <tr><th></th><th>Part</th><th>Quantity</th><th>Notes</th><th></th></tr>
+                        {{ deal_fs.management_form }}
+                        {% for sub_form in deal_fs %}
+                        <tr>
+                            <td class="icon">
+                                <!-- TODO (clickable icon)-->
+                            </td>
+                            <td class="part"><div class="form-group">{% usekwacro bootstrapfieldinline sub_form.part %}</div></td>
+                            <td class="qty"><div class="form-group">{% usekwacro bootstrapfieldinline sub_form.quantity %}</div></td>
+                            <td class="notes"><div class="form-group">{% usekwacro bootstrapfieldinline sub_form.notes %}</div></td>
+                            {% if sub_form.id.value %}
+                                {{ sub_form.id }}
+                                {{ sub_form.deal }}
+                                <td class="btns"><button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteDealLI(this, '{{ sub_form.id.value }}')">Remove</button></td>
+                            {% else %}
+                                <td class="btns"><button type="submit" class="btn btn-outline-success btn-sm">Add Part</button></td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                    </table>
+
+                    <div class="row">
+                        <div class="p-3">
+                            <button type="submit" class="btn btn-success">Save Changes</button>
+                        </div>
+                    </div>
+                    
+                </form>
+            </div>
+        </div>
+
+        <!-- Edit Deal Form -->
+        <div class="modal fade" id="dealEditForm{{ deal.id }}" tabindex="-1" role="dialog" aria-labelledby="dealCenterTitle" aria-hidden="true">
+          <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <form method="post" action="{% url "bom:tools_deals_edit" pk=pk deal_id=deal.id %}">
+                {% csrf_token %}
+                  <div class="modal-header">
+                    <h5 class="modal-title" id="dealCenterTitle">Edit Deal</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                      <span aria-hidden="true">&times;</span>
+                    </button>
+                  </div>
+                  <div class="modal-body">
+                      {% with deals|get_item:deal as dform %}
+                          {{ dform.as_p }}
+                      {% endwith %}
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-success">Save Changes</button>
+                  </div>
+                </form>
+            </div>
+          </div>
+        </div>
+    </section>
+    <br />
+
+    {% empty %}
+    <p>There are no supplier deals yet.</p>
+    {% endfor %}
+    
+    <!-- Modal for creating a new form. -->
+    <section class="new-deal">
+        <div class="row">
+            <div class="col-6">
+                <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#dealNewForm">Create New Deal</button>
+            </div>
+        </div>
+        <div class="modal fade" id="dealNewForm" tabindex="-1" role="dialog" aria-labelledby="dealCenterTitle" aria-hidden="true">
+          <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <form method="post" action="{% url "bom:tools_deals_create" pk=pk %}">
+                {% csrf_token %}
+                  <div class="modal-header">
+                    <h5 class="modal-title" id="dealCenterTitle">New Deal</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                      <span aria-hidden="true">&times;</span>
+                    </button>
+                  </div>
+                  <div class="modal-body">
+                      {{ new_dform.as_p }}
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Save changes</button>
+                  </div>
+                </form>
+            </div>
+          </div>
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block jslibs %}
+
+    <script type="text/javascript">
+
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    async function collectParts(el, dealID, supplier, productID) {
+        // Warning about removing all parts from the deal.
+        bootbox.confirm(`We will now search for all parts from <strong>${supplier}</strong> that 
+        are used in <br/><kbd>{{ product.reference }}</kbd>.
+        <br/><br/>
+        This will remove all parts currently in this deal and replace them with new ones and their quantities.
+        <br/><br/>
+        Are you sure you want to continue?`, 
+            (result) => {
+                if (!result) {
+                    return;
+                }
+
+                // Find all parts used inside DITFC106 root with supplier XXX.
+                // Display them to the user?
+                // Add them to this deal.
+                let call = async () => {
+                    let response = await fetch(`{% url 'deal-collect' pk=product.id %}`, {
+                        method: 'POST',
+                        headers: { "X-CSRFToken": csrftoken },
+                    });
+                    await processErrors(response);
+                    window.location.reload();
+                }
+                call();
+            }
+        );
+    }
+
+    /** Delete a given deal line item. */
+    async function deleteDealLI(el, dealLineItemID) {
+        bootbox.confirm('Are you sure you want to delete this deal?', (result) => {
+            if (!result) {
+                return;
+            }
+            let call = async () => {
+                let response = await fetch(`/api/deallineitems/${dealLineItemID}/`,{
+                        method: 'DELETE',
+                        headers: {"X-CSRFToken": csrftoken}
+                    });
+                await processErrors(response);
+                window.location = window.location;
+            }
+            call();
+        });
+    }
+
+    /** Delete a given deal. */
+    async function deleteDeal(el, dealID) {
+        bootbox.confirm('Are you sure you want to delete this deal?', (result) => {
+            if (!result) { return; }
+            let call = async () => {
+                let response = await fetch(`/api/deals/${dealID}/`,{
+                        method: 'DELETE',
+                        headers: {"X-CSRFToken": csrftoken}
+                    });
+                await processErrors(response);
+                window.location = window.location;
+            }
+            call();
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+
+        // Allow the user to submit the assembly form without the warning.
+        const assyForms = document.querySelectorAll('.deal-form');
+        for (let form of assyForms) {
+            PageChanges.allow(form);
+        }
+
+    });
+    </script>
+
+{% endblock %}

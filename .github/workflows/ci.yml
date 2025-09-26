@@ -1,0 +1,201 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+env:
+  BASE_SETTINGS_FILE: bomnado/settings/base.py
+
+jobs:
+  staticcheck:
+    runs-on: ubuntu-latest
+    name: Static Code Analysis
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+    
+    - name: Install flake8
+      run: pip install -U flake8
+    
+    - name: Run flake8
+      run: flake8 .
+
+  test:
+    runs-on: ubuntu-latest
+    name: Run Tests
+    needs: staticcheck
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_bomnado
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      memcached:
+        image: memcached:1.6-alpine
+        ports:
+          - 11211:11211
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential gcc g++ libssl-dev python3-dev libpq-dev netcat-traditional
+    
+    - name: Install PDM
+      run: pip install -U pip pdm
+    
+    - name: Install Python dependencies
+      run: pdm install -G dev
+    
+    - name: Run Django migrations
+      run: pdm run python manage.py migrate
+      env:
+        DATABASE_URL: postgres://postgres:postgres@localhost:5432/test_bomnado
+    
+    - name: Collect static files
+      run: pdm run python manage.py collectstatic --noinput
+    
+    - name: Run Django tests
+      run: pdm run python manage.py test
+      env:
+        DATABASE_URL: postgres://postgres:postgres@localhost:5432/test_bomnado
+
+  build-test:
+    runs-on: ubuntu-latest
+    name: Test Docker Build
+    needs: [staticcheck, test]
+    if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+    
+    - name: Extract version from settings
+      id: version
+      run: |
+        VERSION=$(python3 -c "print(open('$BASE_SETTINGS_FILE').read().split('VERSION = \'')[1].split('\'\n')[0])")
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Version: $VERSION"
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Build Docker image (test only)
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: false
+        tags: |
+          bomnado:test
+          bomnado:${{ steps.version.outputs.version }}-test
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    
+    - name: Test build completion
+      run: |
+        echo "✅ Docker build completed successfully"
+        echo "🔧 Image built for testing (not pushed to registry)"
+        echo "🚀 Docker push will happen only on release tags"
+
+  build-and-push:
+    runs-on: ubuntu-latest
+    name: Build and Push Docker Image
+    needs: [staticcheck, test]
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+    
+    - name: Extract version from settings and tag
+      id: version
+      run: |
+        VERSION=$(python3 -c "print(open('$BASE_SETTINGS_FILE').read().split('VERSION = \'')[1].split('\'\n')[0])")
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Version from settings: $VERSION"
+        
+        # Extract tag name if this is a tag push
+        if [[ $GITHUB_REF == refs/tags/* ]]; then
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "Release tag: $TAG_NAME"
+          
+          # Validate that tag matches version
+          if [[ "$TAG_NAME" == "v$VERSION" ]]; then
+            echo "✅ Tag matches version in settings"
+            echo "valid=true" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️  Warning: Tag ($TAG_NAME) doesn't match version (v$VERSION)"
+            echo "valid=false" >> $GITHUB_OUTPUT
+          fi
+        fi
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Log in to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: set lower case owner name
+      run: |
+        echo "OWNER_LC=${OWNER,,}" >>${GITHUB_ENV}
+      env:
+        OWNER: '${{ github.repository_owner }}'
+    
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: |
+         ghcr.io/${{ env.OWNER_LC }}/bomnado:latest
+         ghcr.io/${{ env.OWNER_LC }}/bomnado:${{ steps.version.outputs.version }}
+         ghcr.io/${{ env.OWNER_LC }}/bomnado:${{ steps.version.outputs.tag }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max

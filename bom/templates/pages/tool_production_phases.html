@@ -1,0 +1,168 @@
+{% extends "partial/app.html" %}
+{% load static %}
+{% load part_filters %}
+{% load kwacros %}
+{% load attachments_tags %}
+{% load utils %}
+
+{% block title %}
+<title>Production Phases / Bomnado</title>
+{% endblock %}
+
+{% block header %}
+
+<style type="text/css">
+
+    @page { margin: 10mm; size: A4; }
+
+    @media print {
+        html, body {
+            height:unset!important;
+            display: block!important;
+            position: absolute!important;
+            overflow: visible!important;
+        }
+        
+        footer {
+            display: none!important;
+        }
+
+        table,img,figure { break-inside:auto; }
+    } 
+    
+    .phase {
+        font-size: 0.8em;
+    }
+
+    .phase .icon img {
+        display: block; 
+        max-width: 15mm; 
+        max-height: 15mm;
+        object-fit: contain; 
+        height: 15mm;
+        padding: 1px;
+    }
+    .phase table {
+        width: 100%;
+    }
+    .phase tr:hover {
+        background: lightgrey;
+    }
+    .phase td {
+        padding-left: 10px;
+    }
+    .phase tr {
+        padding-bottom: 5px;
+        border: 1px solid rgb(237, 237, 237);
+        background: white;
+    }
+    .phase tr.deprecated {
+        display: none;
+    }
+    .phase h2 {
+        margin-top: 10px;
+        margin-bottom: 10px;
+        text-transform: capitalize;
+    }
+
+    .phase td:first-of-type {
+        padding-left: 5px;
+    }
+
+    td.icon { width:50px; text-align: center; }
+    td.qty { font-size: 2em; width: 50px; }
+    td.qty:after  {font-size: 0.5em; content:'x'; }
+    td.reference { width:200px; }
+    td.reference a.bomlink kbd {display: block; }
+    td.print { text-align: right; }
+    td.checkboxes { width:50px; text-align: right; }
+
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- New Part -->
+<div class="p-3" style="min-width: 600px;">
+
+    <h1>Production Phases</h1>
+    <p>There are <code>{{ phases|length }}</code> production phase(s) listed across <code>{{ assemblies|length }}</code> assemblies.</p>
+
+
+    <!-- ADD PART -->
+    {% for phase, assemblies in phases.items %}
+    <section class="phase">
+        <h2>{{ phase }}</h2>
+        <table>
+            <!-- Skip if assembly has 0 uses and is deprecated -->
+            {% for assembly in assemblies %}
+            <tr class="{% if assembly.deprecated and counted_assemblies|get_item:assembly == None %}deprecated{% endif %}">
+        
+                <td class="icon">
+                    <img class="icon" src="{{ assembly.picture_url }}" />
+                </td>
+                
+                <td class="qty"><code>{{ counted_assemblies|get_item:assembly|if_none:0 }}</code></td>
+
+                <td class="reference">
+                    {{ assembly|stylised_assembly}}
+                </td>
+
+                <td>
+                    <span>{{ assembly.name }}</span>
+                </td>
+
+                <td class="print d-print-none">
+                    <div class="btn-group" role="group">
+                        <a class="btn btn-outline-secondary" target="_blank" href="{% url "bom:assembly_documentation_view" pk=assembly.id %}">📖</a>
+                        <a class="btn btn-outline-secondary" onclick="printPage('{% url "bom:assembly_documentation_view" pk=assembly.id %}')">🖨</a>
+                    </div>
+                </td>
+
+                <td class="checkboxes">
+                    <div class="btn-group" role="group">
+                        <button class="btn d-none d-print-block"><input type="checkbox" /> 🖨</button>
+                        <button class="btn" title="Assembled"><input type="checkbox" /> ⚒️</button>
+                        <button class="btn" title="QC Complete"><input type="checkbox" /> QC</button>
+                        <button class="btn" title="Photos, Registry, and JIRA updated"><input type="checkbox" /> 📋</button>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5">No assemblies in this phase.</td></tr>
+            {% endfor %}
+        </table>
+    </section>
+    {% empty %}
+    <p>There are no production phases or assemblies yet.</p>
+    {% endfor %}
+</div>
+{% endblock %}
+
+
+{% block jslibs %}
+
+<script type="text/javascript">
+
+/** Once the iFrame has loaded, execute the instruction to print and close. */
+function setPrint() {
+    this.contentWindow.onbeforeunload = () => document.body.removeChild(this);
+    this.contentWindow.onafterprint = () => document.body.removeChild(this);
+    this.contentWindow.focus(); // Required for IE
+    this.contentWindow.print();
+}
+
+/** Print a given URL. URL must allow iFrame'ing. */
+function printPage(url) {
+    let hiddenFrame = document.createElement("iframe");
+    hiddenFrame.onload = setPrint;
+    hiddenFrame.style.visibility = "hidden";
+    hiddenFrame.style.position = "fixed";
+    hiddenFrame.style.right = "0";
+    hiddenFrame.style.bottom = "0";
+    hiddenFrame.src = url;
+    document.body.appendChild(hiddenFrame);
+}
+
+</script>
+{% endblock %}
