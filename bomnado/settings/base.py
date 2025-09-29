@@ -13,13 +13,18 @@ https://docs.djangoproject.com/en/3.0/ref/settings/
 import os
 import sys
 import _locale
-
+import logging
 from bomnado.settings import get_int_environment_var
+
+log = logging.getLogger()
 
 # Never use this in production!
 DEFAULT_SECRET_KEY = "django-insecure-12345"
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', DEFAULT_SECRET_KEY)
 SHOW_KEY_WARNING = SECRET_KEY == DEFAULT_SECRET_KEY  # Show the user a big red warning when they're using the default key
+if SHOW_KEY_WARNING:
+    log.warning('DJANGO_SECRET_KEY is set to the default Value! Please generate a new secret key when publishing this Bomnado instance')
+
 
 try:
     from definitions import ROOT_DIR
