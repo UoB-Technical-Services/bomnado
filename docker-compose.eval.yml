@@ -8,6 +8,7 @@ services:
     restart: always
     environment:
       - DJANGO_SETTINGS_MODULE=bomnado.settings.development
+      - DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
     command: bash /code/quick-launch.sh
     # TODO currently we can't save the user database this way. Maybe that's fine for now? They could still export it from the image
     ports:

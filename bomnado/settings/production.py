@@ -12,9 +12,9 @@ from sentry_sdk.integrations.django import DjangoIntegration
 log = getLogger()
 DEBUG = False
 
-ALLOWED_HOSTS = get_list_environment_var('DJANGO_ALLOWED_HOSTS', [])
+ALLOWED_HOSTS = get_list_environment_var('DJANGO_ALLOWED_HOSTS', None)
 
-CSRF_TRUSTED_ORIGINS = get_list_environment_var('CSRF_TRUSTED_ORIGINS', [])
+CSRF_TRUSTED_ORIGINS = get_list_environment_var('CSRF_TRUSTED_ORIGINS', None)
 
 POSTGRES_USER = os.environ.get('POSTGRES_USER')
 POSTGRES_PASSWORD = os.environ.get('POSTGRES_PASSWORD')
@@ -80,7 +80,7 @@ class EmailMode(StrEnum):
     CONSOLE = 'console'
 
 
-EMAIL_MODE = get_str_enum_environment_var('EMAIL_MODE', EmailMode.EMAIL, EmailMode)
+EMAIL_MODE = get_str_enum_environment_var('EMAIL_MODE', EmailMode.CONSOLE, EmailMode)
 if EMAIL_MODE == EmailMode.EMAIL:
     EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
     EMAIL_HOST = os.environ.get('EMAIL_HOST')
@@ -88,14 +88,13 @@ if EMAIL_MODE == EmailMode.EMAIL:
     EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
     EMAIL_PORT = os.environ.get('EMAIL_PORT')
     EMAIL_USE_TLS = get_bool_environment_var('EMAIL_USE_TLS', False)
-
     if not all([
         EMAIL_HOST,
         EMAIL_HOST_USER,
         EMAIL_HOST_PASSWORD,
         EMAIL_PORT,
     ]):
-        raise ValueError('All email settings must be cofigured when using \"email\" mode: EMAIL_HOST, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD, EMAIL_PORT, EMAIL_USE_TLS')
+        raise ValueError(f'All email settings must be cofigured when using \"email\" mode: EMAIL_HOST, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD, EMAIL_PORT, EMAIL_USE_TLS. Set these or use EMAIL_MODE={EmailMode.CONSOLE}')
 elif EMAIL_MODE == EmailMode.CONSOLE:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 

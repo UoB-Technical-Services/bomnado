@@ -4,8 +4,6 @@ ENV PYTHONUNBUFFERED=1
 
 # ENVs that will be overridden by env file, but sensible defaults
 ENV DJANGO_SETTINGS_MODULE=bomnado.settings.production
-ENV EMAIL_MODE=console
-ENV DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
 
 # Install some necessary things.
 RUN apt-get update && apt-get install -y \
@@ -41,7 +39,8 @@ RUN pdm sync -v
 # Copy project code
 COPY . /code/
 
-RUN pdm run manage collectstatic --noinput
+# We use bomnado.settings.base because we don't care about correct product settings
+RUN pdm run manage collectstatic --noinput --settings=bomnado.settings.base
 
 EXPOSE 80
 CMD ["pdm", "run", "gunicorn", "bomnado.wsgi:application", "--bind", "0.0.0.0:80"]
