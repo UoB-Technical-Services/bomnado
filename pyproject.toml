@@ -60,6 +60,7 @@ classifiers = [
  manage = "python manage.py"
  test = "python manage.py test"
  lint = "flake8 ."
+ staticfiles = "python manage.py collectstatic"
 
  [tool.coverage.run]
  source = ["bom", "bomnado", "general"]

@@ -140,7 +140,7 @@ Some of these are already set to default when using the default docker-compose c
 - `EMAIL_MODE`
     : `email` or `console` - `console` mode just outputs any emails to the server console.
     : if `email` is used, the email settings below must also be set.
-    : `email` is the default in production. If in development mode, the console will always be used.
+    : `email` is the default in production. If in development mode, `console` will always be used.
 
 - `EMAIL_HOST`
     : The host to send emails from e.g. `smtp.gmail.com`

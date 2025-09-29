@@ -12,15 +12,23 @@ from sentry_sdk.integrations.django import DjangoIntegration
 log = getLogger()
 DEBUG = False
 
-ALLOWED_HOSTS = get_list_environment_var('DJANGO_ALLOWED_HOSTS', [])
+ALLOWED_HOSTS = get_list_environment_var('DJANGO_ALLOWED_HOSTS', None)
 
-CSRF_TRUSTED_ORIGINS = get_list_environment_var('CSRF_TRUSTED_ORIGINS', [])
+CSRF_TRUSTED_ORIGINS = get_list_environment_var('CSRF_TRUSTED_ORIGINS', None)
 
-POSTGRES_USER = os.environ.get('POSTGRES_USER', 'postgres')
-POSTGRES_PASSWORD = os.environ.get('POSTGRES_PASSWORD', '')
-POSTGRES_DB = os.environ.get('POSTGRES_DB', 'bomnado')
-POSTGRES_HOST = os.environ.get('POSTGRES_HOST', 'localhost')
+POSTGRES_USER = os.environ.get('POSTGRES_USER')
+POSTGRES_PASSWORD = os.environ.get('POSTGRES_PASSWORD')
+POSTGRES_DB = os.environ.get('POSTGRES_DB')
+POSTGRES_HOST = os.environ.get('POSTGRES_HOST')
 POSTGRES_PORT = os.environ.get('POSTGRES_PORT', '5432')
+
+if not all([
+    POSTGRES_USER,
+    POSTGRES_PASSWORD,
+    POSTGRES_DB,
+    POSTGRES_HOST,
+]):
+    raise ValueError('All PostgreSQL database settings must be cofigured: POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, POSTGRES_HOST')
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
@@ -72,28 +80,25 @@ class EmailMode(StrEnum):
     CONSOLE = 'console'
 
 
-EMAIL_MODE = get_str_enum_environment_var('EMAIL_MODE', EmailMode.EMAIL, EmailMode)
+EMAIL_MODE = get_str_enum_environment_var('EMAIL_MODE', EmailMode.CONSOLE, EmailMode)
 if EMAIL_MODE == EmailMode.EMAIL:
     EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-    # TODO validate that all of these are set if using EmailMode.EMAIL
-    EMAIL_HOST = os.environ.get('EMAIL_HOST', 'localhost')
-    EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
-    EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
-    EMAIL_PORT = os.environ.get('EMAIL_PORT', '587')
-    EMAIL_USE_TLS = get_bool_environment_var('EMAIL_USE_TLS', True)
-
+    EMAIL_HOST = os.environ.get('EMAIL_HOST')
+    EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
+    EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+    EMAIL_PORT = os.environ.get('EMAIL_PORT')
+    EMAIL_USE_TLS = get_bool_environment_var('EMAIL_USE_TLS', False)
     if not all([
         EMAIL_HOST,
         EMAIL_HOST_USER,
         EMAIL_HOST_PASSWORD,
         EMAIL_PORT,
     ]):
-        # If email settings are not properly configured, fall back to console backend
-        EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+        raise ValueError(f'All email settings must be cofigured when using \"email\" mode: EMAIL_HOST, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD, EMAIL_PORT, EMAIL_USE_TLS. Set these or use EMAIL_MODE={EmailMode.CONSOLE}')
 elif EMAIL_MODE == EmailMode.CONSOLE:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
-DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@example.com')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL')
 
 USE_DROPBOX_BACKUPS = get_bool_environment_var('USE_DROPBOX_BACKUPS', False)
 if USE_DROPBOX_BACKUPS:
