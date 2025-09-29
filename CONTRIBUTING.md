@@ -30,3 +30,7 @@ pdm run test
 ## Questions or ideas?
 Open an [issue](/issues) to ask questions about why things have been done if you think they could be improved. We adopt a [Chesterton's Fence](https://en.wiktionary.org/wiki/Chesterton%27s_fence) mentality when developing: don't assume something should be removed if you don't understand why it's there to begin with.
 
+
+## GitHub Container Registry
+
+Tagging a commit on the `main` branch with a version — e.g. `v0.19.0` — will trigger an optional action that pushes the Bomnado Docker image to the [GitHub Container Registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry). Future deployments may be more efficient if they use images from here instead of building from source.
