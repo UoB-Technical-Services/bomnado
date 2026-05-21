@@ -459,6 +459,7 @@
                     {%endwith%}
                 </div>
 
+                {% comment %} These buttons need to be moved to the end {% endcomment %}
                 <!-- BUTTONS -->
                 <div class="text-right w-100">
                     <button type="button" onclick="deleteAssembly('{{assembly.id}}', '{{assembly.reference}}')"
@@ -715,7 +716,7 @@
         else {
             request['child_subassembly'] = selected.data.id;
         }
-
+        
         // Submit the request.
         let response = await fetch(`/api/subassemblylineitems/`, {
             method: 'POST',
@@ -747,6 +748,8 @@
 
         // Handle errors or reload.
         await processErrors(response);
+        // TODO: NOTE - This will ask the user if they want to navigate away from the
+        // but the request will have already been completed
         window.location = window.location;
     }
 
