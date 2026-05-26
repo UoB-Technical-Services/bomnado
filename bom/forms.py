@@ -108,7 +108,7 @@ SubAssemblyItemFormset = inlineformset_factory(
     models.SubAssembly,
     models.SubAssemblyLineItem,
     fk_name='subassembly',
-    extra=1,
+    extra=0,
     # TODO: Set the `queryset` property to limit the options in the select box
     fields=[
         'child_part',

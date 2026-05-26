@@ -637,7 +637,9 @@
     async function deleteAssembly(id, name) {
         bootbox.confirm(`Are you sure you want to delete ${name}?
         If this is a top level assembly it will delete ALL children assemblies"`, (result) => {
-            if (!result) { return; }
+            if (!result) {
+                return;
+            }
             const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
             let call = async () => {
                 let response = await fetch(`/api/subassemblies/${id}/`, {
@@ -714,7 +716,91 @@
 
     }
 
-    /** Insert the selected part into the first empty row of the formset. */
+    /**
+     * Helper: reindex all formset rows so that name/id indexes are contiguous
+     * and update the management form's TOTAL_FORMS value.
+     */
+    function reindexFormsetRows() {
+        const rows = Array.from(document.querySelectorAll('#subComponentsTable tbody tr'));
+        rows.forEach((row, idx) => {
+            // Update the displayed row number
+            const th = row.querySelector('th[scope="row"]');
+            if (th) {
+                th.textContent = idx + 1;
+            }
+
+            // Update names and ids for inputs/selects/textareas
+            row.querySelectorAll('input, select, textarea, label').forEach(el => {
+                // update name
+                if (el.name) {
+                    el.name = el.name.replace(/-\d+-/, `-${idx}-`);
+                }
+                // update id
+                if (el.id) {
+                    el.id = el.id.replace(/-\d+-/, `-${idx}-`);
+                }
+                // update label 'for' attributes
+                if (el.getAttribute && el.getAttribute('for')) {
+                    el.setAttribute('for', el.getAttribute('for').replace(/-\d+-/, `-${idx}-`));
+                }
+            });
+        });
+
+        // Update TOTAL_FORMS
+        const totalFormsEl = document.querySelector('#id_form-TOTAL_FORMS');
+        if (totalFormsEl) {
+            totalFormsEl.value = rows.length;
+        }
+        // Keep JS formIdx in sync
+        formIdx = rows.length - 1;
+    }
+
+
+    /** Create and append a new empty form row to the formset (cloned and cleaned). */
+    function createNewFormRow() {
+        const tbody = document.querySelector('#subComponentsTable tbody');
+        const lastRow = tbody.querySelector('tr:last-child');
+        if (!lastRow) {
+            return null;
+        }
+
+        const newRow = lastRow.cloneNode(true);
+
+        // Clear inputs
+        newRow.querySelectorAll('input, textarea, select').forEach(el => {
+            if (el.type === 'checkbox' || el.type === 'radio') {
+                el.checked = false;
+            } else {
+                el.value = '';
+            }
+        });
+
+        // Clear displayed item info
+        const tableIcon = newRow.querySelector('.table-icon');
+        if (tableIcon) {
+            // remove existing img if present
+            const img = tableIcon.querySelector('img');
+            if (img) {
+                img.remove();
+            }
+        }
+
+        const refSpan = newRow.querySelector('.item-reference');
+        if (refSpan) {
+            refSpan.innerHTML = '';
+        }
+
+        // adjust classes
+        newRow.classList.remove('existing-row', 'edited-row');
+        newRow.classList.add('new-row');
+
+        tbody.appendChild(newRow);
+        reindexFormsetRows();
+        return newRow;
+    }
+
+
+    /** Insert the selected part into the first empty row of the formset, creating one if needed. */
     async function insertSelected() {
 
         // Determine the selected part.
@@ -725,10 +811,14 @@
         }
 
         // Find the first empty row in the table (the new-row class)
-        const emptyRow = document.querySelector('tr.new-row');
+        let emptyRow = document.querySelector('tr.new-row');
         if (!emptyRow) {
-            bootbox.alert('No empty row available. Please save first or add a new row.');
-            return;
+            // create one dynamically
+            emptyRow = createNewFormRow();
+            if (!emptyRow) {
+                bootbox.alert('Unable to create a new row.');
+                return;
+            }
         }
 
         // Populate the hidden fields
@@ -908,11 +998,50 @@
 
     document.addEventListener('DOMContentLoaded', async () => {
 
+        // TODO: Eww, vars
+        var formIdx = {{ formset.total_form_count|add:"-1" }};
+
         // Create the list of parts / assemblies that can be inserted.
         createInsertables();
 
         // Handle clicking "Insert" new part / assembly.
         document.querySelector('#partQuerySubmit').addEventListener('click', insertSelected)
+
+        // Handle delete label clicks (delegated). Removes newly created rows, marks existing rows for deletion.
+        const tbody = document.querySelector('#subComponentsTable tbody');
+        if (tbody) {
+            tbody.addEventListener('click', function(e) {
+                const label = e.target.closest('.delete-checkbox-wrapper label');
+                if (!label) {
+                    return;
+                }
+                const row = label.closest('tr');
+                if (!row) {
+                    return;
+                }
+                const checkbox = row.querySelector('input[type="checkbox"][id$="-DELETE"]');
+                const idInput = row.querySelector('input[name$="-id"]');
+
+                // If this is a new (unsaved) row then remove it from the DOM
+                if (idInput && !idInput.value) {
+                    row.remove();
+                    reindexFormsetRows();
+                    return;
+                }
+
+                // Otherwise let the checkbox toggle and reflect state for styling
+                if (checkbox) {
+                    setTimeout(() => {
+                        if (checkbox.checked) { 
+                            row.classList.add('marked-for-delete');
+                        }
+                        else { 
+                            row.classList.remove('marked-for-delete');
+                        }
+                    }, 10);
+                }
+            });
+        }
 
         // Flag the inserted sub-components to show the note if they are discribed in the markdown.
         colouriseUsed();
