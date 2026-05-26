@@ -721,13 +721,13 @@ def AssemblyEditorUpdateView(request, pk):
         raise PermissionDenied('User does not have access to this Assembly')
 
     if request.method == 'POST':
-        form = SubAssemblyForm(request.POST, request.FILES, instance=assembly)
-        formset = SubAssemblyItemFormset(request.POST, request.FILES, instance=assembly)
+        main_form = SubAssemblyForm(request.POST, request.FILES, instance=assembly)
+        line_item_formset = SubAssemblyItemFormset(request.POST, request.FILES, instance=assembly)
 
-        if form.is_valid() and formset.is_valid():
+        if main_form.is_valid() and line_item_formset.is_valid():
             try:
-                form.save()
-                formset.save()
+                main_form.save()
+                line_item_formset.save()
 
                 # Session storage converts to list, so must use list rather than tuple for comparison
                 store_value = [assembly.id, assembly.reference]
@@ -752,7 +752,7 @@ def AssemblyEditorUpdateView(request, pk):
                 if 'child_subassembly' in e.message_dict:
                     error_message = e.message_dict['child_subassembly'][0]
                     # Get the problematic assembly name if possible
-                    for form_item in formset:
+                    for form_item in line_item_formset:
                         if form_item.cleaned_data.get('child_subassembly') and not form_item.cleaned_data.get('DELETE'):
                             if form_item._errors and 'child_subassembly' in form_item._errors:
                                 child_subassembly = form_item.cleaned_data.get('child_subassembly')
@@ -779,8 +779,8 @@ def AssemblyEditorUpdateView(request, pk):
 
     # process form data, redirect to success page
     else:
-        form = SubAssemblyForm(instance=assembly)
-        formset = SubAssemblyItemFormset(instance=assembly)
+        main_form = SubAssemblyForm(instance=assembly)
+        line_item_formset = SubAssemblyItemFormset(instance=assembly)
 
     # Build the tree to render.
     root = assembly.project
@@ -830,8 +830,8 @@ def AssemblyEditorUpdateView(request, pk):
     pcb_upload_error = request.session.pop('pcb_upload_error', None)
 
     context = {
-        'form': form,
-        'formset': formset,
+        'form': main_form,
+        'formset': line_item_formset,
         'assembly': assembly,
         'tree': assembly_tree,
         'orphans': [traverse(orphan, 0) for orphan in orphans],

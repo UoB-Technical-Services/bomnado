@@ -108,7 +108,7 @@ SubAssemblyItemFormset = inlineformset_factory(
     models.SubAssembly,
     models.SubAssemblyLineItem,
     fk_name='subassembly',
-    extra=0,
+    extra=1,
     # TODO: Set the `queryset` property to limit the options in the select box
     fields=[
         'child_part',
@@ -117,6 +117,7 @@ SubAssemblyItemFormset = inlineformset_factory(
         'id',
         'notes'
     ],
+    can_delete=True,
     widgets={
         'quantity': BootstrapText(
             input_group_classes='input-group-sm',
