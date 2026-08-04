@@ -50,9 +50,11 @@
         justify-content: space-between;
     }
 
+    /* 
+    TODO IMO kinda confusing looking, revisit with a better design
     .in-instructions:after {
         content: " ✏️";
-    }
+    }*/
 
     .select2-results {
         font-size: 80%;
@@ -215,6 +217,10 @@
         border-color: #dc3545;
         color: #fff;
     }
+
+    /** #subComponentsTable .edited-row {
+        background-color: #dc3545;
+    } */
 </style>
 {% endblock %}
 
@@ -849,8 +855,6 @@
         // Mark the row as having been edited
         emptyRow.classList.remove('new-row');
         emptyRow.classList.add('edited-row');
-
-        bootbox.alert('Item added to the table. Click Save to submit the form.');
     }
 
     /** Update the visual display of a row based on the selected item. */
