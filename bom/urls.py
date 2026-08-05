@@ -58,6 +58,7 @@ urlpatterns = [
         name='tools_deals_create'),
     re_path(r'^assembly/(?P<pk>([0-9]+))/tools/deals', views.ToolDeals.as_view(),
         name='tools_deals'),
+    path('assembly/pcb/new', views.new_pcb_assembly, name='new_pcb_assembly'),
 
     re_path(r'^assembly/(?P<pk>([0-9]+))', views.AssemblyEditorUpdateView,
         name='assembly_editor_update'),
