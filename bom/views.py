@@ -29,12 +29,32 @@ from django.views.generic.base import TemplateView, RedirectView
 from bom.forms import PartCreationForm, PartSourceFormset, SubAssemblyForm, SubAssemblyItemFormset, AttachmentForm, \
     DealFormset, DealPartFormset, DealForm
 from bom.models import Part, PartSource, SubAssembly, SubAssemblyLineItem, Attachment, Team, Deal
-from bom.utils import team_owner_required
 from bom.scrapers.amazon import AmazonScrape
 from bom.scrapers.rs import RSScrape
 from bom.scrapers.shopfour import Shop4Scrape
+from bom.utils import team_owner_required
 from bom.utils.export import is_superuser
 from bom.utils.export.excel import export_database_to_excel, export_purchasing_spreadsheet
+
+@login_required(login_url='/accounts/login/')
+def new_pcb_assembly(request):
+    """Render a new PCB assembly upload page and receive the uploaded Excel file."""
+    message = None
+    error_message = None
+
+    if request.method == 'POST':
+        csv_file = request.FILES.get('csv_file')
+        if not csv_file:
+            error_message = 'Please select a KiCAD BOM CSV file to upload.'
+        else:
+            # TODO: add CSV processing logic here.
+            message = f'Received file: {csv_file.name} ({csv_file.size} bytes)'
+
+    context = {
+        'message': message,
+        'error_message': error_message,
+    }
+    return render(request, os.path.join('pages', 'new_pcb_assembly.html'), context)
 
 
 def get_path_from_referer(referer):
