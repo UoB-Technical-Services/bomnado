@@ -36,27 +36,6 @@ from bom.utils import team_owner_required
 from bom.utils.export import is_superuser
 from bom.utils.export.excel import export_database_to_excel, export_purchasing_spreadsheet
 
-@login_required(login_url='/accounts/login/')
-def new_pcb_assembly(request):
-    """Render a new PCB assembly upload page and receive the uploaded Excel file."""
-    message = None
-    error_message = None
-
-    if request.method == 'POST':
-        csv_file = request.FILES.get('csv_file')
-        if not csv_file:
-            error_message = 'Please select a KiCAD BOM CSV file to upload.'
-        else:
-            # TODO: add CSV processing logic here.
-            message = f'Received file: {csv_file.name} ({csv_file.size} bytes)'
-
-    context = {
-        'message': message,
-        'error_message': error_message,
-    }
-    return render(request, os.path.join('pages', 'new_pcb_assembly.html'), context)
-
-
 def get_path_from_referer(referer):
     """Extract the path from a referer URL using urlparse."""
     if referer:
@@ -413,7 +392,10 @@ class AssemblyEditorCreateView(LoginRequiredMixin, RedirectView):
         reference = self.request.POST.get('reference')
         reference = reference.strip().upper() if reference else None
 
-        # Validate that reference is provided
+        csv_file = self.request.FILES.get('csv_file')
+        upload_action = self.request.POST.get('action') == 'upload'
+        is_upload = upload_action or bool(csv_file)
+
         if not reference:
             # Use the helper function to set error message and determine redirect URL
             allowed_views = {
@@ -428,6 +410,23 @@ class AssemblyEditorCreateView(LoginRequiredMixin, RedirectView):
                 default_url=reverse_lazy('bom:start'),
                 allowed_views=allowed_views
             )
+
+        if is_upload:
+            if not csv_file:
+                allowed_views = {
+                    'assembly_editor_update': ('bom:assembly_editor_update', 'pk'),
+                    'start': ('bom:start', None),
+                    'dashboard': ('bom:start', None),
+                }
+                return redirect_back_with_message(
+                    request=self.request,
+                    message='Please select a KiCAD BOM CSV file to upload.',
+                    message_key='pcb_upload_error',
+                    default_url=reverse_lazy('bom:start'),
+                    allowed_views=allowed_views
+                )
+            self.request.session['pcb_upload_message'] = f'Uploaded KiCAD BOM CSV file: {csv_file.name} ({csv_file.size} bytes)'
+            self.request.session['pcb_upload_error'] = None
 
         # Work out project and owning team. If project is not set
         project_id = self.request.POST.get('project')
@@ -664,6 +663,8 @@ def AssemblyEditorUpdateView(request, pk):
     # Prepare template context.
     # Get any error messages from the session and add to context
     error_message = request.session.pop('error_message', None)
+    pcb_upload_message = request.session.pop('pcb_upload_message', None)
+    pcb_upload_error = request.session.pop('pcb_upload_error', None)
 
     context = {
         'form': form,
@@ -672,6 +673,8 @@ def AssemblyEditorUpdateView(request, pk):
         'tree': assembly_tree,
         'orphans': [traverse(orphan, 0) for orphan in orphans],
         'error_message': error_message,
+        'pcb_upload_message': pcb_upload_message,
+        'pcb_upload_error': pcb_upload_error,
     }
     return render(request, os.path.join('pages', 'assembly_editor.html'), context)
 
