@@ -503,30 +503,66 @@
 
     <h5>New Assembly</h5>
 
-    <form method="post" action="{% url "bom:assembly_editor_create" %}">
+    {% if pcb_upload_message %}
+    <div class="alert alert-success" role="alert">
+        {{ pcb_upload_message }}
+    </div>
+    {% endif %}
+    {% if pcb_upload_error %}
+    <div class="alert alert-danger" role="alert">
+        {{ pcb_upload_error }}
+    </div>
+    {% endif %}
+
+    <form method="post" action="{% url "bom:assembly_editor_create" %}" enctype="multipart/form-data" class="mt-3">
         {% csrf_token %}
         <input name="project" type="hidden" value="{{assembly.project_id}}">
-        <div class="form-group">
+        <input name="parent" type="hidden" value="{{assembly.id}}">
 
+        <div class="form-group">
+            <label for="referenceInput">New Assembly Reference</label>
             <div class="input-group mb-2">
-                <input placeholder="e.g. ASSEMBLY-REFERENCE" type="text" name="reference" class="form-control">
+                <input id="referenceInput" placeholder="e.g. ASSEMBLY-REFERENCE" type="text" name="reference" class="form-control">
                 <div class="input-group-append">
-                    <button type="submit" class="btn btn-outline-primary"><span>Create</span></button>
+                    <button type="submit" name="action" value="create" class="btn btn-outline-primary"><span>Create</span></button>
                 </div>
             </div>
-
             <small class="text-muted">Provide a reference name for the new assembly.</small>
+        </div>
 
-            <div class="form-check">
-                <input name="parent" type="hidden" value="{{assembly.id}}">
-                <input class="form-check-input" type="checkbox" checked name="insert">
-                <label class="form-check-label">
-                    <small>Add to </small>{{ assembly|stylised_assembly}}
-                </label>
+        <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" checked id="showCsvUploadCheckbox">
+            <label class="form-check-label" for="showCsvUploadCheckbox">
+                Show CSV upload section
+            </label>
+        </div>
+
+        <div id="csvUploadContainer">
+            <div class="form-group">
+                <label for="csvFile">KiCAD BOM CSV file</label>
+                <div class="input-group mb-2">
+                    <div class="custom-file">
+                        <input id="csvFile" name="csv_file" type="file" class="custom-file-input" accept=".csv">
+                        <label id="csvFileLabel" class="custom-file-label" for="csvFile">Choose CSV file</label>
+                    </div>
+                    <div class="input-group-append">
+                        <button type="submit" name="action" value="upload" class="btn btn-outline-primary">Upload</button>
+                    </div>
+                </div>
+                <small class="form-text text-muted">Upload a KiCAD BOM CSV file to create a new assembly. It will be added under the selected parent if the checkbox is checked.</small>
             </div>
         </div>
 
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" checked name="insert" id="insertCheckbox">
+            <label class="form-check-label" for="insertCheckbox">
+                <small>Add to </small>{{ assembly|stylised_assembly}}
+            </label>
+        </div>
     </form>
+
+    <hr/>
+
     <hr/>
     <h5>Assembly Tree</h5>
 
@@ -834,6 +870,26 @@
         const assyForm = document.querySelector('#bomando-assembly-form');
         PageChanges.allow(assyForm);
         PageChanges.enableCtrlS(assyForm);
+
+        const csvToggle = document.getElementById('showCsvUploadCheckbox');
+        const csvContainer = document.getElementById('csvUploadContainer');
+        const csvFileInput = document.getElementById('csvFile');
+        const csvFileLabel = document.getElementById('csvFileLabel');
+
+        if (csvToggle && csvContainer) {
+            const updateCsvVisibility = () => {
+                csvContainer.style.display = csvToggle.checked ? 'block' : 'none';
+            };
+            csvToggle.addEventListener('change', updateCsvVisibility);
+            updateCsvVisibility();
+        }
+
+        if (csvFileInput && csvFileLabel) {
+            csvFileInput.addEventListener('change', () => {
+                const filename = csvFileInput.files.length > 0 ? csvFileInput.files[0].name : 'Choose CSV file';
+                csvFileLabel.textContent = filename;
+            });
+        }
     });
 
 </script>
