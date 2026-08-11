@@ -442,14 +442,15 @@ class AssemblyEditorCreateView(LoginRequiredMixin, RedirectView):
                     text = str(raw)
 
                 fp = StringIO(text)
-                reader = csv.DictReader(fp, delimiter=';', skipinitialspace=True)
+                reader = csv.DictReader(fp, delimiter=',', skipinitialspace=True)
 
                 # Normalize header names by stripping whitespace
                 headers = [h.strip() for h in reader.fieldnames] if reader.fieldnames else []
 
                 rows: List[KiCadBomRow] = []
-                expected_keys = ['Id', 'Designator', 'Footprint', 'Quantity', 'Designation', 'Supplier and ref']
+                expected_keys = ['Reference', 'Footprint', 'Qty', 'Value', 'LCSC', 'Supplier and ref']
                 for r in reader:
+                    print(r)
                     if r is None:
                         continue
                     if not any(((v or '').strip() if isinstance(v, str) else v) for v in r.values()):
@@ -470,12 +471,12 @@ class AssemblyEditorCreateView(LoginRequiredMixin, RedirectView):
                         if value is None:
                             value = ''
 
-                        # Coerce Quantity to int when possible
-                        if key == 'Quantity':
+                        # Coerce Qty to int when possible
+                        if key == 'Qty':
                             try:
-                                row_td['Quantity'] = int(value) if value != '' else 0
+                                row_td['Qty'] = int(value) if value != '' else 0
                             except Exception:
-                                row_td['Quantity'] = value
+                                row_td['Qty'] = value
                         else:
                             row_td[key] = value
 
@@ -549,7 +550,7 @@ class AssemblyEditorCreateView(LoginRequiredMixin, RedirectView):
                 with transaction.atomic():
                     for row_index, r in enumerate(parsed_rows, start=1):
                         # r is a KiCadBomRow TypedDict
-                        raw_qty = r.get('Quantity', 0) or 0
+                        raw_qty = r.get('Qty', 0) or 0
                         qty = 0
                         # Robust quantity parsing: handle ints, floats, commas, and whitespace
                         try:
@@ -570,12 +571,13 @@ class AssemblyEditorCreateView(LoginRequiredMixin, RedirectView):
                         except Exception:
                             qty = 0
 
-                        designator = (r.get('Designator', '') or '')
-                        designation = (r.get('Designation', '') or '')
+                        reference_note = (r.get('Reference', '') or '')
+                        value = (r.get('Value', '') or '')
                         footprint = (r.get('Footprint', '') or '')
+                        lcsc = (r.get('LCSC', '') or '').strip()
 
-                        # Build a candidate reference from Footprint + Designation (user requested)
-                        candidate = f"{footprint.strip()}-{designation.strip()}".strip('-')
+                        # Build a candidate reference from Footprint + Value
+                        candidate = f"{footprint.strip()}-{value.strip()}".strip('-')
                         if not candidate or candidate == '-':
                             # Fallback to footprint alone or a generated default
                             candidate = footprint.strip() or ''
@@ -588,31 +590,37 @@ class AssemblyEditorCreateView(LoginRequiredMixin, RedirectView):
                         if not cand:
                             cand = get_default_reference()
 
-                        # Prefer an existing PCBPart, and only wrap an existing plain Part if needed.
-                        pcb_part = PCBPart.objects.filter(reference=cand, team=team).first()
+                        # Prefer an existing PCBPart by LCSC number when available.
+                        pcb_part = None
+                        if lcsc:
+                            pcb_part = PCBPart.objects.filter(LCSCPartNo=lcsc, team=team).first()
+                        if not pcb_part:
+                            pcb_part = PCBPart.objects.filter(reference=cand, team=team).first()
                         if not pcb_part:
                             try:
                                 pcb_part = PCBPart.objects.create(
                                     reference=cand,
-                                    name=(designation or cand),
+                                    name=(value or cand),
                                     team=team,
-                                    LCSCPartNo='',
+                                    LCSCPartNo=lcsc,
                                     Footprint=footprint,
-                                    Designation=designation,
+                                    Value=value,
                                 )
                                 created_parts += 1
                             except Exception as e:
                                 errors.append({'row': row_index, 'data': r, 'reason': f'failed to create PCBPart: {e}'})
                                 continue
                         else:
+                            if lcsc and not pcb_part.LCSCPartNo:
+                                pcb_part.LCSCPartNo = lcsc
                             pcb_part.Footprint = footprint
-                            pcb_part.Designation = designation
+                            pcb_part.Value = value
                             pcb_part.save()
 
 
                         # Create the SubAssemblyLineItem for this row
                         try:
-                            SubAssemblyLineItem.objects.create(subassembly=assembly, child_part=pcb_part, quantity=qty, notes=(designator.strip() if isinstance(designator, str) else designator))
+                            SubAssemblyLineItem.objects.create(subassembly=assembly, child_part=pcb_part, quantity=qty, notes=(reference_note.strip() if isinstance(reference_note, str) else reference_note))
                             created_lines += 1
                         except Exception as e:
                             errors.append({'row': row_index, 'data': r, 'reason': f'failed to create line item: {e}'})

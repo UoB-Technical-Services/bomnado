@@ -761,7 +761,7 @@ class PCBPart(Part):
 
     LCSCPartNo = models.CharField(max_length=100, blank=True)
     Footprint = models.CharField(max_length=200, blank=True)
-    Designation = models.CharField(max_length=200, blank=True)
+    Value = models.CharField(max_length=200, blank=True)
 
     class Meta:
         verbose_name = 'PCB Part'

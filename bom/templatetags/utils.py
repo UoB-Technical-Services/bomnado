@@ -145,3 +145,13 @@ def filter_by_attr(items, attributes, expected_value, test='=='):
 @register.simple_tag
 def is_superuser(user: AbstractUser):
     return bom.utils.export.is_superuser(user)
+
+
+@register.filter
+def is_pcb_part_missing_lcsc(item):
+    """Return True when item is a PCBPart and has no LCSC part number."""
+    try:
+        pcb = item.pcbpart
+    except Exception:
+        return False
+    return not bool((pcb.LCSCPartNo or '').strip())
