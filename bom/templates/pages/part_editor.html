@@ -118,8 +118,9 @@
 
             <div class="col-8">
                 <!-- REFERENCE -->
-                <div class="form-group">
-                    {% usekwacro bootstrapfield form.reference %}
+                <div class="form-group" style="display:flex; align-items:center;">
+                    <div style="flex:1">{% usekwacro bootstrapfield form.reference %}</div>
+                    <div style="margin-left:8px; white-space:nowrap;">{{ part|stylised_part }}</div>
                 </div>
 
                 <!-- NAME -->

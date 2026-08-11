@@ -33,7 +33,22 @@ def stylised_part(item):
     if item.sale_code:
         sale_code = f' <span class="icon" title="Sales Code = {item.sale_code}"> 📑</span>'
 
-    kbd = f'<kbd>{review}{deprecated}{reference}{sale_code}</kbd>'
+    kbd = f'<kbd>{review}{deprecated}{reference}{sale_code}'
+    # Detect whether this part has a PCBPart multi-table child
+    is_pcb_part = False
+    try:
+        pcb_model = apps.get_model('bom', 'PCBPart')
+        try:
+            _ = item.pcbpart
+            is_pcb_part = True
+        except pcb_model.DoesNotExist:
+            is_pcb_part = False
+    except Exception:
+        is_pcb_part = False
+
+    badge = ' <span class="badge bom-badge">PCB</span>' if is_pcb_part else ''
+    # put the badge inside the kbd so it stays inline with the reference
+    kbd = f'{kbd}{badge}</kbd>'
     link = f'<a class="bomlink part" href="{url}">{kbd}</a>'
     return mark_safe(link)
 
@@ -53,7 +68,7 @@ def stylised_assembly(item):
     if item.sale_code:
         sale_code = f' <span class="icon" title="Sales Code = {item.sale_code}"> 📑</span>'
 
-    kbd = f'<kbd>{review}{deprecated}{reference}{sale_code}</kbd>'
+    kbd = f'<kbd>{review}{deprecated}{reference}{sale_code}'
     # Detect whether this assembly has a PCBSubAssembly child (multi-table inheritance)
     is_pcb = False
     try:
@@ -67,8 +82,10 @@ def stylised_assembly(item):
     except Exception:
         is_pcb = False
 
-    badge = ' <span class="badge bg-primary">PCB</span>' if is_pcb else ''
-    link = f'<a class="bomlink assembly" href="{url}">{kbd}{badge}</a>'
+    badge = ' <span class="badge bom-badge">PCB</span>' if is_pcb else ''
+    # put the badge inside the kbd so it stays inline with the reference
+    kbd = f'{kbd}{badge}</kbd>'
+    link = f'<a class="bomlink assembly" href="{url}">{kbd}</a>'
     return mark_safe(link)
 
 
