@@ -3,6 +3,7 @@ from django.contrib.auth.models import AbstractUser
 from django.urls import reverse_lazy
 from django.utils.safestring import mark_safe
 import bom.utils.export
+from django.apps import apps
 
 register = template.Library()
 
@@ -53,7 +54,21 @@ def stylised_assembly(item):
         sale_code = f' <span class="icon" title="Sales Code = {item.sale_code}"> 📑</span>'
 
     kbd = f'<kbd>{review}{deprecated}{reference}{sale_code}</kbd>'
-    link = f'<a class="bomlink assembly" href="{url}">{kbd}</a>'
+    # Detect whether this assembly has a PCBSubAssembly child (multi-table inheritance)
+    is_pcb = False
+    try:
+        pcb_model = apps.get_model('bom', 'PCBSubAssembly')
+        try:
+            # Accessing the related object will raise pcb_model.DoesNotExist if not present
+            _ = item.pcbsubassembly
+            is_pcb = True
+        except pcb_model.DoesNotExist:
+            is_pcb = False
+    except Exception:
+        is_pcb = False
+
+    badge = ' <span class="badge bg-primary">PCB</span>' if is_pcb else ''
+    link = f'<a class="bomlink assembly" href="{url}">{kbd}{badge}</a>'
     return mark_safe(link)
 
 
