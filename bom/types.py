@@ -4,12 +4,12 @@ from typing import TypedDict
 KiCadBomRow = TypedDict(
     'KiCadBomRow',
     {
-        'Id': str,
-        'Designator': str,
+        'Reference': str,
         'Footprint': str,
-        # Quantity may be parsed as `int` when coercible, otherwise left as `str`.
-        'Quantity': int | str,
-        'Designation': str,
+        # Qty may be parsed as `int` when coercible, otherwise left as `str`.
+        'Qty': int | str,
+        'Value': str,
+        'LCSC': str,
         'Supplier and ref': str,
     },
     total=False,

@@ -401,6 +401,9 @@
                                     <td class="align-middle">
                                         {% if sub_form.instance.child_part %}
                                             {{ sub_form.instance.child_part|stylised_part }}
+                                            {% if sub_form.instance.child_part|is_pcb_part_missing_lcsc %}
+                                                <span title="This BOM PCB part does not have an associated LCSC number">⚠️</span>
+                                            {% endif %}
                                         {% elif sub_form.instance.child_subassembly %}
                                             {{ sub_form.instance.child_subassembly|stylised_assembly }}
                                         {% endif %}

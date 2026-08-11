@@ -31,8 +31,8 @@ class SubAssemblyAdmin(admin.ModelAdmin):
 
 
 class PCBPartAdmin(admin.ModelAdmin):
-    list_display = ('reference', 'name', 'LCSCPartNo', 'Footprint', 'Designation', 'team')
-    search_fields = ('reference', 'name', 'LCSCPartNo', 'Footprint', 'Designation')
+    list_display = ('reference', 'name', 'LCSCPartNo', 'Footprint', 'Value', 'team')
+    search_fields = ('reference', 'name', 'LCSCPartNo', 'Footprint', 'Value')
     list_filter = ('team',)
     readonly_fields = ('created', 'updated')
 
