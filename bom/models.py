@@ -748,3 +748,32 @@ class DealLineItem(models.Model):
 
     """ Notes on the inclusion of this line item. """
     notes = models.TextField(blank=True)
+
+
+class PCBPart(Part):
+    """
+    PCB-specific extension of `Part` using Django's multi-table inheritance.
+
+    This model shares the same primary key as `Part` (via the implicit
+    one-to-one parent link created by multi-table inheritance) and adds
+    an extra field for storing the LCSC part number.
+    """
+
+    LCSCPartNo = models.CharField(max_length=100, blank=True)
+
+    class Meta:
+        verbose_name = 'PCB Part'
+        verbose_name_plural = 'PCB Parts'
+
+
+class PCBSubAssembly(SubAssembly):
+    """
+    PCB-specific extension of `SubAssembly` using Django's multi-table inheritance.
+
+    Shares the same primary key as `SubAssembly` and allows PCB-specific
+    metadata to be added in future.
+    """
+
+    class Meta:
+        verbose_name = 'PCB SubAssembly'
+        verbose_name_plural = 'PCB SubAssemblies'
