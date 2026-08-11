@@ -123,6 +123,19 @@
                     <div style="margin-left:8px; white-space:nowrap;">{{ part|stylised_part }}</div>
                 </div>
 
+                {% if pcbpart %}
+                <div class="form-row mb-3">
+                    <div class="form-group col-6">
+                        <label class="text-muted mb-1">PCB Footprint</label>
+                        <div class="form-control-plaintext">{{ pcbpart.Footprint|default:'-' }}</div>
+                    </div>
+                    <div class="form-group col-6">
+                        <label class="text-muted mb-1">PCB Designation</label>
+                        <div class="form-control-plaintext">{{ pcbpart.Designation|default:'-' }}</div>
+                    </div>
+                </div>
+                {% endif %}
+
                 <!-- NAME -->
                 <div class="form-group">
                     {% usekwacro bootstrapfield form.name %}

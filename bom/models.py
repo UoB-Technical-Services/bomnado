@@ -756,10 +756,12 @@ class PCBPart(Part):
 
     This model shares the same primary key as `Part` (via the implicit
     one-to-one parent link created by multi-table inheritance) and adds
-    an extra field for storing the LCSC part number.
+    PCB-specific metadata.
     """
 
     LCSCPartNo = models.CharField(max_length=100, blank=True)
+    Footprint = models.CharField(max_length=200, blank=True)
+    Designation = models.CharField(max_length=200, blank=True)
 
     class Meta:
         verbose_name = 'PCB Part'

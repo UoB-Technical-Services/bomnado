@@ -31,7 +31,7 @@ from django.views.generic.base import TemplateView, RedirectView
 
 from bom.forms import PartCreationForm, PartSourceFormset, SubAssemblyForm, SubAssemblyItemFormset, AttachmentForm, \
     DealFormset, DealPartFormset, DealForm
-from bom.models import Part, PartSource, SubAssembly, SubAssemblyLineItem, Attachment, Team, Deal
+from bom.models import Part, PartSource, SubAssembly, SubAssemblyLineItem, Attachment, Team, Deal, PCBPart, PCBSubAssembly, get_default_reference
 from bom.scrapers.amazon import AmazonScrape
 from bom.scrapers.rs import RSScrape
 from bom.scrapers.shopfour import Shop4Scrape
@@ -294,11 +294,13 @@ def PartEditorUpdateView(request, pk):
         for f in d_formset.forms:
             f.fields['deal'].queryset = Deal.all_available_to_user(request.user)
 
+    pcbpart = part.pcbpart if hasattr(part, 'pcbpart') else None
     context = {
         'form': form,
         'ps_formset': ps_formset,
         'd_formset': d_formset,
         'part': part,
+        'pcbpart': pcbpart,
         'parts': Part.all_available_to_user(request.user)
     }
 
@@ -435,12 +437,12 @@ class AssemblyEditorCreateView(LoginRequiredMixin, RedirectView):
                 # Read bytes and decode, handling possible BOM
                 raw = csv_file.read()
                 if isinstance(raw, bytes):
-                    text = raw.decode('utf-8-sig')
+                    text = raw.decode('utf-8-sig', errors='replace')
                 else:
                     text = str(raw)
 
                 fp = StringIO(text)
-                reader = csv.DictReader(fp)
+                reader = csv.DictReader(fp, delimiter=';', skipinitialspace=True)
 
                 # Normalize header names by stripping whitespace
                 headers = [h.strip() for h in reader.fieldnames] if reader.fieldnames else []
@@ -448,6 +450,11 @@ class AssemblyEditorCreateView(LoginRequiredMixin, RedirectView):
                 rows: List[KiCadBomRow] = []
                 expected_keys = ['Id', 'Designator', 'Footprint', 'Quantity', 'Designation', 'Supplier and ref']
                 for r in reader:
+                    if r is None:
+                        continue
+                    if not any(((v or '').strip() if isinstance(v, str) else v) for v in r.values()):
+                        continue
+
                     # Normalize each row's keys to stripped header names and build a lowercase lookup
                     normalized = { (k.strip() if k else ''): (v.strip() if isinstance(v, str) else v) for k, v in r.items() }
                     lower_lookup = { (k.lower() if k else ''): v for k, v in normalized.items() }
@@ -455,13 +462,11 @@ class AssemblyEditorCreateView(LoginRequiredMixin, RedirectView):
                     # Build a TypedDict row with expected keys (case-insensitive lookup)
                     row_td: KiCadBomRow = {}
                     for key in expected_keys:
-                        lookup_key = key
-                        # Try exact key, then lowercase, then replace spaces with underscore
-                        value = normalized.get(lookup_key)
+                        value = normalized.get(key)
                         if value is None:
-                            value = lower_lookup.get(lookup_key.lower())
+                            value = lower_lookup.get(key.lower())
                         if value is None:
-                            value = lower_lookup.get(lookup_key.lower().replace(' ', '_'))
+                            value = lower_lookup.get(key.lower().replace(' ', '_'))
                         if value is None:
                             value = ''
 
@@ -519,18 +524,109 @@ class AssemblyEditorCreateView(LoginRequiredMixin, RedirectView):
         # Create a new SubAssembly.
         try:
             # Create the assembly instance - if top-level, don't set project field
+            AssemblyClass = PCBSubAssembly if is_upload else SubAssembly
             if is_toplevel:
-                assembly = SubAssembly(
+                assembly = AssemblyClass(
                     reference=reference, name=reference, revision='0.0.1',
                     team=team, is_toplevel=True)
             else:
-                assembly = SubAssembly(
+                assembly = AssemblyClass(
                     reference=reference, name=reference, revision='0.0.1',
                     project=project, team=team, is_toplevel=False)
 
             # Validate and save
             assembly.full_clean()
             assembly.save()
+            # If this was an upload, process parsed CSV rows into PCBParts and line items.
+            if is_upload:
+                from django.db import transaction
+
+                parsed_rows = self.request.session.get('pcb_csv_rows', []) or []
+                created_parts = 0
+                created_lines = 0
+                errors = []
+
+                with transaction.atomic():
+                    for row_index, r in enumerate(parsed_rows, start=1):
+                        # r is a KiCadBomRow TypedDict
+                        raw_qty = r.get('Quantity', 0) or 0
+                        qty = 0
+                        # Robust quantity parsing: handle ints, floats, commas, and whitespace
+                        try:
+                            if isinstance(raw_qty, int):
+                                qty = raw_qty
+                            else:
+                                qs = str(raw_qty).strip().replace(',', '')
+                                if qs == '':
+                                    qty = 0
+                                else:
+                                    try:
+                                        qty = int(qs)
+                                    except ValueError:
+                                        try:
+                                            qty = int(float(qs))
+                                        except Exception:
+                                            qty = 0
+                        except Exception:
+                            qty = 0
+
+                        designator = (r.get('Designator', '') or '')
+                        designation = (r.get('Designation', '') or '')
+                        footprint = (r.get('Footprint', '') or '')
+
+                        # Build a candidate reference from Footprint + Designation (user requested)
+                        candidate = f"{footprint.strip()}-{designation.strip()}".strip('-')
+                        if not candidate or candidate == '-':
+                            # Fallback to footprint alone or a generated default
+                            candidate = footprint.strip() or ''
+                        if not candidate:
+                            candidate = get_default_reference()
+
+                        # Sanitize to allowed characters for Part.reference (uppercase, digits, dash)
+                        cand = re.sub('[^0-9A-Za-z-]', '-', candidate).upper()
+                        cand = re.sub('-+', '-', cand).strip('-')
+                        if not cand:
+                            cand = get_default_reference()
+
+                        # Prefer an existing PCBPart, and only wrap an existing plain Part if needed.
+                        pcb_part = PCBPart.objects.filter(reference=cand, team=team).first()
+                        if not pcb_part:
+                            try:
+                                pcb_part = PCBPart.objects.create(
+                                    reference=cand,
+                                    name=(designation or cand),
+                                    team=team,
+                                    LCSCPartNo='',
+                                    Footprint=footprint,
+                                    Designation=designation,
+                                )
+                                created_parts += 1
+                            except Exception as e:
+                                errors.append({'row': row_index, 'data': r, 'reason': f'failed to create PCBPart: {e}'})
+                                continue
+                        else:
+                            pcb_part.Footprint = footprint
+                            pcb_part.Designation = designation
+                            pcb_part.save()
+
+
+                        # Create the SubAssemblyLineItem for this row
+                        try:
+                            SubAssemblyLineItem.objects.create(subassembly=assembly, child_part=pcb_part, quantity=qty, notes=(designator.strip() if isinstance(designator, str) else designator))
+                            created_lines += 1
+                        except Exception as e:
+                            errors.append({'row': row_index, 'data': r, 'reason': f'failed to create line item: {e}'})
+                            # Skip invalid rows but continue processing remaining rows
+                            continue
+
+                # Clear parsed rows from session to avoid reprocessing
+                try:
+                    del self.request.session['pcb_csv_rows']
+                    del self.request.session['pcb_csv_headers']
+                except KeyError:
+                    pass
+                # Update upload message
+                self.request.session['pcb_upload_message'] = f'Imported {created_lines} items and created {created_parts} parts.'
         except ValidationError as e:
             error_message_dict = e.message_dict
 
