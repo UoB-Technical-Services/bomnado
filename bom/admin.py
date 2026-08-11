@@ -30,10 +30,18 @@ class SubAssemblyAdmin(admin.ModelAdmin):
     inlines = [SubAssemblyLineAdmin, AttachmentInlines]
 
 
+class PCBPartAdmin(admin.ModelAdmin):
+    list_display = ('reference', 'name', 'LCSCPartNo', 'Footprint', 'Designation', 'team')
+    search_fields = ('reference', 'name', 'LCSCPartNo', 'Footprint', 'Designation')
+    list_filter = ('team',)
+    readonly_fields = ('created', 'updated')
+
+
 class TeamAdmin(admin.ModelAdmin):
     model = models.Team
 
 
 admin.site.register(models.Part, PartAdmin)
+admin.site.register(models.PCBPart, PCBPartAdmin)
 admin.site.register(models.SubAssembly, SubAssemblyAdmin)
 admin.site.register(models.Team, TeamAdmin)
