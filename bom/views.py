@@ -8,6 +8,9 @@ import zipfile
 from urllib.parse import urlparse
 from collections import defaultdict, Counter
 from io import StringIO
+import csv
+from typing import List
+from bom.types import KiCadBomRow
 
 import requests
 from PIL import Image
@@ -427,6 +430,61 @@ class AssemblyEditorCreateView(LoginRequiredMixin, RedirectView):
                 )
             self.request.session['pcb_upload_message'] = f'Uploaded KiCAD BOM CSV file: {csv_file.name} ({csv_file.size} bytes)'
             self.request.session['pcb_upload_error'] = None
+            # Attempt to parse the KiCAD BOM CSV and save rows to the session for follow-up processing.
+            try:
+                # Read bytes and decode, handling possible BOM
+                raw = csv_file.read()
+                if isinstance(raw, bytes):
+                    text = raw.decode('utf-8-sig')
+                else:
+                    text = str(raw)
+
+                fp = StringIO(text)
+                reader = csv.DictReader(fp)
+
+                # Normalize header names by stripping whitespace
+                headers = [h.strip() for h in reader.fieldnames] if reader.fieldnames else []
+
+                rows: List[KiCadBomRow] = []
+                expected_keys = ['Id', 'Designator', 'Footprint', 'Quantity', 'Designation', 'Supplier and ref']
+                for r in reader:
+                    # Normalize each row's keys to stripped header names and build a lowercase lookup
+                    normalized = { (k.strip() if k else ''): (v.strip() if isinstance(v, str) else v) for k, v in r.items() }
+                    lower_lookup = { (k.lower() if k else ''): v for k, v in normalized.items() }
+
+                    # Build a TypedDict row with expected keys (case-insensitive lookup)
+                    row_td: KiCadBomRow = {}
+                    for key in expected_keys:
+                        lookup_key = key
+                        # Try exact key, then lowercase, then replace spaces with underscore
+                        value = normalized.get(lookup_key)
+                        if value is None:
+                            value = lower_lookup.get(lookup_key.lower())
+                        if value is None:
+                            value = lower_lookup.get(lookup_key.lower().replace(' ', '_'))
+                        if value is None:
+                            value = ''
+
+                        # Coerce Quantity to int when possible
+                        if key == 'Quantity':
+                            try:
+                                row_td['Quantity'] = int(value) if value != '' else 0
+                            except Exception:
+                                row_td['Quantity'] = value
+                        else:
+                            row_td[key] = value
+
+                    rows.append(row_td)
+
+                # Save parsed CSV information into session for later processing steps.
+                # Keep only simple serializable types (str/int).
+                self.request.session['pcb_csv_headers'] = headers
+                self.request.session['pcb_csv_rows'] = rows
+            except Exception as e:
+                # Record parse error for the user and clear any partial data
+                self.request.session['pcb_upload_error'] = f'Failed to parse CSV file: {e}'
+                self.request.session['pcb_csv_headers'] = []
+                self.request.session['pcb_csv_rows'] = []
 
         # Work out project and owning team. If project is not set
         project_id = self.request.POST.get('project')
