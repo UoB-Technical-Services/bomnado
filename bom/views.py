@@ -456,8 +456,8 @@ class AssemblyEditorCreateView(LoginRequiredMixin, RedirectView):
                         continue
 
                     # Normalize each row's keys to stripped header names and build a lowercase lookup
-                    normalized = { (k.strip() if k else ''): (v.strip() if isinstance(v, str) else v) for k, v in r.items() }
-                    lower_lookup = { (k.lower() if k else ''): v for k, v in normalized.items() }
+                    normalized = {(k.strip() if k else ''): (v.strip() if isinstance(v, str) else v) for k, v in r.items()}
+                    lower_lookup = {(k.lower() if k else ''): v for k, v in normalized.items()}
 
                     # Build a TypedDict row with expected keys (case-insensitive lookup)
                     row_td: KiCadBomRow = {}
@@ -618,7 +618,6 @@ class AssemblyEditorCreateView(LoginRequiredMixin, RedirectView):
                             pcb_part.Footprint = footprint
                             pcb_part.Value = value
                             pcb_part.save()
-
 
                         # Create the SubAssemblyLineItem for this row
                         try:
