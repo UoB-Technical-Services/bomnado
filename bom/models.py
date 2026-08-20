@@ -109,6 +109,9 @@ class Part(models.Model):
     """ Human readable part name. """
     name = models.CharField(max_length=200)
 
+    """ Manufacturer name for this part. """
+    manufacturer = models.CharField(max_length=200, blank=True)
+
     """ Estimated weight of the part (kilograms). """
     kgs = models.FloatField(default=0.00)
 
@@ -762,6 +765,8 @@ class PCBPart(Part):
     LCSCPartNo = models.CharField(max_length=100, blank=True)
     Footprint = models.CharField(max_length=200, blank=True)
     Value = models.CharField(max_length=200, blank=True)
+    Category = models.CharField(max_length=200, blank=True)
+    DatasheetLink = models.URLField(blank=True)
 
     class Meta:
         verbose_name = 'PCB Part'

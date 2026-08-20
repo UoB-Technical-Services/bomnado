@@ -13,7 +13,7 @@ class PartSerializer(serializers.ModelSerializer):
         model = models.Part
         fields = (
             'url', 'reference', 'name', 'sale_code', 'hs_code', 'picture',
-            'picture_url', 'dimensions', 'nature', 'spec', 'qc_steps',
+            'picture_url', 'dimensions', 'nature', 'manufacturer', 'spec', 'qc_steps',
             'created', 'updated', 'id', 'kgs', 'sources', 'end_of_life',
             'deprecated', 'review_notes'
         )

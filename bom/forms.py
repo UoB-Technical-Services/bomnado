@@ -160,13 +160,14 @@ class PartCreationForm(forms.ModelForm):
     class Meta:
         model = models.Part
         fields = [
-            'reference', 'name', 'kgs', 'dimensions', 'colour',
+            'reference', 'name', 'manufacturer', 'kgs', 'dimensions', 'colour',
             'nature', 'spec', 'qc_steps', 'picture', 'sale_code', 'hs_code', 'end_of_life',
             'deprecated', 'review_notes'
         ]
         widgets = {
             'reference': BootstrapText(placeholder='PART-REFERENCE', input_group_classes='input-group-sm'),
             'name': BootstrapText(placeholder='Part Name', input_group_classes='input-group-sm'),
+            'manufacturer': BootstrapText(placeholder='e.g. Texas Instruments', input_group_classes='input-group-sm'),
             'sale_code': BootstrapText(placeholder='e.g. PROD-123', input_group_classes='input-group-sm'),
             'hs_code': BootstrapText(placeholder='e.g. 7318163190', input_group_classes='input-group-sm'),
             'dimensions': BootstrapText(placeholder='L x W x H', input_group_classes='input-group-sm', append='mm'),
@@ -191,6 +192,7 @@ class PartCreationForm(forms.ModelForm):
         labels = {
             'reference': 'Part Reference',
             'name': 'Name',
+            'manufacturer': 'Manufacturer',
             'dimensions': 'Dimensions',
             'kgs': 'Weight',
             'colour': 'Colour',
@@ -205,6 +207,7 @@ class PartCreationForm(forms.ModelForm):
         help_texts = {
             'reference': 'Abbreviated. Be consistent with others.',
             'name': 'Short and specific. For humans.',
+            'manufacturer': 'Optional manufacturer name (e.g. ST, TI, Murata).',
             'kgs': 'Approximate weight per unit.',
             'dimensions': 'Approximate unpacked size (mm). Length x Width x Height.',
             'colour': 'Short description of physical appearance.',

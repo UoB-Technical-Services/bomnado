@@ -134,6 +134,22 @@
                         <div class="form-control-plaintext">{{ pcbpart.Value|default:'-' }}</div>
                     </div>
                 </div>
+                <div class="form-row mb-3">
+                    <div class="form-group col-6">
+                        <label class="text-muted mb-1">PCB Category</label>
+                        <div class="form-control-plaintext">{{ pcbpart.Category|default:'-' }}</div>
+                    </div>
+                    <div class="form-group col-6">
+                        <label class="text-muted mb-1">PCB Datasheet</label>
+                        <div class="form-control-plaintext">
+                            {% if pcbpart.DatasheetLink %}
+                                <a href="{{ pcbpart.DatasheetLink }}" target="_blank" rel="noopener noreferrer">{{ pcbpart.DatasheetLink }}</a>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
                 {% endif %}
 
                 <!-- NAME -->
@@ -143,6 +159,9 @@
 
                 <!-- DESIGN NATURE -->
                 <div class="row">
+                    <div class="form-group col-6 pr-1">
+                        {% usekwacro bootstrapfield form.manufacturer %}
+                    </div>
                     <div class="form-group col-6 pr-1">
                         {% usekwacro bootstrapfield form.nature %}
                     </div>
