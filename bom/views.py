@@ -448,7 +448,7 @@ class AssemblyEditorCreateView(LoginRequiredMixin, RedirectView):
                 headers = [h.strip() for h in reader.fieldnames] if reader.fieldnames else []
 
                 rows: List[KiCadBomRow] = []
-                expected_keys = ['Reference', 'Footprint', 'Qty', 'Value', 'LCSC', 'Supplier and ref']
+                expected_keys = ['Reference', 'Footprint', 'Qty', 'Value', 'Manufacturer', 'LCSC', 'Supplier and ref']
                 for r in reader:
                     if r is None:
                         continue
@@ -572,6 +572,7 @@ class AssemblyEditorCreateView(LoginRequiredMixin, RedirectView):
 
                         reference_note = (r.get('Reference', '') or '')
                         value = (r.get('Value', '') or '')
+                        manufacturer = (r.get('Manufacturer', '') or '')
                         footprint = (r.get('Footprint', '') or '')
                         lcsc = (r.get('LCSC', '') or '').strip()
 
@@ -600,6 +601,7 @@ class AssemblyEditorCreateView(LoginRequiredMixin, RedirectView):
                                     reference=cand,
                                     name=(value or cand),
                                     team=team,
+                                    manufacturer=manufacturer,
                                     LCSCPartNo=lcsc,
                                     Footprint=footprint,
                                     Value=value,
@@ -611,6 +613,8 @@ class AssemblyEditorCreateView(LoginRequiredMixin, RedirectView):
                         else:
                             if lcsc and not pcb_part.LCSCPartNo:
                                 pcb_part.LCSCPartNo = lcsc
+                            if manufacturer:
+                                pcb_part.manufacturer = manufacturer
                             pcb_part.Footprint = footprint
                             pcb_part.Value = value
                             pcb_part.save()
