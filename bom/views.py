@@ -450,7 +450,6 @@ class AssemblyEditorCreateView(LoginRequiredMixin, RedirectView):
                 rows: List[KiCadBomRow] = []
                 expected_keys = ['Reference', 'Footprint', 'Qty', 'Value', 'LCSC', 'Supplier and ref']
                 for r in reader:
-                    print(r)
                     if r is None:
                         continue
                     if not any(((v or '').strip() if isinstance(v, str) else v) for v in r.values()):
@@ -576,13 +575,12 @@ class AssemblyEditorCreateView(LoginRequiredMixin, RedirectView):
                         footprint = (r.get('Footprint', '') or '')
                         lcsc = (r.get('LCSC', '') or '').strip()
 
-                        # Build a candidate reference from Footprint + Value
-                        candidate = f"{footprint.strip()}-{value.strip()}".strip('-')
-                        if not candidate or candidate == '-':
-                            # Fallback to footprint alone or a generated default
-                            candidate = footprint.strip() or ''
-                        if not candidate:
-                            candidate = get_default_reference()
+                        # Use LCSC as the reference when available, otherwise derive
+                        # a stable fallback from BOM data before using a generated id.
+                        fallback_candidate = f"{footprint.strip()}-{value.strip()}".strip('-')
+                        if not fallback_candidate or fallback_candidate == '-':
+                            fallback_candidate = footprint.strip() or value.strip() or reference_note.strip()
+                        candidate = lcsc if lcsc else (fallback_candidate or get_default_reference())
 
                         # Sanitize to allowed characters for Part.reference (uppercase, digits, dash)
                         cand = re.sub('[^0-9A-Za-z-]', '-', candidate).upper()
