@@ -50,9 +50,11 @@
         justify-content: space-between;
     }
 
+    /* 
+    TODO IMO kinda confusing looking, revisit with a better design
     .in-instructions:after {
         content: " ✏️";
-    }
+    }*/
 
     .select2-results {
         font-size: 80%;
@@ -176,6 +178,49 @@
 
     /* Trunk branch line is hidden. */
     .tree > li:last-child:before { display: none; }
+
+    /* Formset DELETE field styling */
+    #subComponentsTable .delete-checkbox-wrapper {
+        display: flex;
+        align-items: center;
+    }
+
+    #subComponentsTable input[type="checkbox"][id$="-DELETE"] {
+        position: absolute;
+        opacity: 0;
+        width: 0;
+        height: 0;
+        pointer-events: none;
+    }
+
+    #subComponentsTable .delete-checkbox-wrapper label {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        margin: 0;
+        padding: 0.375rem 0.75rem;
+        font-size: 1rem;
+        font-weight: 400;
+        line-height: 1.5;
+        text-align: center;
+        user-select: none;
+        vertical-align: middle;
+        background-color: transparent;
+        border: 1px solid #6c757d;
+        border-radius: 0.25rem;
+        transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+
+    #subComponentsTable input[type="checkbox"][id$="-DELETE"]:checked + label {
+        background-color: #dc3545;
+        border-color: #dc3545;
+        color: #fff;
+    }
+
+    /** #subComponentsTable .edited-row {
+        background-color: #dc3545;
+    } */
 </style>
 {% endblock %}
 
@@ -366,15 +411,17 @@
                             </thead>
                             <tbody>
                                 {% for sub_form in formset %}
-                                <tr>
+                                <tr class="{% if sub_form.instance.id %}existing-row{% else %}new-row{% endif %}">
                                     <th class="align-middle" scope="row">{{ forloop.counter }}</th>
 
                                     <td class="align-middle">
-                                        {% if sub_form.instance.child_part %}
-                                        🔩
-                                        {% elif sub_form.instance.child_subassembly %}
-                                        📦
-                                        {% endif %}
+                                        <span class="item-type-icon">
+                                            {% if sub_form.instance.child_part %}
+                                            🔩
+                                            {% elif sub_form.instance.child_subassembly %}
+                                            📦
+                                            {% endif %}
+                                        </span>
 
                                         {% for hidden_field in sub_form.hidden_fields %}
                                             {{ hidden_field }}
@@ -382,15 +429,13 @@
                                     </td>
 
                                     <td class="align-middle icon">
-                                        {% if sub_form.instance.child_part %}
-                                        <div class="table-icon">
+                                        <div class="table-icon" data-form-index="{{ forloop.counter0 }}">
+                                            {% if sub_form.instance.child_part %}
                                             <img src="{{ sub_form.instance.child_part.picture_url }}"></img>
-                                        </div>
-                                        {% elif sub_form.instance.child_subassembly %}
-                                        <div class="table-icon">
+                                            {% elif sub_form.instance.child_subassembly %}
                                             <img src="{{ sub_form.instance.child_subassembly.picture_url }}"></img>
+                                            {% endif %}
                                         </div>
-                                        {% endif %}
                                     </td>
 
                                     <td>
@@ -399,14 +444,16 @@
                                     </td>
 
                                     <td class="align-middle">
-                                        {% if sub_form.instance.child_part %}
-                                            {{ sub_form.instance.child_part|stylised_part }}
-                                            {% if sub_form.instance.child_part|is_pcb_part_missing_lcsc %}
-                                                <span title="This BOM PCB part does not have an associated LCSC number">⚠️</span>
+                                        <span class="item-reference">
+                                            {% if sub_form.instance.child_part %}
+                                                {{ sub_form.instance.child_part|stylised_part }}
+                                                {% if sub_form.instance.child_part|is_pcb_part_missing_lcsc %}
+                                                    <span title="This BOM PCB part does not have an associated LCSC number">⚠️</span>
+                                                {% endif %}
+                                            {% elif sub_form.instance.child_subassembly %}
+                                                {{ sub_form.instance.child_subassembly|stylised_assembly }}
                                             {% endif %}
-                                        {% elif sub_form.instance.child_subassembly %}
-                                            {{ sub_form.instance.child_subassembly|stylised_assembly }}
-                                        {% endif %}
+                                        </span>
                                     </td>
 
                                     <td>
@@ -414,6 +461,7 @@
                                     </td>
                                     <td class="align-middle">
                                         <div class="btn-group">
+                                            {% if sub_form.instance.item %}
                                             <button
                                                 onclick="navigator.clipboard.writeText('`{{sub_form.instance.item.reference}}`');"
                                                 title="Copy the reference to the clipboard within backticks."
@@ -421,25 +469,19 @@
                                                 class="btn btn-sm btn-outline-secondary">
                                                 📋
                                             </button>
-                                            <button onclick="deleteSubAssemblyLineItem(this, '{{sub_form.instance.id}}', '{{ sub_form.instance.item }}')" type="button"
-                                            class="btn btn-sm btn-outline-danger">
-                                            🗑️
-                                        </button>
+                                            {% endif %}
+                                            {% if formset.can_delete %}
+                                            <div class="delete-checkbox-wrapper">
+                                                {{ sub_form.DELETE }}
+                                                <label for="{{ sub_form.DELETE.id_for_label }}" class="btn btn-sm btn-outline-danger" title="Mark for deletion">
+                                                    🗑️
+                                                </label>
+                                            </div>
+                                            {% endif %}
                                         </div>
 
                                         <!-- <button onclick="writeIntoInstructions(this)" type="button" class="btn btn-sm btn-outline-secondary">✏️</button> -->
-                                        <!-- { % if formset.can_delete % }
-                                        {{ sub_form.DELETE }}
-                                        { % endif % } -->
                                     </td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <th scope="row">-</th>
-                                    <td></td>
-                                    <td></td>
-                                    <td></td>
-                                    <td></td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -459,6 +501,7 @@
                     {%endwith%}
                 </div>
 
+                {% comment %} These buttons need to be moved to the end {% endcomment %}
                 <!-- BUTTONS -->
                 <div class="text-right w-100">
                     <button type="button" onclick="deleteAssembly('{{assembly.id}}', '{{assembly.reference}}')"
@@ -596,11 +639,13 @@
 {% csrf_token %}
 <script type="application/javascript">
 
-    /** Delete a given sub assembly line item ID. */
+    /** Delete a given assembly. */
     async function deleteAssembly(id, name) {
         bootbox.confirm(`Are you sure you want to delete ${name}?
         If this is a top level assembly it will delete ALL children assemblies"`, (result) => {
-            if (!result) { return; }
+            if (!result) {
+                return;
+            }
             const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
             let call = async () => {
                 let response = await fetch(`/api/subassemblies/${id}/`, {
@@ -614,24 +659,6 @@
                 {% else %}
                     window.location = '{% url "bom:assembly_editor_update" pk=assembly.project.id %}';
                 {% endif %}
-            }
-            call();
-        });
-    }
-
-    /** Delete a given sub assembly line item ID. */
-    async function deleteSubAssemblyLineItem(el, lineID, name) {
-        bootbox.confirm(`Are you sure you want to delete ${name}?`, (result) => {
-            if (!result) { return; }
-            const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-            let call = async () => {
-                let response = await fetch(`/api/subassemblylineitems/${lineID}/`, {
-                    method: 'DELETE',
-                    headers: { 'X-CSRFToken': csrftoken },
-                    mode: 'same-origin'
-                });
-                await processErrors(response);
-                window.location = window.location;
             }
             call();
         });
@@ -695,7 +722,91 @@
 
     }
 
-    /** Insert the part in the selection dropdown into the BOM. */
+    /**
+     * Helper: reindex all formset rows so that name/id indexes are contiguous
+     * and update the management form's TOTAL_FORMS value.
+     */
+    function reindexFormsetRows() {
+        const rows = Array.from(document.querySelectorAll('#subComponentsTable tbody tr'));
+        rows.forEach((row, idx) => {
+            // Update the displayed row number
+            const th = row.querySelector('th[scope="row"]');
+            if (th) {
+                th.textContent = idx + 1;
+            }
+
+            // Update names and ids for inputs/selects/textareas
+            row.querySelectorAll('input, select, textarea, label').forEach(el => {
+                // update name
+                if (el.name) {
+                    el.name = el.name.replace(/-\d+-/, `-${idx}-`);
+                }
+                // update id
+                if (el.id) {
+                    el.id = el.id.replace(/-\d+-/, `-${idx}-`);
+                }
+                // update label 'for' attributes
+                if (el.getAttribute && el.getAttribute('for')) {
+                    el.setAttribute('for', el.getAttribute('for').replace(/-\d+-/, `-${idx}-`));
+                }
+            });
+        });
+
+        // Update TOTAL_FORMS
+        const totalFormsEl = document.querySelector('#id_form-TOTAL_FORMS');
+        if (totalFormsEl) {
+            totalFormsEl.value = rows.length;
+        }
+        // Keep JS formIdx in sync
+        formIdx = rows.length - 1;
+    }
+
+
+    /** Create and append a new empty form row to the formset (cloned and cleaned). */
+    function createNewFormRow() {
+        const tbody = document.querySelector('#subComponentsTable tbody');
+        const lastRow = tbody.querySelector('tr:last-child');
+        if (!lastRow) {
+            return null;
+        }
+
+        const newRow = lastRow.cloneNode(true);
+
+        // Clear inputs
+        newRow.querySelectorAll('input, textarea, select').forEach(el => {
+            if (el.type === 'checkbox' || el.type === 'radio') {
+                el.checked = false;
+            } else {
+                el.value = '';
+            }
+        });
+
+        // Clear displayed item info
+        const tableIcon = newRow.querySelector('.table-icon');
+        if (tableIcon) {
+            // remove existing img if present
+            const img = tableIcon.querySelector('img');
+            if (img) {
+                img.remove();
+            }
+        }
+
+        const refSpan = newRow.querySelector('.item-reference');
+        if (refSpan) {
+            refSpan.innerHTML = '';
+        }
+
+        // adjust classes
+        newRow.classList.remove('existing-row', 'edited-row');
+        newRow.classList.add('new-row');
+
+        tbody.appendChild(newRow);
+        reindexFormsetRows();
+        return newRow;
+    }
+
+
+    /** Insert the selected part into the first empty row of the formset, creating one if needed. */
     async function insertSelected() {
 
         // Determine the selected part.
@@ -705,49 +816,79 @@
             return;
         }
 
-        const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-
-        // Prepare a request.
-        let request = { subassembly: "{{ assembly.id }}", quantity: '1' };
-        if (selected.type === 'part') {
-            request['child_part'] = selected.data.id;
-        }
-        else {
-            request['child_subassembly'] = selected.data.id;
-        }
-
-        // Submit the request.
-        let response = await fetch(`/api/subassemblylineitems/`, {
-            method: 'POST',
-            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
-            mode: 'same-origin',
-            body: JSON.stringify(request)
-        });
-
-        // Check for circular reference error specifically
-        if (!response.ok) {
-            const clonedResponse = response.clone();
-
-            try {
-                // Read response as text regardless of content type
-                const errorText = await clonedResponse.text();
-
-                // Check for circular reference in the error response
-                if (errorText.toLowerCase().includes("circular reference")) {
-                    bootbox.alert({
-                        title: "⚠️ Warning",
-                        message: "You can't add this component because it it is already used by one of the parents.",
-                        className: 'error-dialog'
-                    });
-                }
-            } catch (e) {
-                console.warn("Error parsing cloned response:", e);
+        // Find the first empty row in the table (the new-row class)
+        let emptyRow = document.querySelector('tr.new-row');
+        if (!emptyRow) {
+            // create one dynamically
+            emptyRow = createNewFormRow();
+            if (!emptyRow) {
+                bootbox.alert('Unable to create a new row.');
+                return;
             }
         }
 
-        // Handle errors or reload.
-        await processErrors(response);
-        window.location = window.location;
+        // Populate the hidden fields
+        if (selected.type === 'part') {
+            const childPartField = emptyRow.querySelector('[name*="child_part"]');
+            if (childPartField) {
+                childPartField.value = selected.data.id;
+            }
+        } else {
+            const childSubassemblyField = emptyRow.querySelector('[name*="child_subassembly"]');
+            if (childSubassemblyField) {
+                childSubassemblyField.value = selected.data.id;
+            }
+        }
+
+        // Update the quantity field to 1
+        const quantityField = emptyRow.querySelector('[name*="quantity"]');
+        if (quantityField) {
+            quantityField.value = 1;
+        }
+
+        // Update the display to show the selected item
+        updateRowDisplay(emptyRow, selected);
+
+        // Clear the select2
+        $("#componentSearch").val(null).trigger('change');
+
+        // Mark the row as having been edited
+        emptyRow.classList.remove('new-row');
+        emptyRow.classList.add('edited-row');
+    }
+
+    /** Update the visual display of a row based on the selected item. */
+    function updateRowDisplay(row, selectedItem) {
+        // Update the item type icon
+        const iconSpan = row.querySelector('.item-type-icon');
+        if (iconSpan) {
+            iconSpan.textContent = selectedItem.type === 'part' ? '🔩' : '📦';
+        }
+
+        // Update the picture
+        const tableIcon = row.querySelector('.table-icon');
+        if (tableIcon) {
+            let img = tableIcon.querySelector('img');
+            if (!img) {
+                img = document.createElement('img');
+                tableIcon.appendChild(img);
+            }
+            const placeholder = selectedItem.type === 'part'
+                ? '{% static "assets/placeholders/part_placeholder.svg" %}'
+                : (selectedItem.data.is_toplevel 
+                    ? '{% static "assets/placeholders/root_assembly_placeholder.svg" %}'
+                    : '{% static "assets/placeholders/assembly_placeholder.svg" %}');
+            img.src = selectedItem.data.picture_url || placeholder;
+        }
+
+        // Update the reference display
+        const refSpan = row.querySelector('.item-reference');
+        if (refSpan) {
+            let review = selectedItem.data.review_notes ? '👀 ' : '';
+            let deprecated = selectedItem.data.deprecated ? '⚠️ ' : '';
+            let sale_code = selectedItem.data.sale_code ? ' 📑' : '';
+            refSpan.innerHTML = `<kbd class="${selectedItem.type}">${review}${deprecated}${selectedItem.data.reference}${sale_code}</kbd>`;
+        }
     }
 
 
@@ -758,7 +899,7 @@
     async function colouriseUsed() {
         const textarea = document.querySelector('textarea[name=instructions]');
         const update = () => {
-            const references = document.querySelectorAll('#subComponentsTable .bomlink .reference');
+            const references = document.querySelectorAll('#subComponentsTable .item-reference kbd');
             for (const ref of references) {
                 ref.parentNode.classList.remove('in-instructions');
                 const searchText = `\`${ref.innerText}\``;
@@ -790,7 +931,7 @@
         entries = [...new Set(entries)];
 
         // Find item references components table for this assembly.
-        let references = [...document.querySelectorAll('#subComponentsTable .bomlink .reference')];
+        let references = [...document.querySelectorAll('#subComponentsTable .item-reference kbd')];
         references = references.map(r => `${r.innerText}`.toUpperCase());
         references = [...new Set(references)];
 
@@ -861,11 +1002,50 @@
 
     document.addEventListener('DOMContentLoaded', async () => {
 
+        // TODO: Eww, vars
+        var formIdx = {{ formset.total_form_count|add:"-1" }};
+
         // Create the list of parts / assemblies that can be inserted.
         createInsertables();
 
         // Handle clicking "Insert" new part / assembly.
         document.querySelector('#partQuerySubmit').addEventListener('click', insertSelected)
+
+        // Handle delete label clicks (delegated). Removes newly created rows, marks existing rows for deletion.
+        const tbody = document.querySelector('#subComponentsTable tbody');
+        if (tbody) {
+            tbody.addEventListener('click', function(e) {
+                const label = e.target.closest('.delete-checkbox-wrapper label');
+                if (!label) {
+                    return;
+                }
+                const row = label.closest('tr');
+                if (!row) {
+                    return;
+                }
+                const checkbox = row.querySelector('input[type="checkbox"][id$="-DELETE"]');
+                const idInput = row.querySelector('input[name$="-id"]');
+
+                // If this is a new (unsaved) row then remove it from the DOM
+                if (idInput && !idInput.value) {
+                    row.remove();
+                    reindexFormsetRows();
+                    return;
+                }
+
+                // Otherwise let the checkbox toggle and reflect state for styling
+                if (checkbox) {
+                    setTimeout(() => {
+                        if (checkbox.checked) { 
+                            row.classList.add('marked-for-delete');
+                        }
+                        else { 
+                            row.classList.remove('marked-for-delete');
+                        }
+                    }, 10);
+                }
+            });
+        }
 
         // Flag the inserted sub-components to show the note if they are discribed in the markdown.
         colouriseUsed();

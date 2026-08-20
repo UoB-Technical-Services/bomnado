@@ -117,6 +117,7 @@ SubAssemblyItemFormset = inlineformset_factory(
         'id',
         'notes'
     ],
+    can_delete=True,
     widgets={
         'quantity': BootstrapText(
             input_group_classes='input-group-sm',

@@ -27,7 +27,7 @@ def validate_semver(value):
     """ Validate that the given value conforms to semantic versioning.
     """
     if not SEMVER.match(value):
-        raise ValidationError('not a valid sematic semantic string')
+        raise ValidationError('not a valid semantic version string')
 
 
 def validate_reference():
