@@ -9,6 +9,7 @@ KiCadBomRow = TypedDict(
         # Qty may be parsed as `int` when coercible, otherwise left as `str`.
         'Qty': int | str,
         'Value': str,
+        'Manufacturer': str,
         'LCSC': str,
         'Supplier and ref': str,
     },
