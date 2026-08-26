@@ -14,7 +14,7 @@
         {% if not ai_ready %}
         <div class="text-muted small px-1">Add an AI API key, or raise the budget, under <a href="{% url 'bom:user_settings' %}#ai-settings">Settings</a> to talk to the AI.</div>
         {% endif %}
-        {% if page %}<div class="bomnado-ai-chat-page" title="What &quot;this&quot; means: the {{ page.kind }} on this page">&#8627; {{ page.reference }}</div>{% endif %}
+        {% if page %}<div class="bomnado-ai-chat-page" title="What &quot;this&quot; means: the {{ page.kind }} on this page">&#8627; {{ page.reference }}<button type="button" class="bomnado-ai-chat-page-clear" data-ai-clear-context title="Send without this page as context" aria-label="Send without this page as context">&times;</button></div>{% endif %}
         <div class="bomnado-ai-chat-input">
             <textarea name="text" id="aiChatText" rows="2" placeholder="Ask, or tell it what to do. Drop or paste files." {% if not ai_ready %}disabled{% endif %}></textarea>
             <div class="bomnado-ai-chat-buttons">

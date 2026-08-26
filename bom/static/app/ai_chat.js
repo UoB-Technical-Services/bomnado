@@ -39,6 +39,40 @@
         if (global.BomnadoTornado) { global.BomnadoTornado.burst(element); }
     }
 
+    /** The context the person dismissed with the chip's x: kept in memory only, so it comes back
+     *  with the next record, and with a fresh page load. */
+    let dismissedContext = '';
+
+    /** The composer's page chip and hidden context input, from one place: what the page is about,
+     *  unless the person dismissed it. */
+    function renderPageChip(form) {
+        const input = form.querySelector('input[name="context"]');
+        const context = currentContext();
+        const reference = currentReference();
+        const suppressed = context !== '' && dismissedContext === context;
+        if (input) { input.value = suppressed ? '' : context; }
+        let chip = form.querySelector('.bomnado-ai-chat-page');
+        if (!reference || suppressed) {
+            if (chip) { chip.remove(); }
+            return;
+        }
+        if (!chip) {
+            chip = document.createElement('div');
+            chip.className = 'bomnado-ai-chat-page';
+            chip.title = 'What "this" means: the record on this page';
+            form.querySelector('.bomnado-ai-chat-input').insertAdjacentElement('beforebegin', chip);
+        }
+        chip.textContent = '\u21B3 ' + reference;
+        const clear = document.createElement('button');
+        clear.type = 'button';
+        clear.className = 'bomnado-ai-chat-page-clear';
+        clear.setAttribute('data-ai-clear-context', '');
+        clear.title = 'Send without this page as context';
+        clear.setAttribute('aria-label', clear.title);
+        clear.innerHTML = '&times;';
+        chip.appendChild(clear);
+    }
+
     const load = () => { try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) { return {}; } };
     const state = Object.assign({ open: false, min: false, x: null, y: null, w: 420, h: 560, thread: null, draft: '', mode: 'docked' }, load());
     const docked = () => drawer !== null;
@@ -119,7 +153,7 @@
         title.title = thread.dataset.title || '';
         pillTitle.textContent = thread.dataset.title || 'AI';
         const form = document.getElementById('aiChatComposer');
-        form.querySelector('input[name="context"]').value = currentContext();
+        renderPageChip(form);
         const text = document.getElementById('aiChatText');
         if (state.draft && !text.value) { text.value = state.draft; }
         text.addEventListener('input', () => { state.draft = text.value; save(); });
@@ -246,6 +280,14 @@
             body.addEventListener('htmx:afterSettle', onMounted, { once: true });
             return;
         }
+        const clearContext = event.target.closest('[data-ai-clear-context]');
+        if (clearContext) {
+            event.preventDefault();
+            dismissedContext = currentContext();
+            const form = document.getElementById('aiChatComposer');
+            if (form) { renderPageChip(form); }
+            return;
+        }
         const link = event.target.closest('[data-ai-thread]');
         if (link) { event.preventDefault(); open(parseInt(link.dataset.aiThread, 10)); }
     });
@@ -253,20 +295,7 @@
     // The page changed under the window (htmx swapped the main region): "this" now means the new record.
     document.addEventListener('bomnado:main-swapped', () => {
         const form = document.getElementById('aiChatComposer');
-        if (!form) { return; }
-        form.querySelector('input[name="context"]').value = currentContext();
-        let chip = form.querySelector('.bomnado-ai-chat-page');
-        const reference = currentReference();
-        if (reference) {
-            if (!chip) {
-                chip = document.createElement('div');
-                chip.className = 'bomnado-ai-chat-page';
-                form.querySelector('.bomnado-ai-chat-input').insertAdjacentElement('beforebegin', chip);
-            }
-            chip.innerHTML = '&#8627; ' + reference;
-        } else if (chip) {
-            chip.remove();
-        }
+        if (form) { renderPageChip(form); }
     });
 
     document.addEventListener('keydown', (event) => {

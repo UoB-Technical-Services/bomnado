@@ -164,6 +164,8 @@ a:hover > .bomnado-ai-icon .bomnado-ai-icon-small, button:hover > .bomnado-ai-ic
 .bomnado-ai-chat-cost { font-size: 0.7rem; text-align: right; }
 .bomnado-ai-chat-composer { border-top: 1px solid #ede9fe; padding: 0.4rem; background: #fff; }
 .bomnado-ai-chat-page { font-size: 0.72rem; color: #6d28d9; padding: 0 0.2rem 0.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bomnado-ai-chat-page-clear { border: 0; background: transparent; color: #94a3b8; font-size: 0.85rem; line-height: 1; padding: 0 0.25rem; margin-left: 0.15rem; border-radius: 50%; vertical-align: baseline; }
+.bomnado-ai-chat-page-clear:hover { color: #b91c1c; background: #fee2e2; }
 .bomnado-ai-chat-input { display: flex; gap: 0.3rem; align-items: flex-end; }
 .bomnado-ai-chat-input textarea { flex: 1; resize: none; border: 1px solid #ddd6fe; border-radius: 0.3rem; padding: 0.35rem 0.5rem; font-size: 0.875rem; }
 .bomnado-ai-chat-input textarea:focus { outline: none; border-color: #7c3aed; box-shadow: 0 0 0 0.15rem rgba(124, 58, 237, 0.2); }
