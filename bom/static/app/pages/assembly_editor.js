@@ -14,23 +14,31 @@
 
     function init(main) {
         const data = main.dataset;
-        let lineItemsTable = null;
         let refreshColourise = () => {};
 
-        /** The line-items table: DataTables over the fragment (search, sort), rebuilt after each swap. */
+        /** The line-items table: the search box hides rows in place. Hidden rows keep their form
+         *  fields in the document, so a filtered save still submits every line. */
         function configureTable() {
-            const table = main.querySelector('#subComponentsTable');
-            if (!table) { return; }
-            lineItemsTable = $(table).DataTable({
-                bPaginate: false,
-                dom: '<"top"if>rt<"bottom"lp>',
-                language: { info: 'Showing _TOTAL_ components', search: 'Search:', zeroRecords: 'No matching parts or sub-assemblies found' },
-                autoWidth: false,
-                columnDefs: [
-                    { width: '20px', targets: 0 }, { width: '20px', targets: 1 }, { width: '50px', targets: 2 },
-                    { width: '60px', targets: 3 }, { className: 'lineitem-reference', targets: 4 }, { className: 'lineitem-buttons', targets: 6 },
-                ],
-            });
+            const container = main.querySelector('#existingsubComponentsContainer');
+            if (!container) { return; }
+            const input = container.querySelector('.bn-table-search');
+            const count = container.querySelector('[data-role="count"]');
+            const rows = [...container.querySelectorAll('#subComponentsTable tbody tr')];
+            const update = () => {
+                const needle = ((input && input.value) || '').toUpperCase();
+                let shown = 0;
+                rows.forEach((row) => {
+                    const hit = !needle || row.textContent.toUpperCase().includes(needle);
+                    row.style.display = hit ? '' : 'none';
+                    shown += hit ? 1 : 0;
+                });
+                if (count) {
+                    const what = `component${rows.length === 1 ? '' : 's'}`;
+                    count.textContent = needle ? `${shown} of ${rows.length} ${what}` : `${rows.length} ${what}`;
+                }
+            };
+            if (input) { input.addEventListener('input', update); }
+            update();
         }
 
         /** Swap the table for the fragment an htmx endpoint returns, then wire it up again. */
@@ -202,13 +210,6 @@
                 });
             }
         });
-        const form = main.querySelector('#bomando-assembly-form');
-        if (form) {
-            // DataTables hides filtered rows: bring every row back before the form is read.
-            form.addEventListener('submit', () => { if (lineItemsTable) { lineItemsTable.search('').draw(); } });
-            form.addEventListener('htmx:configRequest', () => { if (lineItemsTable) { lineItemsTable.search('').draw(); } });
-        }
-
         configureTable();
         createInsertables();
         colouriseUsed();

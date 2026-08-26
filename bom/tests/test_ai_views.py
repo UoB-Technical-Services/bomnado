@@ -1,5 +1,4 @@
 """ The pages around the AI: the New Part panel without it, the window and its jumping-off points with it. """
-from unittest import mock
 
 from django.contrib.auth.models import User
 from django.test import TestCase
@@ -35,10 +34,8 @@ class NewPartPanelTests(AIViewTestCase):
         self.assertRedirects(response, reverse('bom:part_editor_update', kwargs={'pk': part.id}), fetch_redirect_response=False)
         self.assertEqual(part.sources.count(), 1)  # the blank supplier row
 
-    def test_a_link_goes_to_the_built_in_scraper(self):
-        with mock.patch('bom.views.scrapeURL', return_value=None) as scrape:
-            self.client.post(self.create_url, {'url': 'https://unknown.example/p/1', 'team': self.team.id})
-        scrape.assert_called_once_with('https://unknown.example/p/1')
+    def test_a_link_becomes_the_first_supplier_row(self):
+        self.client.post(self.create_url, {'url': 'https://unknown.example/p/1', 'team': self.team.id})
         self.assertEqual(PartSource.objects.get().url, 'https://unknown.example/p/1')
 
     def test_panel_offers_the_ai_only_when_configured(self):

@@ -1,5 +1,4 @@
 from collections import Counter
-from unittest import mock
 
 from django.contrib.auth.models import User
 from django.db import connection
@@ -38,31 +37,6 @@ class PartSourceRankTests(TestCase):
         self.assertEqual(PartSource.rank([cheap_unit, free_ship], 1, include_shipping=False)[0], cheap_unit)
 
 
-class FakeScrape:
-    """ Behaves like a scraper that found a page but learned little from it. """
-
-    def __init__(self, url):
-        self.url = url
-
-    def clean_url(self):
-        return self.url
-
-    def reference(self):
-        return 'SCRAPED-REF'
-
-    def name(self):
-        return 'Scraped part'
-
-    def nature(self):
-        return ''          # what `bom.scrapers.base` returns by default
-
-    def spec(self):
-        raise ValueError   # an unparseable page
-
-    def picture(self):
-        return ''
-
-
 class PartCreateFromUrlTests(TestCase):
 
     def setUp(self):
@@ -72,27 +46,23 @@ class PartCreateFromUrlTests(TestCase):
         self.client.force_login(self.user)
         self.url = reverse('bom:part_editor_create')
 
-    def test_unknown_site_creates_blank_part_in_team(self):
-        """ Previously this hit the NOT NULL constraint on team and returned a 500. """
-        response = self.client.post(self.url, {'url': 'https://unknown-supplier.example/item/1', 'team': self.team.id})
+    def test_a_url_starts_a_part_with_a_supplier_row(self):
+        response = self.client.post(self.url, {'url': 'https://any-supplier.example/item/1', 'team': self.team.id})
 
         part = Part.objects.get()
         self.assertRedirects(response, reverse('bom:part_editor_update', kwargs={'pk': part.id}),
                              fetch_redirect_response=False)
         self.assertEqual(part.team, self.team)
-        self.assertEqual(part.spec, 'https://unknown-supplier.example/item/1')
+        self.assertEqual(part.spec, '')                       # the link lives on the source, not in the spec
         self.assertEqual(part.nature, Part.NATURE_STANDARD)
-        self.assertEqual(list(part.sources.values_list('url', flat=True)), ['https://unknown-supplier.example/item/1'])
+        self.assertEqual(list(part.sources.values_list('url', flat=True)), ['https://any-supplier.example/item/1'])
 
-    def test_scraped_part_gets_valid_nature_and_empty_spec_by_default(self):
-        with mock.patch('bom.views.scrapeURL', side_effect=FakeScrape):
-            self.client.post(self.url, {'url': 'https://known.example/item/2', 'team': self.team.id})
-
-        part = Part.objects.get(reference='SCRAPED-REF')
-        self.assertEqual(part.nature, Part.NATURE_STANDARD)   # not '' (invalid) ...
-        self.assertEqual(part.spec, '')                       # ... and not 'S'
-        self.assertEqual(part.team, self.team)
-        part.full_clean()  # the stored part passes model validation
+    def test_the_same_url_twice_lands_on_the_same_part(self):
+        self.client.post(self.url, {'url': 'https://any-supplier.example/item/1', 'team': self.team.id})
+        response = self.client.post(self.url, {'url': 'HTTPS://any-supplier.example/ITEM/1'.lower(), 'team': self.team.id})
+        part = Part.objects.get()
+        self.assertRedirects(response, reverse('bom:part_editor_update', kwargs={'pk': part.id}),
+                             fetch_redirect_response=False)
 
 
 class RedirectBackWithMessageTests(TestCase):

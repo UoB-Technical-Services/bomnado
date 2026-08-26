@@ -49,8 +49,6 @@ urlpatterns = [
     path('ai/jobs/', views.AIJobsView.as_view(), name='ai_jobs'),
     path('ai/jobs/clear', views.ai_jobs_clear, name='ai_jobs_clear'),
 
-    # Util pages.
-    path('main', views.MainPageTester.as_view(), name='main'),
     path('export/backup', views.export_backup, name='export_backup'),
 
     # Parts

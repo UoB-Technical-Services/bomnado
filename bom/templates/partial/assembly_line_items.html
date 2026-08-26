@@ -6,9 +6,6 @@
 {% load part_filters %}
 {% load utils %}
 
-{# Not hidden while DataTables initialises: htmx's settle step re-applies the fragment's #}
-{# own attributes ~20ms after an outerHTML swap, which would undo any un-hiding done #}
-{# in the meantime. The initialisation is synchronous, so there is no flash to hide. #}
 <div id="existingsubComponentsContainer">
 
     {% if line_item_error %}
@@ -35,6 +32,10 @@
 
     {{ formset.management_form }}
 
+    <div class="bn-table-tools">
+        <span class="bn-meta" data-role="count"></span>
+        <input type="search" class="form-control form-control-sm bn-table-search" placeholder="Filter components" aria-label="Filter components">
+    </div>
     <table id="subComponentsTable" class="table table-striped table-sm table-hover">
         <thead class="">
             <tr>
@@ -108,8 +109,7 @@
                 </td>
             </tr>
             {% endfor %}
-            {# No placeholder row when empty: DataTables shows its own message, and a row #}
-            {# with fewer cells than the header makes it raise an error. #}
         </tbody>
     </table>
+    {% if not formset.forms %}<p class="bn-empty">Nothing in this assembly yet. Add a part or assembly above.</p>{% endif %}
 </div>
