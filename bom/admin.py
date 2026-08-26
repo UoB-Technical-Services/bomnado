@@ -16,6 +16,12 @@ class PartSourceAdmin(admin.TabularInline):
     fk_name = 'part'
 
 
+class NamedPieceInline(admin.TabularInline):
+    model = models.NamedPiece
+    extra = 1
+    fk_name = 'part'
+
+
 class SubAssemblyLineAdmin(admin.TabularInline):
     model = models.SubAssemblyLineItem
     extra = 1
@@ -23,7 +29,13 @@ class SubAssemblyLineAdmin(admin.TabularInline):
 
 
 class PartAdmin(admin.ModelAdmin):
-    inlines = [PartSourceAdmin, AttachmentInlines]
+    inlines = [PartSourceAdmin, NamedPieceInline, AttachmentInlines]
+
+
+class NamedPieceAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'part', 'suffix', 'note')
+    search_fields = ('part__reference', 'suffix', 'note')
+    inlines = [AttachmentInlines]
 
 
 class SubAssemblyAdmin(admin.ModelAdmin):
@@ -43,5 +55,6 @@ class TeamAdmin(admin.ModelAdmin):
 
 admin.site.register(models.Part, PartAdmin)
 admin.site.register(models.PCBPart, PCBPartAdmin)
+admin.site.register(models.NamedPiece, NamedPieceAdmin)
 admin.site.register(models.SubAssembly, SubAssemblyAdmin)
 admin.site.register(models.Team, TeamAdmin)

@@ -4,6 +4,7 @@
 
 .bomnado-markdown-widget {
     position: relative;
+    background: #fff; /* Toast's editing area is transparent, so give it the form-control white */
     border: 1px solid #ced4da;
     border-radius: 0.2rem;
 }
@@ -38,7 +39,6 @@
     line-height: 32px;
     color: #555;
     text-align: center;
-    vertical-align: middle;
     background: none;
     border: none;
     border-radius: 3px;

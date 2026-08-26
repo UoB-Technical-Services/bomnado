@@ -246,7 +246,6 @@ def export_database_to_excel(project, output):
             """ Write a row into the excel. """
             nonlocal row
             location = ('   ' * level) + '├─' + item.reference
-            print(location)
             col_level.number(row, level)
             col_address.text(row, location)
             path = item.picture.path if hasattr(item, 'picture') and item.picture else None

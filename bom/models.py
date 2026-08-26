@@ -56,6 +56,14 @@ def upload_assembly_picture_path(instance, filename):
     return os.path.join('assemblies', f'{instance.id}_{instance.reference}{ext}')
 
 
+def upload_piece_picture_path(instance, filename):
+    """ Generate a path based on the parent part's id and the piece `suffix`.
+    (The piece's own id is not yet known when a picture is saved with a new row.)
+    """
+    name, ext = os.path.splitext(filename)
+    return os.path.join('named_pieces', f'{instance.part_id}_{instance.suffix}{ext}')
+
+
 def get_default_reference():
     return str(uuid.uuid4())[:8].upper()
 
@@ -299,6 +307,82 @@ class PartSource(models.Model):
             return cost / recieved
 
         return sorted(sources, key=_evaluate_buy_cost)
+
+
+class NamedPiece(models.Model):
+    """
+    A `NamedPiece` is a piece of a `Part` with a name - for example the `TOP` of `3D-PRINTED-CHASSIS` -
+    that instructions need to point at, but that is never bought or counted on its own.
+
+    It is *not* a BOM item: it has no quantity, sources or line items, and plays no part in
+    costing, exports or the orphan tools. It exists so that a `PARENT.SUFFIX` reference in
+    markdown resolves to something, renders as a link, and follows renames of either half.
+    """
+
+    """ Fields subject to find-and-replace when a `reference` is updated on selected models. """
+    REFERENCE_REPLACE_FIELDS = ['note']
+
+    """ Joins the parent reference and the suffix: `PARENT.SUFFIX`. Not a legal reference character. """
+    SEPARATOR = '.'
+
+    """ The `Part` this is a piece of. """
+    part = models.ForeignKey(to=Part, on_delete=models.CASCADE, verbose_name='Part', related_name='named_pieces')
+
+    """ The part of the reference after the dot. For example: `TOP`. """
+    suffix = models.CharField(max_length=50, validators=[validate_reference()], blank=False)
+
+    """ A one-line description / note. Accepts references. """
+    note = models.CharField(max_length=200, blank=True)
+
+    """ An icon that represents this piece of the part. Falls back to the part's own picture. """
+    picture = models.ImageField(upload_to=upload_piece_picture_path, blank=True, storage=OverwriteStorage())
+
+    """ When was this record first created. """
+    created = models.DateTimeField(default=now)
+
+    """ When was this record last updated. """
+    updated = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [('part', 'suffix')]
+        ordering = ['suffix']
+
+    @property
+    def reference(self):
+        """ The full reference: `PARENT.SUFFIX`. """
+        return f'{self.part.reference}{self.SEPARATOR}{self.suffix}'
+
+    @classmethod
+    def split_reference(cls, reference):
+        """ Split `PARENT.SUFFIX` into `('PARENT', 'SUFFIX')`, or `None` if it is not named-piece syntax. """
+        if not reference or cls.SEPARATOR not in reference:
+            return None
+        parent, suffix = reference.split(cls.SEPARATOR, 1)
+        if not parent or not suffix:
+            return None
+        return parent, suffix
+
+    @classmethod
+    def find_by_reference(cls, reference):
+        """ Look up a named piece from its full `PARENT.SUFFIX` reference, or `None`. """
+        halves = cls.split_reference(reference)
+        if halves is None:
+            return None
+        return cls.objects.filter(part__reference=halves[0], suffix=halves[1]).select_related('part').first()
+
+    def can_access(self, user):
+        """ Can the given user access this named piece (i.e. its part). """
+        return self.part.can_access(user)
+
+    @property
+    def picture_url(self):
+        """ The piece's own picture, or its part's picture (or placeholder) if it has none. """
+        if self.picture:
+            return self.picture.url
+        return self.part.picture_url
+
+    def __str__(self):
+        return self.reference
 
 
 class SubAssembly(models.Model):
@@ -592,6 +676,8 @@ class SubAssemblyLineItem(models.Model):
         """Override save to ensure validation is called"""
         self.full_clean()  # This calls field validation, then clean()
         super().save(*args, **kwargs)
+
+
 def upload_attachment_path(instance, filename):
     """ Generate a path on disk for where an `Attachement` file is stored.
 

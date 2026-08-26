@@ -1,0 +1,27 @@
+{# One row of the named pieces table on the part editor. #}
+{# Args: `sub_form` - a form from `NamedPieceFormset` (or its `empty_form`, rendered into a <template> to clone). #}
+
+<tr class="bomnado-piece-row{% if sub_form.errors %} table-danger{% endif %}">
+    <td class="text-center">
+        {% for hidden_field in sub_form.hidden_fields %}{{ hidden_field }}{% endfor %}
+        {{ sub_form.picture }}
+    </td>
+    <td>
+        {{ sub_form.suffix }}
+        {% for error in sub_form.suffix.errors %}<small class="text-danger d-block">{{ error }}</small>{% endfor %}
+        {% for error in sub_form.non_field_errors %}<small class="text-danger d-block">{{ error }}</small>{% endfor %}
+    </td>
+    <td>
+        {{ sub_form.note }}
+        {% for error in sub_form.note.errors %}<small class="text-danger d-block">{{ error }}</small>{% endfor %}
+        {% for error in sub_form.picture.errors %}<small class="text-danger d-block">{{ error }}</small>{% endfor %}
+    </td>
+    <td class="text-center">
+        {% if sub_form.instance.pk %}
+            <div class="d-none">{{ sub_form.DELETE }}</div>
+            <button type="button" class="btn btn-sm btn-outline-danger bomnado-piece-delete" title="Delete this named piece when the part is saved">&#10005;</button>
+        {% else %}
+            <button type="button" class="btn btn-sm btn-outline-secondary bomnado-piece-remove" title="Remove this row">&#10005;</button>
+        {% endif %}
+    </td>
+</tr>

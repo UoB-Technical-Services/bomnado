@@ -38,8 +38,9 @@ from django.views.decorators.http import require_POST
 from django.views.generic.base import TemplateView, RedirectView
 
 from bom.forms import PartCreationForm, PartSourceFormset, SubAssemblyForm, SubAssemblyItemFormset, AttachmentForm, \
-    DealFormset, DealPartFormset, DealForm, UserAccountForm
-from bom.models import Part, PartSource, SubAssembly, SubAssemblyLineItem, Attachment, Team, Deal, PCBPart, PCBSubAssembly, get_default_reference
+    DealFormset, DealPartFormset, DealForm, UserAccountForm, NamedPieceFormset
+from bom.models import Part, PartSource, SubAssembly, SubAssemblyLineItem, NamedPiece, Attachment, Team, Deal, PCBPart, \
+    PCBSubAssembly, get_default_reference
 from bom.scrapers.amazon import AmazonScrape
 from bom.scrapers.rs import RSScrape
 from bom.scrapers.shopfour import Shop4Scrape
@@ -293,11 +294,13 @@ def PartEditorUpdateView(request, pk):
         form = PartCreationForm(request.POST, request.FILES, instance=part)
         ps_formset = PartSourceFormset(request.POST, request.FILES, instance=part)
         d_formset = DealFormset(request.POST, request.FILES, instance=part)
+        piece_formset = NamedPieceFormset(request.POST, request.FILES, instance=part)
 
-        if all(f.is_valid() for f in [form, ps_formset, d_formset]):
+        if all(f.is_valid() for f in [form, ps_formset, d_formset, piece_formset]):
             form.save()
             ps_formset.save()
             d_formset.save()
+            piece_formset.save()
             url = reverse_lazy('bom:part_editor_update', kwargs={'pk': pk})
             return HttpResponseRedirect(url)
 
@@ -306,14 +309,23 @@ def PartEditorUpdateView(request, pk):
         form = PartCreationForm(instance=part)
         ps_formset = PartSourceFormset(instance=part)
         d_formset = DealFormset(instance=part)
+        piece_formset = NamedPieceFormset(instance=part)
         for f in d_formset.forms:
             f.fields['deal'].queryset = Deal.all_available_to_user(request.user)
+
+    # Show the suffix inputs as `PARENT.` + suffix. The empty form is built once here
+    # (each access to `empty_form` makes a new one) so the template can clone it.
+    piece_empty_form = piece_formset.empty_form
+    for f in [*piece_formset.forms, piece_empty_form]:
+        f.fields['suffix'].widget.custom['prepend'] = f'{part.reference}{NamedPiece.SEPARATOR}'
 
     pcbpart = part.pcbpart if hasattr(part, 'pcbpart') else None
     context = {
         'form': form,
         'ps_formset': ps_formset,
         'd_formset': d_formset,
+        'piece_formset': piece_formset,
+        'piece_empty_form': piece_empty_form,
         'part': part,
         'pcbpart': pcbpart,
         'parts': Part.all_available_to_user(request.user)
@@ -391,6 +403,18 @@ class PartDuplicateView(LoginRequiredMixin, View):
             source.pk = None
             source.part = part
             source.save()
+
+        # Copy the pieces (the new part gets its own `PARENT.SUFFIX` references).
+        for piece in NamedPiece.objects.filter(part=old_id):
+            piece_picture_path = piece.picture.path if piece.picture else None
+            piece.pk = None
+            piece.part = part
+            piece.picture = None
+            piece.save()
+            if piece_picture_path and os.path.exists(piece_picture_path):
+                with open(piece_picture_path, 'rb') as fh:
+                    with ContentFile(fh.read()) as file_content:
+                        piece.picture.save(os.path.basename(piece_picture_path), file_content)
 
         return redirect(reverse_lazy('bom:part_editor_update', kwargs={'pk': part.id}))
 

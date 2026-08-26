@@ -118,6 +118,24 @@ body {
 }
 
 /* Black part link style. */
+/* Compact picture widget (tinypicture.html): a thumbnail button over a hidden file input. */
+.bomnado-tinypicture-widget-button {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 1px dashed #ced4da;
+    border-radius: 4px;
+    background: #fff center / contain no-repeat;
+    color: #adb5bd;
+    font-size: 14px;
+    line-height: 28px;
+    vertical-align: middle;
+    cursor: pointer;
+}
+.bomnado-tinypicture-widget-button:not(.has-picture)::before { content: "\1F4F7"; }
+.bomnado-tinypicture-widget-button.has-picture { border-style: solid; }
+.bomnado-tinypicture-widget-button:focus { outline: none; box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25); }
+
 a.bomlink.part { text-decoration: none; }
 a.bomlink.part > kbd {
     text-decoration: none;
