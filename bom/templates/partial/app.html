@@ -32,6 +32,7 @@
     <script src="{% static 'lib/ace-1.4.5/ext-language_tools.js' %}"></script>
     <script src="{% static 'lib/jquery-3.3.1/jquery-3.3.1.slim.min.js' %}"></script>
     <script src="{% static 'lib/bootbox-5.4.0/bootbox.js' %}"></script>
+    <script src="{% static 'lib/htmx-2.0.4/htmx.min.js' %}"></script>
 
     <!-- 3rd party software (that depend on those above). -->
     <script src="{% static 'lib/bootstrap-4.3.1/bootstrap.min.js' %}"></script>
@@ -65,7 +66,7 @@
 
 </head>
 
-<body>
+<body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
 
     {% if SHOW_KEY_WARNING %}
     <div class="alert alert-danger m-0 text-center" role="alert" style="border-radius: 0;">
@@ -419,6 +420,8 @@
         }
 
         $.fn.select2.defaults.set("theme", "bootstrap4");
+        // Surface DataTables problems in the console instead of a blocking alert().
+        if ($.fn.dataTable) { $.fn.dataTable.ext.errMode = "throw"; }
 
         document.addEventListener('DOMContentLoaded', async () => {
             console.log("APP LOADED");

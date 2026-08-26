@@ -866,6 +866,74 @@ def AssemblyEditorUpdateView(request, pk):
     return render(request, os.path.join('pages', 'assembly_editor.html'), context)
 
 
+def render_assembly_line_items(request, assembly, error=None):
+    """ The line-items fragment of the assembly editor (see `partial/assembly_line_items.html`).
+
+    Returned by the htmx endpoints below so the browser swaps just the table,
+    leaving the rest of the page - and the assembly tree - untouched.
+    """
+    context = {
+        'assembly': assembly,
+        'formset': SubAssemblyItemFormset(instance=assembly),
+        'line_item_error': error,
+    }
+    return render(request, 'partial/assembly_line_items.html', context)
+
+
+@login_required(login_url='/accounts/login/')
+@require_POST
+def assembly_line_item_add(request, pk):
+    """ Add a part (`child_part`) or assembly (`child_subassembly`) to an assembly.
+
+    Validation problems - including circular references - are reported inline
+    in the returned fragment rather than as an error status, so htmx swaps the
+    message into place.
+    """
+    assembly = get_object_or_404(SubAssembly, pk=pk)
+    if not assembly.can_access(request.user):
+        raise PermissionDenied('User does not have access to this Assembly')
+
+    part_id = request.POST.get('child_part') or None
+    subassembly_id = request.POST.get('child_subassembly') or None
+    try:
+        quantity = max(1, int(request.POST.get('quantity') or 1))
+    except ValueError:
+        quantity = 1
+
+    # Only items the user can see may be inserted.
+    child_part = child_subassembly = None
+    if part_id:
+        child_part = Part.all_available_to_user(request.user).filter(pk=part_id).first()
+    elif subassembly_id:
+        child_subassembly = SubAssembly.objects.filter(
+            pk=subassembly_id, team__in=request.user.team_set.values_list('id')).first()
+    if child_part is None and child_subassembly is None:
+        return render_assembly_line_items(request, assembly, error='Choose a part or assembly to insert.')
+
+    line = SubAssemblyLineItem(subassembly=assembly, child_part=child_part, child_subassembly=child_subassembly,
+                               quantity=quantity)
+    try:
+        line.save()  # runs full_clean(), which rejects circular references
+    except ValidationError as e:
+        messages = e.message_dict.values() if hasattr(e, 'message_dict') else [e.messages]
+        return render_assembly_line_items(request, assembly, error=' '.join(m for ms in messages for m in ms))
+
+    return render_assembly_line_items(request, assembly)
+
+
+@login_required(login_url='/accounts/login/')
+@require_POST
+def assembly_line_item_delete(request, pk, line_id):
+    """ Remove a line item from an assembly and return the refreshed fragment. """
+    assembly = get_object_or_404(SubAssembly, pk=pk)
+    if not assembly.can_access(request.user):
+        raise PermissionDenied('User does not have access to this Assembly')
+
+    line = get_object_or_404(SubAssemblyLineItem, pk=line_id, subassembly=assembly)
+    line.delete()
+    return render_assembly_line_items(request, assembly)
+
+
 class AssemblyDocumentationView(LoginRequiredMixin, TemplateView):
     """ View documentation for a given assembly. """
     login_url = '/accounts/login/'

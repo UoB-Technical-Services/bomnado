@@ -61,6 +61,11 @@ urlpatterns = [
     re_path(r'^assembly/(?P<pk>([0-9]+))/tools/deals', views.ToolDeals.as_view(),
         name='tools_deals'),
 
+    # Line items (htmx fragments). Must precede the unanchored assembly editor pattern below.
+    path('assembly/<int:pk>/line_items/add', views.assembly_line_item_add, name='assembly_line_item_add'),
+    path('assembly/<int:pk>/line_items/<int:line_id>/delete', views.assembly_line_item_delete,
+         name='assembly_line_item_delete'),
+
     re_path(r'^assembly/(?P<pk>([0-9]+))', views.AssemblyEditorUpdateView,
         name='assembly_editor_update'),
     re_path(r'^assembly/doc/(?P<pk>([0-9]+))', views.AssemblyDocumentationView.as_view(),
