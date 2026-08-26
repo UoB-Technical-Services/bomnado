@@ -1,0 +1,139 @@
+{% extends "partial/app.html" %}
+{% load static %}
+
+{% block title %}
+<title>Settings / Bomnado</title>
+{% endblock %}
+
+{% block header %}
+<style type="text/css">
+    .settings-wrap { max-width: 780px; }
+    dl.account-details dt { font-weight: normal; color: #6c757d; }
+    dl.account-details dd { margin-bottom: 0.75rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="w-100 overflow-auto">
+    <div class="settings-wrap mx-auto py-5 px-3">
+
+        <h2 class="mb-4">Settings</h2>
+
+        {% if success_message %}
+        <div class="alert alert-success" role="alert">{{ success_message }}</div>
+        {% endif %}
+
+        <!-- ACCOUNT -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Account</h5>
+
+                <dl class="row account-details mb-3">
+                    <dt class="col-sm-3">Member since</dt>
+                    <dd class="col-sm-9">{{ user.date_joined|date:"jS M Y" }}</dd>
+                    <dt class="col-sm-3">Last login</dt>
+                    <dd class="col-sm-9">{{ user.last_login|date:"jS M Y H:i"|default:"-" }}</dd>
+                </dl>
+
+                <form method="post" id="account-form">
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger" role="alert">
+                        {% for error in form.non_field_errors %}{{ error|escape }}{% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label for="{{ form.first_name.id_for_label }}"><strong>{{ form.first_name.label }}</strong></label>
+                            {{ form.first_name }}
+                            {% for error in form.first_name.errors %}
+                            <small class="text-danger">{{ error|escape }}</small>
+                            {% endfor %}
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label for="{{ form.last_name.id_for_label }}"><strong>{{ form.last_name.label }}</strong></label>
+                            {{ form.last_name }}
+                            {% for error in form.last_name.errors %}
+                            <small class="text-danger">{{ error|escape }}</small>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="{{ form.email.id_for_label }}"><strong>{{ form.email.label }}</strong></label>
+                        {{ form.email }}
+                        <small class="form-text text-muted">{{ form.email.help_text }}</small>
+                        {% for error in form.email.errors %}
+                        <small class="text-danger">{{ error|escape }}</small>
+                        {% endfor %}
+                    </div>
+
+                    <div class="form-group">
+                        <label for="{{ form.username.id_for_label }}"><small class="text-muted">{{ form.username.label }}</small></label>
+                        {{ form.username }}
+                        <small class="form-text text-muted">{{ form.username.help_text }}</small>
+                        {% for error in form.username.errors %}
+                        <small class="text-danger">{{ error|escape }}</small>
+                        {% endfor %}
+                    </div>
+
+                    <div class="d-flex align-items-center mt-4">
+                        <button type="submit" class="btn btn-primary mr-3">Save account</button>
+                        <a href="{% url "password_reset" %}" class="btn btn-outline-secondary">Reset password</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- PRIVILEGES -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Privileges</h5>
+
+                <p class="mb-3">
+                    {% if user.is_superuser %}
+                        <span class="badge badge-danger">Administrator</span>
+                        <small class="text-muted ml-2">Full access to every team, the Django admin, backups and setup tools.</small>
+                    {% elif user.is_staff %}
+                        <span class="badge badge-warning">Staff</span>
+                        <small class="text-muted ml-2">Can sign in to the Django admin.</small>
+                    {% else %}
+                        <span class="badge badge-secondary">Member</span>
+                        <small class="text-muted ml-2">Access is limited to the teams listed below.</small>
+                    {% endif %}
+                </p>
+
+                <h6>Teams</h6>
+                {% if teams %}
+                <table class="table table-sm table-striped mb-2">
+                    <tbody>
+                        {% for team in teams %}
+                        <tr>
+                            <th scope="row">{{ team.name }}</th>
+                            <td>
+                                {% if team.owner_id == user.id %}
+                                    <span class="badge badge-info">owner</span>
+                                {% else %}
+                                    <span class="badge badge-light">member</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-muted text-right">{{ team.projects.count }} project{{ team.projects.count|pluralize }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted">You are not a member of any teams yet.</p>
+                {% endif %}
+                <small><a href="{% url "bom:teams" %}">Manage teams</a></small>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block jslibs %}
+{% endblock %}

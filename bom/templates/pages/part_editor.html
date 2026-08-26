@@ -662,11 +662,21 @@
     async function duplicatePart(event, partID, reference) {
         bootbox.confirm(`Are you sure you want to duplicate the ${reference} part?`, (result) => {
             if (!result) { return; }
-            let call = async () => {
-                let url = `{% url "bom:part_duplicate" %}?source_id=${partID}`;
-                window.location = url;
+            // Duplicating creates a part, so it is a POST. Build and submit a form
+            // so the browser follows the redirect to the new part as normal.
+            const form = document.createElement('form');
+            form.method = 'post';
+            form.action = '{% url "bom:part_duplicate" %}';
+            for (const [name, value] of [['csrfmiddlewaretoken', csrftoken], ['source_id', partID]]) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = name;
+                input.value = value;
+                form.appendChild(input);
             }
-            call();
+            document.body.appendChild(form);
+            PageChanges.supressNote();
+            form.submit();
         });
     }
 

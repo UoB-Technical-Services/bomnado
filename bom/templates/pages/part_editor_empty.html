@@ -1,0 +1,44 @@
+{% extends "partial/app.html" %}
+{% load static %}
+
+{% block title %}
+<title>Part Editor / Bomnado</title>
+{% endblock %}
+
+{% block content %}
+<div class="w-100 overflow-auto">
+    <div class="mx-auto py-5 px-3" style="max-width: 640px;">
+
+        <h2 class="mb-3">No parts yet</h2>
+        <p class="text-muted">
+            Your teams do not have any parts. Create the first one below and the part editor will open.
+        </p>
+
+        {% if part_error_message %}
+        <div class="alert alert-danger" role="alert">
+            {{ part_error_message }}
+        </div>
+        {% endif %}
+
+        <form method="post" action="{% url "bom:part_editor_create" %}">
+            {% csrf_token %}
+            <div class="input-group mb-2">
+                <input placeholder="e.g. M8-NUT or https://parts.com/mypart" type="text" name="url" class="form-control" autofocus>
+                <select name="team" class="custom-select" style="max-width: 40%;">
+                    {% for team in user.team_set.all %}
+                        <option {% if forloop.last %}selected{% endif %} value="{{ team.id }}">{{ team.name }}</option>
+                    {% endfor %}
+                </select>
+                <div class="input-group-append">
+                    <button type="submit" class="btn btn-outline-primary"><span>Create</span></button>
+                </div>
+            </div>
+            <small class="text-muted">Enter (1) the reference name of the part, or (2) copy and paste a link to attempt fetching details from the supplier.</small>
+        </form>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block jslibs %}
+{% endblock %}

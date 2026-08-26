@@ -19,23 +19,32 @@ from django.conf import settings
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.models import User
+from django.contrib.auth.tokens import default_token_generator
 from django.core import management
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.base import ContentFile
-from django.db.models import Case, When, BooleanField
-from django.http import HttpResponse, HttpResponseRedirect, JsonResponse, HttpResponseNotAllowed
+from django.core.mail import send_mail
+from django.core.validators import validate_email
+from django.db.models import Case, When, BooleanField, Q
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse, HttpResponseNotAllowed, \
+    HttpResponseBadRequest
 from django.shortcuts import render, get_object_or_404, redirect
-from django.urls import reverse_lazy, resolve
+from django.urls import reverse, reverse_lazy, resolve
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
+from django.views import View
 from django.views.decorators.clickjacking import xframe_options_exempt
+from django.views.decorators.http import require_POST
 from django.views.generic.base import TemplateView, RedirectView
 
 from bom.forms import PartCreationForm, PartSourceFormset, SubAssemblyForm, SubAssemblyItemFormset, AttachmentForm, \
-    DealFormset, DealPartFormset, DealForm
+    DealFormset, DealPartFormset, DealForm, UserAccountForm
 from bom.models import Part, PartSource, SubAssembly, SubAssemblyLineItem, Attachment, Team, Deal, PCBPart, PCBSubAssembly, get_default_reference
 from bom.scrapers.amazon import AmazonScrape
 from bom.scrapers.rs import RSScrape
 from bom.scrapers.shopfour import Shop4Scrape
 from bom.utils import team_owner_required
+from bom.utils.accounts import username_from_email
 from bom.utils.export import is_superuser
 from bom.utils.export.excel import export_database_to_excel, export_purchasing_spreadsheet
 
@@ -119,15 +128,18 @@ class PartEditorCreateView(LoginRequiredMixin, RedirectView):
     """ Used to create new parts. Attempts to scrape the URL parameter
     or uses it as a part `reference` for a new part if not a URL.
     If it is blank, a new part ID is created.
+
+    Creates records, so POST only (GET returns 405).
     """
     login_url = '/accounts/login/'
+    http_method_names = ['post']
 
     def get_redirect_url(self, *args, **kwargs):
 
         def _redirect(part):
             return reverse_lazy('bom:part_editor_update', kwargs={'pk': part.id})
 
-        team_id = self.request.POST.get('team') or self.request.GET.get('team')
+        team_id = self.request.POST.get('team')
         if not team_id:
             team = self.request.user.team_set.first()
         else:
@@ -135,8 +147,8 @@ class PartEditorCreateView(LoginRequiredMixin, RedirectView):
             if not team.can_access(self.request.user):
                 raise PermissionDenied("You don't have access to this team")
 
-        # Get URL/reference parameter (check both POST and GET)
-        url = self.request.POST.get('url') or self.request.GET.get('url') or self.request.POST.get('reference') or self.request.GET.get('reference')
+        # Get URL/reference parameter
+        url = self.request.POST.get('url') or self.request.POST.get('reference')
 
         # Validate that the URL parameter is not empty
         if not url:
@@ -311,45 +323,48 @@ def PartEditorUpdateView(request, pk):
     return render(request, os.path.join('pages', 'part_editor.html'), context)
 
 
-class PartStartView(LoginRequiredMixin, RedirectView):
-    """ When you go to the part editor without a part - show the first one. """
+class PartStartView(LoginRequiredMixin, View):
+    """ When you go to the part editor without a part - show the first one.
+
+    This is a plain navigation link, so it must not change anything: if the user
+    has no parts yet they get a page with just the "New Part" form on it rather
+    than a placeholder part being created for them.
+    """
     login_url = '/accounts/login/'
 
-    def get_redirect_url(self, *args, **kwargs):
-        first = Part.all_available_to_user(self.request.user).first()
-        if not first:
-            # Create a new blank part if none exist
-            team = self.request.user.team_set.first()
-            if not team:
-                # If user doesn't belong to any team, redirect to teams page
-                return reverse_lazy('bom:teams')
-            # Generate a unique reference using the team ID (ensure uniqueness)
-            unique_reference = f'NEW-PART-{team.id}'
+    def get(self, request, *args, **kwargs):
+        first = Part.all_available_to_user(request.user).first()
+        if first:
+            return redirect(reverse_lazy('bom:part_editor_update', kwargs={'pk': first.id}))
 
-            # Use the first team the user is a member of
-            first = Part.objects.create(reference=unique_reference, team=team)
-        pk = first.id
-        return reverse_lazy('bom:part_editor_update', kwargs={'pk': pk})
+        # If user doesn't belong to any team, redirect to teams page
+        if not request.user.team_set.exists():
+            return redirect(reverse_lazy('bom:teams'))
+
+        context = {}
+        if 'part_error_message' in request.session:
+            context['part_error_message'] = request.session.pop('part_error_message')
+        return render(request, 'pages/part_editor_empty.html', context)
 
 
-class PartDuplicateView(LoginRequiredMixin, RedirectView):
-    """ Duplicate a given part. """
+class PartDuplicateView(LoginRequiredMixin, View):
+    """ Duplicate a given part. POST only. """
     login_url = '/accounts/login/'
 
-    def get_redirect_url(self, *args, **kwargs):
+    def post(self, request, *args, **kwargs):
 
         # Determine the part to be duplicated.
-        source_id = self.request.GET.get('source_id')
+        source_id = request.POST.get('source_id')
         if not source_id:
-            raise Exception('source_id was not specified - cannot duplicate part')
+            return HttpResponseBadRequest('source_id was not specified - cannot duplicate part')
         part = get_object_or_404(Part, id=source_id)
 
         # Check if user has access to this part's team
-        if hasattr(part, 'team') and not part.team.can_access(self.request.user):
+        if not part.can_access(request.user):
             raise PermissionDenied("You don't have access to this part")
 
         # Determine the name of the new part reference.
-        target_reference = self.request.GET.get('target_reference')
+        target_reference = request.POST.get('target_reference')
         if not target_reference:
             target_reference = 'COPY'  # TODO: Consider UUID here
 
@@ -374,7 +389,7 @@ class PartDuplicateView(LoginRequiredMixin, RedirectView):
             source.part = part
             source.save()
 
-        return reverse_lazy('bom:part_editor_update', kwargs={'pk': part.id})
+        return redirect(reverse_lazy('bom:part_editor_update', kwargs={'pk': part.id}))
 
 
 class MainPageTester(TemplateView):
@@ -912,11 +927,34 @@ class TeamsView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super(TeamsView, self).get_context_data(**kwargs)
 
-        # Check for error messages in session and add to context
-        if "error_message" in self.request.session:
-            context["error_message"] = self.request.session.pop("error_message")
+        # Check for messages in session and add to context
+        for key in ("error_message", "success_message", "invite_link"):
+            if key in self.request.session:
+                context[key] = self.request.session.pop(key)
 
         return context
+
+
+class UserSettingsView(LoginRequiredMixin, TemplateView):
+    """ Per-user settings: account details and a summary of the user's privileges. """
+
+    login_url = '/accounts/login/'
+    template_name = 'pages/user_settings.html'
+
+    def get_context_data(self, **kwargs):
+        context = super(UserSettingsView, self).get_context_data(**kwargs)
+        context.setdefault('form', UserAccountForm(instance=self.request.user))
+        context['teams'] = self.request.user.team_set.select_related('owner').order_by('name')
+        context['success_message'] = self.request.session.pop('settings_success_message', None)
+        return context
+
+    def post(self, request, *args, **kwargs):
+        form = UserAccountForm(request.POST, instance=request.user)
+        if form.is_valid():
+            form.save()
+            request.session['settings_success_message'] = 'Account details saved.'
+            return HttpResponseRedirect(reverse_lazy('bom:user_settings'))
+        return self.render_to_response(self.get_context_data(form=form))
 
 
 class ToolProductionPhases(LoginRequiredMixin, TemplateView):
@@ -1081,6 +1119,9 @@ class ToolDealCreateView(LoginRequiredMixin, RedirectView):
     def post(self, request, *args, **kwargs):
         form = DealForm(self.request.POST)
         if form.is_valid():
+            # A deal belongs to a team, so only members of that team may create one for it.
+            if not form.cleaned_data['team'].can_access(request.user):
+                raise PermissionDenied("You don't have access to this team")
             form.save()
         return redirect(self.get_redirect_url())
 
@@ -1163,11 +1204,12 @@ def export_backup(request):
 
 
 @login_required(login_url='/accounts/login/')
+@require_POST
 def attachment_delete(request, attachment_pk):
     """ Delete an `Attachment` that has been previously attached to a model.
 
     This will locate the attachment, validate that it exists, and remove from
-    the disk.
+    the disk. POST only.
     """
     attachment = get_object_or_404(Attachment, pk=attachment_pk)
 
@@ -1295,19 +1337,88 @@ class NewTeamView(LoginRequiredMixin, RedirectView):
         return reverse_lazy("bom:teams")
 
 
+def make_set_password_link(request, user):
+    """ An absolute URL that lets `user` choose a password, using Django's password-reset machinery.
+
+    Valid for `settings.PASSWORD_RESET_TIMEOUT` and only until it is used.
+    """
+    return request.build_absolute_uri(reverse('password_reset_confirm', kwargs={
+        'uidb64': urlsafe_base64_encode(force_bytes(user.pk)),
+        'token': default_token_generator.make_token(user),
+    }))
+
+
 class AddToTeamView(LoginRequiredMixin, RedirectView):
+    """ Add a user to a team (owner only).
+
+    The owner enters a username or email address. An existing account is added
+    straight away. An unknown *email address* creates a new account for that
+    person, adds it to the team, and gives the owner a "set your password" link
+    to pass on - so new users can be onboarded even when outgoing email is not
+    configured. The same link is also emailed, best-effort.
+    """
     login_url = '/accounts/login/'
 
     @team_owner_required
     def get_redirect_url(self, *args, **kwargs):
         request = self.request
-        username = request.POST.get('username')
-        t = request.user.team_set.get(id=kwargs.get('pk'))
-        users = User.objects.filter(username=username)
-        if users:
-            t.users.add(users.first())
-            t.save()
-        return reverse_lazy('bom:teams')
+        team = request.user.team_set.get(id=kwargs.get('pk'))
+        identifier = (request.POST.get('username') or '').strip()
+        teams_url = reverse_lazy('bom:teams')
+
+        def _error(message):
+            return redirect_back_with_message(request=request, message=message, default_url=teams_url)
+
+        if not identifier:
+            return _error('Enter a username or email address to add to the team.')
+
+        # Existing account, by username or email (either way, case-insensitive).
+        user = User.objects.filter(
+            Q(username__iexact=identifier) | Q(email__iexact=identifier)).order_by('pk').first()
+        if user:
+            if team.users.filter(pk=user.pk).exists():
+                return _error(f'{user.email or user.username} is already a member of {team.name}.')
+            team.users.add(user)
+            request.session['success_message'] = f'{user.email or user.username} has been added to {team.name}.'
+            return teams_url
+
+        # Nobody by that name. Only an email address can be used to invite someone new.
+        try:
+            validate_email(identifier)
+        except ValidationError:
+            return _error(f'No user called "{identifier}" was found. '
+                          'Enter an email address to invite someone new.')
+
+        user = User(username=username_from_email(identifier), email=identifier)
+        user.set_unusable_password()
+        try:
+            user.full_clean()
+        except ValidationError as e:
+            return _error('Could not create that user: ' + '; '.join(
+                f'{field}: {errors[0]}' for field, errors in e.message_dict.items()))
+        user.save()
+        team.users.add(user)
+
+        link = make_set_password_link(request, user)
+        try:
+            send_mail(
+                subject=f'You have been added to {team.name} on Bomnado',
+                message=(f'{request.user.email or request.user.username} has added you to the team '
+                         f'"{team.name}" on Bomnado.\n\n'
+                         f'Choose a password to get started:\n\n{link}\n'),
+                from_email=None,
+                recipient_list=[user.email],
+                fail_silently=True,
+            )
+        except Exception:
+            # Email is optional here - the owner is shown the link regardless.
+            pass
+
+        request.session['success_message'] = (
+            f'Created an account for {user.email} and added it to {team.name}. '
+            'Send them the link below so they can choose a password (it can only be used once).')
+        request.session['invite_link'] = link
+        return teams_url
 
 
 class RemoveFromTeamView(LoginRequiredMixin, RedirectView):

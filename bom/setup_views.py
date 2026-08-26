@@ -12,7 +12,13 @@ from django.urls import reverse
 from django.views.generic import TemplateView
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie
+
+from bom.utils.accounts import username_from_email
 import json
+
+
+""" Session key marking that first-time setup was just completed in this session. """
+DEMO_SESSION_KEY = 'first_time_setup_demo_allowed'
 
 
 @method_decorator(ensure_csrf_cookie, name='dispatch')
@@ -107,9 +113,6 @@ class FirstTimeSetupAPIView(TemplateView):
             confirm_password = data.get('confirm_password', '')
 
             # Validate input
-            if not username:
-                return JsonResponse({'success': False, 'error': 'Username is required'})
-
             if not email:
                 return JsonResponse({'success': False, 'error': 'Email is required'})
 
@@ -122,13 +125,17 @@ class FirstTimeSetupAPIView(TemplateView):
             if len(password) < 8:
                 return JsonResponse({'success': False, 'error': 'Password must be at least 8 characters long'})
 
-            # Check if username already exists
-            if User.objects.filter(username=username).exists():
-                return JsonResponse({'success': False, 'error': 'Username already exists'})
-
             # Check if email already exists
-            if User.objects.filter(email=email).exists():
+            if User.objects.filter(email__iexact=email).exists():
                 return JsonResponse({'success': False, 'error': 'Email already exists'})
+
+            # People sign in with their email address. The username is a short display
+            # handle derived from it unless the caller chose one explicitly.
+            if username:
+                if User.objects.filter(username__iexact=username).exists():
+                    return JsonResponse({'success': False, 'error': 'Username already exists'})
+            else:
+                username = username_from_email(email)
 
             # Create superuser
             user = User.objects.create_superuser(
@@ -139,6 +146,10 @@ class FirstTimeSetupAPIView(TemplateView):
 
             # Log the user in
             login(request, user)
+
+            # Permit this session (and only this session) to create the demo project
+            # from the setup-complete page. See `FirstTimeSetupDemoView`.
+            request.session[DEMO_SESSION_KEY] = True
 
             return JsonResponse({
                 'success': True,
@@ -173,24 +184,38 @@ class FirstTimeSetupCompleteView(TemplateView):
 
 class FirstTimeSetupDemoView(TemplateView):
     """
-    API view for handling demo creation during setup
+    API view for handling demo creation during setup.
+
+    `createdemo --force` replaces the demo team and project, so it is only
+    offered once, to the superuser who has just completed first-time setup in
+    this session. Everyone else gets a 403.
     """
 
     def post(self, request, *args, **kwargs):
         """Handle demo creation request"""
+        if not request.user.is_authenticated or not request.user.is_superuser:
+            return JsonResponse({'success': False, 'error': 'Administrator access required'}, status=403)
+
+        if not request.session.get(DEMO_SESSION_KEY):
+            return JsonResponse({
+                'success': False,
+                'error': 'The demo project can only be created as part of first-time setup. '
+                         'Use `manage.py createdemo` instead.',
+            }, status=403)
+
         try:
-            # Check if user is authenticated (should be from setup)
-            if not request.user.is_authenticated:
-                return JsonResponse({'success': False, 'error': 'Authentication required'})
             # Execute the demo creation command with the current user
             call_command('createdemo', user=request.user.username, force=True)
-            return JsonResponse({
-                'success': True,
-                'message': 'Demo bicycle project created successfully!',
-                'redirect_url': reverse('bom:start')
-            })
         except Exception as e:
             return JsonResponse({'success': False, 'error': f'Failed to create demo: {str(e)}'})
+
+        # One shot only.
+        request.session.pop(DEMO_SESSION_KEY, None)
+        return JsonResponse({
+            'success': True,
+            'message': 'Demo bicycle project created successfully!',
+            'redirect_url': reverse('bom:start')
+        })
 
     def get(self, request, *args, **kwargs):
         """Redirect GET requests to main dashboard"""

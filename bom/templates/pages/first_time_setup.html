@@ -172,15 +172,9 @@
                     
                     <form id="superuser-form">
                         <div class="form-group">
-                            <label for="username" class="form-label">Username</label>
-                            <input type="text" class="form-control" id="username" name="username" required>
-                            <small class="form-text text-muted">Choose a username for your administrator account.</small>
-                        </div>
-                        
-                        <div class="form-group">
                             <label for="email" class="form-label">Email</label>
-                            <input type="email" class="form-control" id="email" name="email" required>
-                            <small class="form-text text-muted">This will be used for account recovery and notifications.</small>
+                            <input type="email" class="form-control" id="email" name="email" required autofocus>
+                            <small class="form-text text-muted">You will sign in with this address.</small>
                         </div>
                         
                         <div class="form-group">
@@ -354,7 +348,6 @@
             const formData = new FormData(this);
             const data = {
                 action: 'create_superuser',
-                username: formData.get('username'),
                 email: formData.get('email'),
                 password: formData.get('password'),
                 confirm_password: formData.get('confirm_password')
