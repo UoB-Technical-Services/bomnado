@@ -1,0 +1,59 @@
+{# The library: the left-hand region on the editors. A title for what is listed, a "New" form that unfolds #}
+{# (for assemblies, also the KiCad import), then the searchable list - or, for assemblies, the tree. #}
+{# Context (library_panel tag): `tab`, `selected`, `page`, `query`, `which`, `view`, `tree`, `teams`, `user`. #}
+{% load ai_tags %}
+<div class="bn-library" id="library">
+    <div class="bn-library-head">
+        <h2 class="bn-library-title">{% if tab == 'assemblies' %}Assemblies{% else %}Parts{% endif %}</h2>
+        <details class="bn-library-new">
+            <summary class="btn btn-primary btn-sm">+ New {% if tab == 'assemblies' %}assembly{% else %}part{% endif %}</summary>
+            <div class="bn-library-new-body">
+                {% ai_status as ai %}
+                {% if tab == 'assemblies' %}
+                <form method="post" action="{% url 'bom:assembly_editor_create' %}" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    {% if selected %}
+                    <input name="project" type="hidden" value="{{ selected.project_id|default:'' }}">
+                    <input name="parent" type="hidden" value="{{ selected.id }}">
+                    {% endif %}
+                    <label class="bn-label" for="libraryNewReference">Blank assembly</label>
+                    <div class="d-flex align-items-center">
+                        <input type="text" name="reference" id="libraryNewReference" class="form-control form-control-sm mr-2" placeholder="Reference, e.g. ENCLOSURE">
+                        <button type="submit" name="action" value="create" class="btn btn-sm btn-primary">Create</button>
+                    </div>
+                    <div class="bn-library-or">or</div>
+                    <label class="bn-label" for="libraryCsv">From a KiCad BOM</label>
+                    <div class="d-flex align-items-center">
+                        <input type="file" name="csv_file" id="libraryCsv" class="form-control-file small mr-2" accept=".csv">
+                        <button type="submit" name="action" value="upload" class="btn btn-sm btn-outline-primary">Import</button>
+                    </div>
+                    {% if selected %}
+                    <div class="custom-control custom-checkbox mt-2">
+                        <input type="checkbox" class="custom-control-input" name="insert" id="libraryInsert" checked>
+                        <label class="custom-control-label small" for="libraryInsert">Put it inside <strong>{{ selected.reference }}</strong> (the one open now)</label>
+                    </div>
+                    {% endif %}
+                </form>
+                {% else %}
+                <form method="post" action="{% url 'bom:part_editor_create' %}" enctype="multipart/form-data" id="newPartForm">
+                    {% csrf_token %}
+                    <label class="bn-label" for="libraryNewPart">Blank part</label>
+                    <div class="d-flex align-items-center">
+                        <input type="text" name="url" id="libraryNewPart" class="form-control form-control-sm mr-2" placeholder="Reference, e.g. M8-NUT-BZP" required>
+                        <button type="submit" class="btn btn-sm btn-primary" id="newPartCreate">Create</button>
+                    </div>
+                    {% if teams|length > 1 %}
+                    <select name="team" class="custom-select custom-select-sm mt-2" aria-label="Team">
+                        {% for team in teams %}<option value="{{ team.id }}" {% if forloop.last %}selected{% endif %}>{{ team.name }}</option>{% endfor %}
+                    </select>
+                    {% else %}
+                    <input type="hidden" name="team" value="{{ teams.0.id }}">
+                    {% endif %}
+                    <small class="text-muted d-block mt-2">Paste a supplier link instead and the built-in scraper fills the part in{% if ai.ready %}; for any other page, or a datasheet, <button type="button" class="btn btn-link btn-sm p-0 align-baseline" data-ai-prompt="Create a part from this link: ">{% include "partial/ai_icon.html" %} ask the AI</button>{% endif %}.</small>
+                </form>
+                {% endif %}
+            </div>
+        </details>
+    </div>
+    {% if tab == 'assemblies' %}{% include "partial/library_assemblies.html" %}{% else %}{% include "partial/library_parts.html" %}{% endif %}
+</div>

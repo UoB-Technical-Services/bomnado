@@ -85,6 +85,14 @@ def fetch_url(url, max_bytes=MAX_BYTES, timeout=TIMEOUT):
     raise FetchError('Too many redirects.')
 
 
+def decode_body(body):
+    """ Page bytes as text: UTF-8, else Latin-1 (the classic mis-served pound sign). """
+    try:
+        return body.decode('utf-8')
+    except UnicodeDecodeError:
+        return body.decode('latin-1', errors='replace')
+
+
 def html_to_text(html, base_url=''):
     """ A compact, readable rendering of a product page for Claude.
 
@@ -94,7 +102,8 @@ def html_to_text(html, base_url=''):
     """
     # html.parser: an order of magnitude faster than html5lib on the multi-megabyte pages big retailers serve.
     soup = BeautifulSoup(html, features='html.parser')
-    for tag in soup(['script', 'style', 'noscript', 'svg', 'iframe', 'template', 'nav', 'footer', 'header', 'form']):
+    # Forms stay: retailers wrap the whole product view (price, pack size, photos) in the add-to-cart form.
+    for tag in soup(['script', 'style', 'noscript', 'svg', 'iframe', 'template', 'nav', 'footer', 'header']):
         tag.decompose()
 
     lines = []
@@ -114,7 +123,17 @@ def html_to_text(html, base_url=''):
         pictures.append({'url': urljoin(base_url, og_image['content']), 'alt': 'og:image'})
 
     body = soup.body or soup
-    for element in body.find_all(['h1', 'h2', 'h3', 'h4', 'p', 'li', 'table', 'dt', 'dd', 'img']):
+    # The main content first: on menu-heavy shops the product block can sit hundreds of kilobytes in,
+    # after a category tree that would otherwise use up the whole text budget.
+    main = body.select_one('main, [role="main"], #maincontent, #content, .col-main, .product-view, .page-content')
+    regions = [main, body] if main is not None else [body]
+    walked = [element for region in regions
+              for element in region.find_all(['h1', 'h2', 'h3', 'h4', 'p', 'li', 'table', 'dt', 'dd', 'img', 'div'])]
+    for element in walked:
+        if element.name == 'div':
+            # Only leaf divs: a price or "(Pack of 100)" often sits in a bare div no other walk visits.
+            if element.find(['div', 'p', 'li', 'table', 'h1', 'h2', 'h3', 'h4', 'ul', 'ol', 'dl']) is not None:
+                continue
         if element.name == 'img':
             src = _best_image_source(element)
             if src and len(pictures) < 40 and not any(p['url'] == urljoin(base_url, src) for p in pictures):

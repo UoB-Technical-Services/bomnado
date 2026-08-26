@@ -49,8 +49,15 @@ def ai_web_uses(message):
 
 @register.filter
 def ai_tool_calls(message):
-    """ The Bomnado tools a tool-result message reports (see `bom.ai.chat`). """
-    return (message.meta or {}).get('tools', [])
+    """ The Bomnado tools a tool-result message reports (see `bom.ai.chat`), with the raw
+    "search_parts: M8 nut" summaries turned into readable "Search parts: M8 nut" rows. """
+    shown = []
+    for call in (message.meta or {}).get('tools', []):
+        summary = call.get('summary') or call.get('name', '')
+        name, _, value = summary.partition(':')
+        pretty = name.replace('_', ' ').strip().capitalize() + (': ' + value.strip() if value.strip() else '')
+        shown.append(dict(call, summary=pretty))
+    return shown
 
 
 @register.filter

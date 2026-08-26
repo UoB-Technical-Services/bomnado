@@ -55,7 +55,8 @@ class MarkdownField {
         // Make the instances available by name so we can reference in other parts of the application.
         MarkdownField._instanceCounter += 1;
         const instanceName = `${element.id || MarkdownField._instanceCounter}`;
-        if (MarkdownField.instances[instanceName] !== undefined) {
+        const previous = MarkdownField.instances[instanceName];
+        if (previous !== undefined && previous.element && document.body.contains(previous.element)) {
             throw new Error(`MarkdownField "${instanceName}" already registered.`);
         }
         MarkdownField.instances[instanceName] = this;
@@ -85,7 +86,7 @@ class MarkdownField {
             initialEditType: 'markdown',
             previewStyle: 'tab',
             height: 'auto',
-            minHeight: '140px',
+            minHeight: '200px',
             usageStatistics: false,
             autofocus: false,
             toolbarItems: [
@@ -118,6 +119,19 @@ class MarkdownField {
                 keyup: (editorType, event) => this.onKeyUp(editorType, event),
             },
         });
+
+        // Ctrl+S saves the page, as everywhere else; Toast's own keymap would make it strikethrough.
+        // Capture phase, so the editor never sees the key; the textarea is already in sync (the change event).
+        this.element.addEventListener('keydown', (event) => {
+            if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 's') { return; }
+            event.preventDefault();
+            event.stopPropagation();
+            const form = document.querySelector('.bn-editor form[hx-post]');
+            if (form && window.htmx) {
+                if (window.PageChanges) { PageChanges.supressNote(); }
+                htmx.trigger(form, 'submit');
+            }
+        }, true);
 
         // Keep the textarea current, and once more just before submit to be safe.
         this.sync(false);
@@ -369,14 +383,14 @@ class MarkdownField {
         const matching = assemblies
             .filter(a => !needle || `${a.reference} ${a.name}`.toUpperCase().includes(needle))
             .slice(0, 10)
-            .map(a => ({ icon: '📦', reference: a.reference, name: a.name }));
+            .map(a => ({ icon: '📦', kind: 'assembly', id: a.id, reference: a.reference, name: a.name }));
         // Each part is followed by its `PARENT>SUFFIX` pieces that start with the term
         // (so `CHASSIS` lists `CHASSIS>TOP` beneath it, and `CHASSIS>T` narrows to it).
         const rows = parts.flatMap(p => [
-            { icon: '🔩', reference: p.reference, name: p.name },
+            { icon: '🔩', kind: 'part', id: p.id, reference: p.reference, name: p.name },
             ...(p.named_pieces || [])
                 .filter(sp => needle && sp.reference.toUpperCase().startsWith(needle))
-                .map(sp => ({ icon: '🔹', reference: sp.reference, name: sp.note })),
+                .map(sp => ({ icon: '🔹', kind: 'piece', reference: sp.reference, name: sp.note })),
         ]);
         return [...matching, ...rows];
     }
@@ -516,6 +530,8 @@ class ReferencePicker {
         const onPick = this.onPick;
         this.close();
         onPick(item.reference);
+        // Tell the page (after the text is in): the assembly editor offers to add a missing line item.
+        this.field.element.dispatchEvent(new CustomEvent('bomnado:reference-inserted', { bubbles: true, detail: item }));
     }
 
     onKeyDown(event) {

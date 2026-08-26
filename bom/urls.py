@@ -25,20 +25,27 @@ urlpatterns = [
     re_path(r'^teams/(?P<pk>([0-9]+))/add', views.AddToTeamView.as_view(), name='teams_add'),
     re_path(r'^teams/(?P<pk>([0-9]+))/remove', views.RemoveFromTeamView.as_view(), name='teams_remove'),
     path('teams/<int:pk>/naming_guide', views.TeamNamingGuideView.as_view(), name='teams_naming_guide'),
+    path('teams/<int:pk>/hs_lookup', views.TeamHsLookupView.as_view(), name='teams_hs_lookup'),
+    path('teams/<int:pk>/hs_lookup', views.TeamHsLookupView.as_view(), name='teams_hs_lookup'),
 
     # User settings
     path('settings/', views.UserSettingsView.as_view(), name='user_settings'),
     path('settings/ai/test', views.ai_test_connection, name='ai_test_connection'),
 
+    # The library (htmx fragments).
+    path('library/parts/', views.library_parts, name='library_parts'),
+    path('library/assemblies/', views.library_assemblies, name='library_assemblies'),
+    path('library/search/', views.library_search, name='library_search'),
+
     # The AI chat window (htmx fragments) and the activity page.
     path('ai/chat/', views.ai_chat, name='ai_chat'),
-    path('ai/chat/threads/', views.ai_chat_threads, name='ai_chat_threads'),
     path('ai/chat/send', views.ai_chat_send, name='ai_chat_send'),
     path('ai/chat/<int:thread_id>/', views.ai_chat_status, name='ai_chat_status'),
     path('ai/chat/<int:thread_id>/stop', views.ai_chat_stop, name='ai_chat_stop'),
     path('ai/chat/<int:thread_id>/retry', views.ai_chat_retry, name='ai_chat_retry'),
     path('ai/chat/<int:thread_id>/delete', views.ai_chat_delete, name='ai_chat_delete'),
     path('ai/jobs/<int:job_id>/cancel', views.ai_job_cancel, name='ai_job_cancel'),
+    path('ai/jobs/<int:job_id>/clear', views.ai_job_clear, name='ai_job_clear'),
     path('ai/jobs/', views.AIJobsView.as_view(), name='ai_jobs'),
     path('ai/jobs/clear', views.ai_jobs_clear, name='ai_jobs_clear'),
 
@@ -55,6 +62,7 @@ urlpatterns = [
     # Assembly
     path('assembly/new', views.AssemblyEditorCreateView.as_view(), name='assembly_editor_create'),
     path('assembly', views.DashboardView.as_view(), name='assembly_editor'),
+    path('assemblies', views.AssemblyStartView.as_view(), name='assembly_start'),
 
     re_path(r'^assembly/(?P<pk>([0-9]+))/export/xlsx', views.export_bom_as_xlsx, name='export_xlsx'),
     re_path(r'^assembly/(?P<pk>([0-9]+))/export/purchasing', views.export_purchasing, name='export_purchasing'),
@@ -63,6 +71,7 @@ urlpatterns = [
         name='tools_production_phases'),
     re_path(r'^assembly/(?P<pk>([0-9]+))/tools/orphan_finder', views.ToolOrphanFinder.as_view(),
         name='tools_orphan_finder'),
+    re_path(r'^assembly/(?P<pk>([0-9]+))/tools/reviews', views.ToolReviews.as_view(), name='tools_reviews'),
     re_path(r'^assembly/(?P<pk>([0-9]+))/tools/sales_codes', views.ToolSalesCodes.as_view(),
         name='tools_sales_codes'),
     re_path(r'^assembly/(?P<pk>([0-9]+))/tools/deals/(?P<deal_id>([0-9]+))/update',

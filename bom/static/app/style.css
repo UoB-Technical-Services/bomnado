@@ -203,10 +203,10 @@ a:hover > .bomnado-ai-icon .bomnado-ai-icon-small, button:hover > .bomnado-ai-ic
 .bomnado-ai-callouts .btn-link { font-size: 0.8rem; color: #6d28d9; vertical-align: baseline; }
 
 /* The floating chat window (partial/ai_chat.html, ai_chat.js): movable, resizable, over everything. */
-.bomnado-ai-chat {
-    position: fixed; z-index: 1060; display: flex; flex-direction: column; min-width: 320px; min-height: 260px;
-    background: #fff; border: 1px solid #c4b5fd; border-radius: 0.4rem; box-shadow: 0 8px 30px rgba(59, 7, 100, 0.25);
-    resize: both; overflow: hidden; font-size: 0.875rem;
+.bomnado-ai-chat { display: flex; flex-direction: column; min-height: 0; background: #fff; overflow: hidden; font-size: 0.875rem; }
+.bomnado-ai-chat.is-floating {
+    position: fixed; z-index: 1060; min-width: 320px; min-height: 260px;
+    border: 1px solid #c4b5fd; border-radius: 0.4rem; box-shadow: 0 8px 30px rgba(59, 7, 100, 0.25); resize: both;
 }
 .bomnado-ai-chat.is-over { outline: 3px dashed #7c3aed; outline-offset: -6px; }
 .bomnado-ai-chat-header {
@@ -229,15 +229,20 @@ a:hover > .bomnado-ai-icon .bomnado-ai-icon-small, button:hover > .bomnado-ai-ic
 .bomnado-ai-chat-msg.is-ai { background: #fff; border: 1px solid #ede9fe; }
 .bomnado-ai-chat-text p:last-child, .bomnado-ai-chat-text ul:last-child { margin-bottom: 0; }
 .bomnado-ai-chat-text pre { font-size: 0.8rem; }
-.bomnado-ai-chat-tools { margin: 0 0 0.4rem; }
+/* What the AI did between messages: one quiet line per action, a dot saying what kind
+   (grey looked, green changed, blue web, red failed). */
+.bomnado-ai-chat-tools { margin: 0.15rem 0 0.5rem; }
 .bomnado-ai-chat-chip {
-    display: inline-block; margin: 0 0.25rem 0.25rem 0; padding: 0.05rem 0.45rem; border-radius: 1rem; font-size: 0.75rem;
-    background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle;
+    display: block; position: relative; padding-left: 0.95em; margin: 0 0 0.1rem; font-size: 0.75rem; color: #6b7280;
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.bomnado-ai-chat-chip.is-write { background: #ecfdf5; color: #065f46; border-color: #a7f3d0; }
-.bomnado-ai-chat-chip.is-web { background: #eff6ff; color: #1e40af; border-color: #bfdbfe; }
-.bomnado-ai-chat-chip.is-error { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
-.bomnado-ai-chat-chip.is-link { background: #f5f3ff; color: #5b21b6; border-color: #ddd6fe; text-decoration: none; }
+.bomnado-ai-chat-chip::before { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 0.5em; height: 0.5em; border-radius: 50%; background: #cbd5e1; }
+.bomnado-ai-chat-chip.is-write::before { background: #10b981; }
+.bomnado-ai-chat-chip.is-web::before { background: #3b82f6; }
+.bomnado-ai-chat-chip.is-error { color: #991b1b; }
+.bomnado-ai-chat-chip.is-error::before { background: #ef4444; }
+.bomnado-ai-chat-chip.is-link { display: inline-block; padding: 0.05rem 0.45rem; border-radius: 1rem; background: #f5f3ff; color: #5b21b6; border: 1px solid #ddd6fe; text-decoration: none; }
+.bomnado-ai-chat-chip.is-link::before { content: none; }
 .bomnado-ai-chat-progress { display: flex; align-items: center; gap: 0.4rem; color: #6d28d9; padding: 0.3rem 0.2rem; }
 .bomnado-ai-chat-error { display: flex; align-items: center; color: #991b1b; background: #fef2f2; border-radius: 0.3rem; padding: 0.3rem 0.5rem; }
 .bomnado-ai-chat-touched { margin-top: 0.25rem; }
@@ -248,57 +253,18 @@ a:hover > .bomnado-ai-icon .bomnado-ai-icon-small, button:hover > .bomnado-ai-ic
 .bomnado-ai-chat-input textarea { flex: 1; resize: none; border: 1px solid #ddd6fe; border-radius: 0.3rem; padding: 0.35rem 0.5rem; font-size: 0.875rem; }
 .bomnado-ai-chat-input textarea:focus { outline: none; border-color: #7c3aed; box-shadow: 0 0 0 0.15rem rgba(124, 58, 237, 0.2); }
 .bomnado-ai-chat-buttons { display: flex; flex-direction: column; gap: 0.2rem; }
-.bomnado-ai-chat-files { list-style: none; margin: 0 0 0.3rem; padding: 0 0.2rem; font-size: 0.75rem; color: #4c1d95; }
+/* Files waiting to be sent: a chip each, with a remove button. */
+.bomnado-ai-chat-files { list-style: none; margin: 0 0 0.35rem; padding: 0; display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.bomnado-ai-chat-files li { display: inline-flex; align-items: center; gap: 0.25rem; max-width: 100%; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 999px; padding: 0.1rem 0.25rem 0.1rem 0.6rem; font-size: 0.75rem; color: #334155; }
+.bomnado-ai-chat-files li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bomnado-ai-chat-files li button { border: 0; background: transparent; color: #94a3b8; font-size: 0.95rem; line-height: 1; padding: 0 0.25rem; border-radius: 50%; }
+.bomnado-ai-chat-files li button:hover { color: #b91c1c; background: #fee2e2; }
+/* Files a sent message carried. */
+.bomnado-ai-chat-sent-files { margin-bottom: 0.2rem; }
+.bomnado-ai-chat-sent-file { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; background: rgba(255, 255, 255, 0.65); border: 1px solid #ddd6fe; border-radius: 999px; padding: 0.05rem 0.55rem; font-size: 0.72rem; margin: 0 0.2rem 0.15rem 0; }
 .bomnado-ai-chat-pill { position: fixed; right: 1.5rem; bottom: 1.5rem; z-index: 1060; border-radius: 2rem; box-shadow: 0 4px 16px rgba(59, 7, 100, 0.3); max-width: 16rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bomnado-new-part .btn-group-toggle .btn.disabled { opacity: 0.5; }
 
-a.bomlink.part { text-decoration: none; }
-a.bomlink.part > kbd {
-    text-decoration: none;
-    background-color: #212529;
-    color: white;
-    color-adjust: exact;
-    -webkit-print-color-adjust: exact;
-}
-a.bomlink.part:hover>kbd {
-    background-color: #454C54;
-}
-
-/* Blue assembly link style. */
-a.bomlink.assembly { text-decoration: none; }
-a.bomlink.assembly > kbd {
-    text-decoration: none;
-    background-color: #007bff;
-    color: white;
-    color-adjust: exact;
-    -webkit-print-color-adjust: exact;
-}
-a.bomlink.assembly:hover>kbd {
-    background-color: #2B91FF;
-}
-
-/* Ensure kbd for bom links stays inline so badges can appear beside them */
-a.bomlink.part > kbd,
-a.bomlink.assembly > kbd {
-    display: inline-block;
-    vertical-align: middle;
-}
-
-/* Bomnado PCB badge style: dark green background, white text, no transitions */
-.bom-badge,
-a.bomlink .badge {
-    background-color: #0b6b2d !important;
-    color: #ffffff !important;
-    display: inline-block !important;
-    vertical-align: middle !important;
-    padding: .12rem .35rem !important;
-    font-size: 0.75em !important;
-    line-height: 1 !important;
-    border-radius: .25rem !important;
-    text-decoration: none !important;
-    transition: none !important;
-    -webkit-transition: none !important;
-}
 
 
 /** 

@@ -6,10 +6,9 @@
 {% endblock %}
 
 {% block content %}
-<div class="w-100 overflow-auto">
-    <div class="mx-auto py-5 px-3" style="max-width: 640px;">
-
-        <h2 class="mb-3">No parts yet</h2>
+<div class="app-page bn-narrow">
+    <div>
+        {% include "partial/page_head.html" with title="No parts yet" parent="Parts" %}
         <p class="text-muted">
             Your teams do not have any parts. Create the first one below and the part editor will open.
         </p>

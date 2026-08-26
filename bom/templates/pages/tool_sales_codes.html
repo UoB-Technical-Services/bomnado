@@ -1,130 +1,45 @@
 {% extends "partial/app.html" %}
 {% load static %}
 {% load part_filters %}
-{% load kwacros %}
-{% load attachments_tags %}
 {% load utils %}
 
 {% block title %}
-<title>Sales Codes / Bomnado</title>
-{% endblock %}
-
-{% block header %}
-
-<style type="text/css">
-    .sales-codes-list {
-        font-size: 0.8em;
-    }
-
-    .sales-codes-list .icon {
-        width: 30px;
-    }
-    .sales-codes-list table {
-        width: 100%;
-    }
-    .sales-codes-list tr:hover {
-        background: lightgrey;
-    }
-    .sales-codes-list tr {
-        padding-bottom: 5px;
-        border-bottom: 1px solid rgb(237, 237, 237);
-    }
-    .sales-codes-list td {
-        padding-left: 10px;
-    }
-    .sales-codes-list td:nth-child(2) {
-        width: 40%;
-    }
-    .sales-codes-list h2 {
-        margin-top: 10px;
-        margin-bottom: 10px;
-        text-transform: capitalize;
-    }
-</style>
+<title>Sales items - {{ project.reference }} / Bomnado</title>
 {% endblock %}
 
 {% block content %}
+<div class="app-page bn-tool">
+    {% include "partial/page_head.html" with title="Sales items" parent=project.reference parent_url=project_url lead="Everything with a sales code, and whether it has the HS code customs will ask for." %}
+    <p class="bn-meta">{{ assemblies|length }} assembl{{ assemblies|length|pluralize:"y,ies" }} and {{ parts|length }} part{{ parts|length|pluralize }} with sales codes;
+        {% with a=assemblies_without_hs|length b=parts_without_hs|length %}{{ a|add:b }}{% endwith %} without an HS code.
+        Look codes up at <a href="https://www.tariffnumber.com/" target="_blank" rel="noopener">tariffnumber.com</a>.</p>
 
-<!-- New Part -->
-<div class="p-3" style="min-width: 600px;">
-
-    <h1>Sales Items</h1>
-    <p>There are <code>{{ parts|length }}</code> parts with sales codes, out of which <code>{{ parts_without_hs|length}}</code> do not have HS codes.</p>
-    <p>There are <code>{{ assemblies|length }}</code> assemblies with sales codes, out of which <code>{{assemblies_without_hs|length}}</code> do not have HS codes.</p>
-    <p>See a list of HS Codes <a href="https://www.tariffnumber.com/">here</a>.</p>
-
-    <!-- ADD PART -->
-    <section class="sales-codes-list">
+    <section>
         <table>
-            <tr>
-                <th>Image</th>
-                <th>Part/Assembly Reference</th>
-                <th>Sales Code</th>
-                <th>HS Code</th>
-            </tr>
-            <!-- ASSEMBLIES -->
+            <thead><tr><th></th><th>Reference</th><th>Sales code</th><th>HS code</th></tr></thead>
+            <tbody>
             {% for assembly in assemblies %}
             <tr>
-                <!-- Warning if there's no HS code for this assembly -->
-                <td>
-                    <img class="icon" src="{{ assembly.picture_url }}" />
-                </td>
-                <td>
-                    {{ assembly|stylised_assembly }}
-                </td>
+                <td class="bn-cell-thumb"><img class="bn-thumb" src="{{ assembly.picture_url }}" alt=""></td>
+                <td>{{ assembly|stylised_assembly }} <span class="bn-row-name">{{ assembly.name }}</span></td>
                 <td><code>{{ assembly.sale_code }}</code></td>
-                <td>
-                    {% if not assembly.hs_code %}
-                        <span>missing</span>
-                    {% else %}
-                        <code>{{ assembly.hs_code }}</code>
-                    {% endif %}
-                </td>
+                <td>{% if assembly.hs_code %}<code>{{ assembly.hs_code }}</code>{% else %}<span class="bn-status is-warn">Missing</span>{% endif %}</td>
             </tr>
             {% empty %}
-            <tr>
-                <td colspan="3">There are no assemblies with sales codes.</td>
-            </tr>
+            <tr><td colspan="4" class="text-muted">No assemblies with sales codes.</td></tr>
             {% endfor %}
-
-            <!-- PARTS -->
             {% for part in parts %}
             <tr>
-                <td>
-                    <img class="icon" src="{{ part.picture_url }}" />
-                </td>
-                <td>{{ part|stylised_part }}</td>
+                <td class="bn-cell-thumb"><img class="bn-thumb" src="{{ part.picture_url }}" alt=""></td>
+                <td>{{ part|stylised_part }} <span class="bn-row-name">{{ part.name }}</span></td>
                 <td><code>{{ part.sale_code }}</code></td>
-                <td>
-                    {% if not part.hs_code %}
-                        <span>missing</span>
-                    {% else %}
-                        <code>{{ part.hs_code }}</code>
-                    {% endif %}
-                </td>
+                <td>{% if part.hs_code %}<code>{{ part.hs_code }}</code>{% else %}<span class="bn-status is-warn">Missing</span>{% endif %}</td>
             </tr>
             {% empty %}
-            <tr>
-                <td colspan="3">There are no parts with sales codes.</td>
-            </tr>
+            <tr><td colspan="4" class="text-muted">No parts with sales codes.</td></tr>
             {% endfor %}
-
+            </tbody>
         </table>
     </section>
-
-
-
 </div>
-{% endblock %}
-
-
-
-{% block jslibs %}
-
-<script type="text/javascript">
-
-    document.addEventListener('DOMContentLoaded', async () => {
-    });
-
-</script>
 {% endblock %}

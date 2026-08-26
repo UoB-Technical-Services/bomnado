@@ -17,7 +17,7 @@ from django.db.models import Q
 from django.urls import reverse
 
 from bom.ai import actions
-from bom.ai.fetch import FetchError, UnsafeURL, fetch_url, html_to_text, page_hints
+from bom.ai.fetch import FetchError, UnsafeURL, fetch_url, html_to_text, page_hints, decode_body
 from bom.models import Attachment, Feedback, NamedPiece, Part, PartSource, SubAssembly, SubAssemblyLineItem
 
 """ Where searches stop, and how much of a page or a field a tool hands back. """
@@ -150,7 +150,7 @@ SUPPLIER_PROPERTIES = {
     'shipping': n('Typical shipping cost for a minimum order, excluding VAT. Left out = estimated from the '
                   "team's other purchases from this supplier"),
     'minimum_order': i('Smallest quantity that can be ordered (a pack of 100 = 100)'),
-    'lead_time': i("Business days to arrive. Left out = estimated from the team's other purchases from this supplier"),
+    'lead_time': i("Business days to arrive. Left out = estimated from the team's other purchases from this supplier, else 7"),
     'order_notes': s('Anything the purchaser must know. Markdown'),
 }
 ASSEMBLY_PROPERTIES = {
@@ -353,7 +353,7 @@ def fetch_page(ctx, url):
     final_url, content_type, body = fetch_url(url)
     if 'pdf' in content_type.lower() or body[:5] == b'%PDF-':
         return Blocks([{'type': 'text', 'text': f'PDF from {final_url}:'}, _document(body)])
-    html = body.decode('utf-8', errors='replace')
+    html = decode_body(body)
     text, pictures = html_to_text(html, final_url)
     return {'url': final_url, **page_hints(html, text), 'text': text[:MAX_PAGE_TEXT],
             'pictures': [{'url': p['url'], 'alt': p['alt']} for p in pictures[:15]]}

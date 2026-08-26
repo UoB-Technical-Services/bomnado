@@ -8,13 +8,13 @@
 
 <div id="activity" class="bomnado-activity" hx-target="#activity" hx-swap="outerHTML">
     <small class="text-muted mb-2 d-block">
-        <a href="#" tabindex="-1" rel="tooltip" title="Feedback for the team, and everything that has changed here: who, when and what. Any change can be reverted; the current values are kept in the log.">🙋</a>
+        <button type="button" class="bn-help" data-help="Feedback for the team, and everything that has changed here: who, when and what. Any change can be reverted; the current values are kept in the log." aria-label="Help">?</button>
         <strong>Feedback and history:</strong>
     </small>
 
     {% for item in open_feedback %}
     <div class="bomnado-feedback">
-        <span class="bomnado-activity-icon" title="Open feedback">👀</span>
+        <span class="bomnado-activity-icon" title="Open feedback">{% include "partial/activity_icon.html" with icon='feedback' %}</span>
         <div class="bomnado-activity-body">
             <strong>{{ item.author|person }}</strong> <span class="text-muted">· open feedback</span>
             <div class="bomnado-activity-quote">{{ item.text|as_markdown:obj|safe }}</div>

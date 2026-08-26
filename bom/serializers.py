@@ -24,9 +24,15 @@ class PartSearchSerializer(serializers.ModelSerializer):
     every keystroke. """
     picture_url = serializers.SerializerMethodField()
     named_pieces = serializers.SerializerMethodField()
+    missing = serializers.SerializerMethodField()
 
     def get_picture_url(self, obj):
         return obj.picture_url
+
+    def get_missing(self, obj):
+        """ What the part lacks (weight, dimensions, price, picture), for the amber dot. """
+        from bom.library import part_status
+        return part_status(obj).missing
 
     def get_named_pieces(self, obj):
         """ The part's `PARENT>SUFFIX` pieces, so reference completion can offer them.
@@ -37,7 +43,7 @@ class PartSearchSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Part
         fields = ('id', 'reference', 'name', 'picture_url', 'deprecated', 'sale_code', 'has_open_feedback',
-                  'named_pieces')
+                  'named_pieces', 'missing')
 
 
 class PartSourceSerializer(serializers.ModelSerializer):

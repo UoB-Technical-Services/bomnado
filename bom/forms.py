@@ -24,6 +24,10 @@ class SubAssemblyForm(forms.ModelForm):
         widget=BootstrapDate(input_group_classes='input-group-sm'),
     )
 
+    def clean_hs_code(self):
+        """ The full commodity code, plain: no dots, spaces or other separators. """
+        return ''.join(ch for ch in (self.cleaned_data.get('hs_code') or '') if ch.isalnum())
+
     def clean_deprecated(self):
         dt = self.cleaned_data.get("deprecated")
         if dt and timezone.is_naive(dt):
@@ -141,6 +145,10 @@ class PartCreationForm(forms.ModelForm):
         input_formats=["%Y-%m-%d"],
         widget=BootstrapDate(input_group_classes='input-group-sm'),
     )
+
+    def clean_hs_code(self):
+        """ The full commodity code, plain: no dots, spaces or other separators. """
+        return ''.join(ch for ch in (self.cleaned_data.get('hs_code') or '') if ch.isalnum())
 
     def clean_deprecated(self):
         dt = self.cleaned_data.get("deprecated")

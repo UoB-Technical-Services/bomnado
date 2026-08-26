@@ -10,23 +10,24 @@
 
 {% kwacro cardcontrols product %}
 <div class="dropdown m-1">
-    <button class="btn btn-secondary dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+    <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
         Tools
     </button>
     <div class="dropdown-menu dropdown-menu-right">
-        <a class="dropdown-item" href="{% url "bom:tools_production_phases" pk=product.id %}">Production Phases</a>
-        <a class="dropdown-item" href="{% url "bom:tools_orphan_finder" pk=product.id %}">Find Orphans</a>
-        <a class="dropdown-item" href="{% url "bom:tools_sales_codes" pk=product.id %}">Sales Codes</a>
-        <a class="dropdown-item" href="{% url "bom:tools_deals" pk=product.id %}">Part Deals</a>
+        <a class="dropdown-item" href="{% url "bom:tools_reviews" pk=product.id %}">Reviews</a>
+        <a class="dropdown-item" href="{% url "bom:tools_production_phases" pk=product.id %}">Production phases</a>
+        <a class="dropdown-item" href="{% url "bom:tools_orphan_finder" pk=product.id %}">Orphans</a>
+        <a class="dropdown-item" href="{% url "bom:tools_sales_codes" pk=product.id %}">Sales items</a>
+        <a class="dropdown-item" href="{% url "bom:tools_deals" pk=product.id %}">Supplier deals</a>
     </div>
 </div>
 <div class="dropdown m-1">
-    <button class="btn btn-secondary dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+    <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
         Export
     </button>
     <div class="dropdown-menu dropdown-menu-right">
-        <a class="dropdown-item" download href="{% url "bom:export_purchasing" pk=product.id %}">Purchasing Spreadsheet</a>
-        <a class="dropdown-item" download href="{% url "bom:export_xlsx" pk=product.id %}">BOM Spreadsheet</a>
+        <a class="dropdown-item" download href="{% url "bom:export_purchasing" pk=product.id %}">Purchasing spreadsheet</a>
+        <a class="dropdown-item" download href="{% url "bom:export_xlsx" pk=product.id %}">BOM spreadsheet</a>
     </div>
 </div>
 <a href="{% url "bom:assembly_editor_update" pk=product.id %}" class="btn btn-primary m-1 product-open" tabindex="-1" role="button" aria-disabled="true">Open</a>
@@ -36,12 +37,6 @@
 {% block header %}
 
 <style type="text/css">
-
-    tbody td kbd a { color: white; }
-
-    /* Create input form */
-    .dashboard-create { width: 100%; }
-
 
     /* Cards for viewing projects */
     .dashboard-cards { display: flex; flex-wrap: wrap; gap:10px; }
@@ -58,10 +53,11 @@
 {% endblock %}
 
 {% block content %}
-<div>
+<div class="app-page">
     <!-- Existing projects. -->
-    <div class="p-3">
-        <h2>Team Projects</h2>
+    <div>
+        <header class="bn-page-head"><h1 class="bn-page-title">Dashboard</h1><p class="bn-page-lead">Your team's projects.</p></header>
+        <h2 class="bn-h2">Team projects</h2>
         <div class="dashboard-cards">
             {% for product in products %}
 
@@ -72,10 +68,10 @@
                     </a>
                 </div>
                 <div class="product-body">
-                    <h5 class="card-title">{{ product.reference }}</h5>
+                    <h5 class="card-title"><span class="bn-ref is-assembly">{{ product.reference }}</span></h5>
                     <p class="card-text">{{ product.name }}
                         {% if product.deprecated|date_in_past %}
-                        <span class="badge bg-light">⚠️ Deprecated</span>
+                        <span class="bn-status is-muted">Deprecated</span>
                         {% endif %}
                     </p>
                 </div>
@@ -84,17 +80,9 @@
 
             {% empty %}
             {% if user.is_superuser and user.team_set.count == 0 %}
-            <div class="text-center mx-auto">
-                <div class="alert alert-info">
-                    <h5><i class="fas fa-info-circle mr-2"></i>Welcome to Bomnado!</h5>
-                    <p class="mb-2">As an administrator, you can start by creating a team and then add projects to it.</p>
-                    <a href="{% url 'bom:teams' %}" class="btn btn-primary">
-                        <i class="fas fa-users mr-2"></i>Create Your First Team
-                    </a>
-                </div>
-            </div>
+            <p class="bn-empty w-100">Welcome to Bomnado. Projects belong to teams, so start by creating one. <a href="{% url 'bom:teams' %}">Create your first team</a></p>
             {% else %}
-            <p class="text-center mx-auto">There are no projects yet.</p>
+            <p class="bn-empty w-100">No projects yet. Create the first one below.</p>
             {% endif %}
             {% endfor %}
         </div>
@@ -102,34 +90,29 @@
 
     <!-- Create new project -->
     {% if user.team_set.count > 0 %}
-    <div class="p-3">
-        <div class="dashboard-create">
-            {% if error_message %}
-            <div class="alert alert-danger" role="alert">
-                {{ error_message }}
+    <section class="bn-section dashboard-create">
+        <div class="bn-section-head"><h2>New project</h2></div>
+        {% if error_message %}
+        <div class="alert alert-danger" role="alert">{{ error_message }}</div>
+        {% endif %}
+        <form method="post" action="{% url "bom:assembly_editor_create" %}">
+            {% csrf_token %}
+            <input name="is_toplevel" type="hidden" value="true">
+            <label class="bn-label" for="newProjectReference">Reference</label>
+            <div class="bn-form-row">
+                <input type="text" name="reference" id="newProjectReference" class="form-control form-control-sm" placeholder="e.g. SMART-TABLE-1060" required>
+                {% if user.team_set.count > 1 %}
+                <select name="team" class="custom-select custom-select-sm bn-form-team" aria-label="Team">
+                    {% for team in user.team_set.all %}<option {% if forloop.last %}selected{% endif %} value="{{ team.id }}">{{ team.name }}</option>{% endfor %}
+                </select>
+                {% else %}
+                <input type="hidden" name="team" value="{{ user.team_set.first.id }}">
+                {% endif %}
+                <button type="submit" class="btn btn-sm btn-primary">Create</button>
             </div>
-            {% endif %}
-            <form method="post" action="{% url "bom:assembly_editor_create" %}">
-                {% csrf_token %}
-                <input name="project" type="hidden" value="{{assembly.project_id}}">
-                <input name="is_toplevel" type="hidden" value="true">
-                <div class="form-group">
-                    <div class="input-group">
-                        <input placeholder="New Project Name" type="text" name="reference" class="form-control">
-                        <select name="team" class="custom-select">
-                            <!-- <option selected>Choose Team...</option> -->
-                            {% for team in user.team_set.all %}
-                            <option {% if forloop.last %}selected{% endif %} value="{{ team.id }}">{{ team.name }}</option>
-                            {% endfor %}
-                        </select>
-                        <div class="input-group-append">
-                            <button type="submit" class="btn btn-outline-primary"><span>Create New Project</span></button>
-                        </div>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
+            <p class="bn-hint">A project is a top-level assembly: everything in the BOM hangs off it.</p>
+        </form>
+    </section>
     {% endif %}
 </div>
 {% endblock %}

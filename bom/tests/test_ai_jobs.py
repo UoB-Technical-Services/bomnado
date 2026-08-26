@@ -119,6 +119,46 @@ class ActivityPageTests(JobControlTestCase):
         self.assertTrue(AIJob.objects.get(pk=done.pk).cleared)
         self.assertEqual(self.user.ai_settings.spend_this_month(), before)
 
+    def test_clear_takes_one_finished_row_off_the_list(self):
+        running = self.running_job()
+        done = AIJob.objects.create(user=self.user, team=self.team, content_object=self.thread, cost=0.5)
+        done.mark_running()
+        done.mark_done()
+        # A running job cannot be cleared; a finished one can. Someone else's cannot be touched.
+        self.client.post(reverse('bom:ai_job_clear', kwargs={'job_id': running.id}))
+        self.assertFalse(AIJob.objects.get(pk=running.pk).cleared)
+        self.client.post(reverse('bom:ai_job_clear', kwargs={'job_id': done.id}))
+        self.assertTrue(AIJob.objects.get(pk=done.pk).cleared)
+        other = User.objects.create_user(username='eve', email='eve@example.com', password='pw')
+        self.client.force_login(other)
+        self.assertEqual(self.client.post(reverse('bom:ai_job_clear', kwargs={'job_id': running.id})).status_code, 404)
+
+    def test_deleting_a_conversation_from_the_page_keeps_the_spend(self):
+        done = AIJob.objects.create(user=self.user, team=self.team, content_object=self.thread, kind='chat', cost=2.0)
+        done.mark_running()
+        done.mark_done()
+        before = self.user.ai_settings.spend_this_month()
+        html = self.client.get(reverse('bom:ai_jobs')).content.decode()
+        self.assertIn(reverse('bom:ai_chat_delete', kwargs={'thread_id': self.thread.id}), html)   # the x is a delete
+        response = self.client.post(reverse('bom:ai_chat_delete', kwargs={'thread_id': self.thread.id}))
+        self.assertRedirects(response, reverse('bom:ai_jobs'))
+        self.assertFalse(AIThread.objects.filter(pk=self.thread.pk).exists())
+        self.assertTrue(AIJob.objects.get(pk=done.pk).cleared)                                     # off the list...
+        self.assertEqual(self.user.ai_settings.spend_this_month(), before)                         # ...spend intact
+
+    def test_a_row_whose_conversation_is_already_gone_still_comes_off_the_list(self):
+        done = AIJob.objects.create(user=self.user, team=self.team, content_object=self.thread, kind='chat', cost=1.0)
+        done.mark_running()
+        done.mark_done()
+        thread_id = self.thread.id
+        self.thread.delete()                                              # deleted before its rows were cleared
+        html = self.client.get(reverse('bom:ai_jobs')).content.decode()
+        self.assertIn(reverse('bom:ai_job_clear', kwargs={'job_id': done.id}), html)          # the plain x
+        self.assertNotIn(reverse('bom:ai_chat_delete', kwargs={'thread_id': thread_id}), html)
+        response = self.client.post(reverse('bom:ai_chat_delete', kwargs={'thread_id': thread_id}))
+        self.assertRedirects(response, reverse('bom:ai_jobs'))            # a stale form does not 404
+        self.assertTrue(AIJob.objects.get(pk=done.pk).cleared)
+
     def test_requires_login(self):
         self.client.logout()
         self.assertEqual(self.client.get(reverse('bom:ai_jobs')).status_code, 302)

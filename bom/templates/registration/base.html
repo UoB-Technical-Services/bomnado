@@ -1,129 +1,24 @@
 {% load static %}
-{% load part_filters %}
-{% load kwacros %}
-
+{# The pages outside the app: signing in, resetting a password, and the error pages. The same top bar, one card. #}
 <!doctype html>
 <html lang="en">
-
 <head>
-    <!-- Meta tags. -->
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-
-    <!-- 3rd party style sheets. -->
-    <link rel="stylesheet" href="{% static 'lib/font-awesome-5.14.0/css/all.min.css' %}" />
     <link rel="stylesheet" href="{% static 'lib/bootstrap-4.3.1/bootstrap.min.css' %}" />
-    <link rel="stylesheet" href="{% static 'lib/select2-4.0.13/css/select2.min.css' %}" />
-    <link rel="stylesheet" href="{% static 'lib/select2-bootstrap4-theme-1.4.0/select2-bootstrap4.min.css' %}" />
-
-    <!-- <link href="{% static 'plugins/css/ace.min.css' %}" type="text/css" media="all" rel="stylesheet" /> -->
-    <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@100&display=swap" rel="stylesheet">
-
-    <!-- Application style sheets. -->
-    <link rel="stylesheet" href="{% static 'app/style.css' %}" type="text/css" media="all" />
-    <link rel='icon' href="{% static 'assets/favicon.svg' %}" type='image/x-icon' />
-
-    <!-- 3rd party software. -->
-    <script src="{% static 'lib/popper-1.14.7/popper.min.js' %}"></script>
-    <script src="{% static 'lib/split-1.5.9/split.min.js' %}"></script>
-    <script src="{% static 'lib/dropzonejs-5.7.0/dropzone.js' %}"></script>
-    <script src="{% static 'lib/ace-1.4.5/ace.js' %}"></script>
-    <script src="{% static 'lib/jquery-3.3.1/jquery-3.3.1.slim.min.js' %}"></script>
-    <script src="{% static 'lib/bootbox-5.4.0/bootbox.js' %}"></script>
-
-    <!-- 3rd party software (that depend on those above). -->
-    <script src="{% static 'lib/bootstrap-4.3.1/bootstrap.min.js' %}"></script>
-    <script src="{% static 'lib/select2-4.0.13/js/select2.full.min.js' %}"></script>
-    <script src="https://cdn.datatables.net/1.10.20/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.10.20/js/dataTables.bootstrap4.min.js"></script>
-
-    {% block title %}
-    <title>Bomnado</title>
-    {% endblock %}
-
-    {% block header %}
-    {% endblock %}
-
-    <style>
-        .form-signin {
-          width: 100%;
-          max-width: 330px;
-          padding: 15px;
-          margin: 0 auto;
-        }
-        .form-signin .checkbox {
-          font-weight: 400;
-        }
-        .form-signin .form-control {
-          position: relative;
-          box-sizing: border-box;
-          height: auto;
-          padding: 10px;
-          font-size: 16px;
-        }
-        .form-signin .form-control:focus {
-          z-index: 2;
-        }
-        .form-signin input[type="email"] {
-          margin-bottom: -1px;
-          border-bottom-right-radius: 0;
-          border-bottom-left-radius: 0;
-        }
-        .form-signin input[type="password"] {
-          margin-bottom: 10px;
-          border-top-left-radius: 0;
-          border-top-right-radius: 0;
-        }
-    </style>
-
+    <link rel="stylesheet" href="{% static 'app/theme.css' %}" type="text/css" media="all" />
+    <link rel="icon" href="{% static 'assets/favicon.svg' %}" type="image/x-icon" />
+    {% block title %}<title>Bomnado</title>{% endblock %}
 </head>
-
 <body>
-
-    <header class="app-header">
-
-        <nav class="navbar navbar-expand-md navbar-dark bg-primary">
-
-            <!-- Left side. -->
-            <div class="d-flex order-0">
-                <img src="{% static 'assets/logo.svg' %}"  height="30" />
-            </div>
-
-            <!-- Central. -->
-            <div class="navbar-collapse collapse justify-content-center order-2" id="app-header-collapsing-nav">
-            </div>
-
-            <!-- Right side. -->
-            <div class="d-flex order-1 order-md-last text-right">
-                <div class="nav-item dropdown">
-                    <button type="button" class="btn btn-outline-light dropdown-toggle" data-toggle="dropdown" aria-haspopup="true"
-                                aria-expanded="false">🔑</button>
-                    <div class="dropdown-menu dropdown-menu-right">
-                        <a class="dropdown-item" href="{% url "login" %}">Login</a>
-                    </div>
-                </div>
-            </div>
-
-        </nav>
-
+    <header class="app-topbar">
+        <a class="bn-brand" href="{% url "bom:start" %}"><img src="{% static 'assets/logo.svg' %}" alt="Bomnado" /></a>
     </header>
-
-    {% block body %}
-    {% endblock %}
-
-
-
-    <footer class="app-footer bg-dark">
-        <small class="m-2">🛠️ with ❤️ by </small>
-        <img src="{% static 'assets/HETiny.png' %}" height="14" class="d-inline-block align-center" alt="HE Inventions LTD">
-    </footer>
-
-
-    <script type="text/javascript">
-    </script>
-
-    {% block jslibs %}
-    {% endblock %}
+    <main class="bn-auth">
+        <div class="bn-auth-card">
+            {% block body %}{% endblock %}
+        </div>
+    </main>
+    <footer class="bn-auth-footer">Made with care by HE Inventions</footer>
 </body>
-
 </html>

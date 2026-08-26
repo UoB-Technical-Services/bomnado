@@ -1,0 +1,61 @@
+{% extends "partial/app.html" %}
+{% load static %}
+{% load utils %}
+{% load activity_tags %}
+
+{% block title %}
+<title>Reviews - {{ project.reference }} / Bomnado</title>
+{% endblock %}
+
+{% block content %}
+<div class="app-page bn-tool">
+    {% include "partial/page_head.html" with title="Reviews" parent=project.reference parent_url=project_url lead="Everything in this project that someone has asked to be looked at, and what is still missing." %}
+
+    <section>
+        <h2>Needs review <span class="bn-count">{{ attention|length }}</span></h2>
+        {% if attention %}
+        <div class="bn-review-list">
+            {% for record, feedback in attention %}
+            <div class="bn-review">
+                <img class="bn-thumb" src="{{ record.picture_url }}" alt="" loading="lazy">
+                <div class="bn-review-body">
+                    <div class="bn-review-head">
+                        <a class="bn-row-ref bn-ref is-{% if record.is_assembly %}assembly{% else %}part{% endif %}" href="{% if record.is_assembly %}{% url 'bom:assembly_editor_update' pk=record.id %}{% else %}{% url 'bom:part_editor_update' pk=record.id %}{% endif %}">{{ record.reference }}</a>
+                        <span class="bn-tag">{% if record.is_assembly %}assembly{% else %}part{% endif %}</span>
+                        <span class="bn-row-name">{{ record.name }}</span>
+                    </div>
+                    {% for item in feedback %}
+                    <div class="bn-review-note"><strong>{{ item.author|person }}</strong> <span class="text-muted">{{ item.created|timesince }} ago</span><div class="bn-review-text">{{ item.text|linebreaksbr }}</div></div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-muted">Nothing in {{ project.reference }} has open feedback.</p>
+        {% endif %}
+    </section>
+
+    <section>
+        <h2>Missing data <span class="bn-count">{{ missing|length }}</span></h2>
+        {% if missing %}
+        <div class="bn-review-list">
+            {% for part, status in missing %}
+            <div class="bn-review">
+                <img class="bn-thumb" src="{{ part.picture_url }}" alt="" loading="lazy">
+                <div class="bn-review-body">
+                    <div class="bn-review-head">
+                        <a class="bn-row-ref bn-ref is-part" href="{% url 'bom:part_editor_update' pk=part.id %}">{{ part.reference }}</a>
+                        <span class="bn-row-name">{{ part.name }}</span>
+                        <span class="bn-status is-warn">Missing {{ status.missing|join:", " }}</span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-muted">Every part in {{ project.reference }} has a weight, dimensions, a price and a picture.</p>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

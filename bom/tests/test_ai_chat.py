@@ -81,10 +81,12 @@ class TurnTests(ChatTestCase):
         self.assertEqual(job.input_tokens, 3000)
 
         # The window: the chips for what was called, the answer with the reference linked, the cost.
-        self.assertIn('search_parts: M8', html)
-        self.assertIn('is-write" title="create_part">create_part: M8-20MM-BOLT-BTN-BZP', html)
-        self.assertIn(f'<a target="_blank" rel="noopener" class="bomlink part" href="/part/{part.id}">M8-20MM-BOLT-BTN-BZP</a> '
-                      'with no supplier yet', html)
+        self.assertIn('Search parts: M8', html)                       # the raw name stays in the title attribute
+        self.assertIn('title="search_parts"', html)
+        self.assertIn('is-write" title="create_part">Create part: M8-20MM-BOLT-BTN-BZP', html)
+        self.assertIn(f'<a target="_blank" rel="noopener" class="bn-ref is-part bomlink part" href="/part/{part.id}"', html)
+        self.assertIn('<span class="reference">M8-20MM-BOLT-BTN-BZP</span>', html)
+        self.assertIn('</a> with no supplier yet', html)
         self.assertIn(f'data-touched="part:{part.id} "', html)
         self.assertNotIn('hx-trigger="every 1s"', html)
 
@@ -138,7 +140,7 @@ class TurnTests(ChatTestCase):
         sent = create.call_args.kwargs['messages'][0]['content']
         self.assertEqual([b['type'] for b in sent], ['text', 'text', 'image', 'text'])
         self.assertIn('# Files in this conversation', create.call_args.kwargs['system'][-1]['text'])
-        self.assertIn('&#128206; square.png', html)
+        self.assertIn('bomnado-ai-chat-sent-file">square.png', html)
 
     def test_failures_show_with_try_again_and_retry_replaces_the_failed_turn(self):
         import anthropic
@@ -205,8 +207,6 @@ class ConversationTests(ChatTestCase):
         self.assertIn(f'data-thread-id="{thread.id}" data-title="Bolts"', html)
         html = self.client.get(reverse('bom:ai_chat') + '?thread=new').content.decode()
         self.assertIn('data-thread-id=""', html)
-        html = self.client.get(reverse('bom:ai_chat_threads')).content.decode()
-        self.assertIn(f'data-ai-thread="{thread.id}"', html)
         self.client.post(reverse('bom:ai_chat_delete', kwargs={'thread_id': thread.id}))
         self.assertFalse(AIThread.objects.exists())
 

@@ -1,0 +1,22 @@
+{# One node of the assembly tree in the library (recursive). Context: `node` ({assembly, children, selected, expanded, status}). #}
+{% load random_extras %}
+<li class="bn-tree-node {% if node.selected %}is-selected{% endif %}">
+    {% if node.children %}
+    {% random_uuid as random_id %}
+    <input type="checkbox" class="bn-tree-toggle" id="tree_{{ node.assembly.id }}_{{ random_id }}" {% if node.selected or node.expanded %}checked{% endif %}>
+    <label for="tree_{{ node.assembly.id }}_{{ random_id }}" class="bn-tree-caret" title="Expand / collapse"></label>
+    {% else %}
+    <span class="bn-tree-caret is-leaf"></span>
+    {% endif %}
+    <a class="bn-tree-row" href="{% url 'bom:assembly_editor_update' pk=node.assembly.id %}" {% if node.selected %}aria-current="page"{% endif %}
+       hx-get="{% url 'bom:assembly_editor_update' pk=node.assembly.id %}" hx-target="#app_main" hx-select="#app_main" hx-swap="outerHTML show:top" hx-push-url="true">
+        <span class="bn-row-ref"><span class="bn-ref is-assembly">{{ node.assembly.reference }}</span>{% if node.assembly.is_toplevel %} <span class="bn-tag">project</span>{% endif %}</span>
+        <span class="bn-row-name">{{ node.assembly.name }}</span>
+        {% if not node.status.quiet %}<span class="bn-status is-{{ node.status.tone }}">{{ node.status.label }}</span>{% endif %}
+    </a>
+    {% if node.children %}
+    <ul class="bn-tree-children">
+        {% for child in node.children %}{% with node=child template_name="partial/library_tree.html" %}{% include template_name %}{% endwith %}{% endfor %}
+    </ul>
+    {% endif %}
+</li>

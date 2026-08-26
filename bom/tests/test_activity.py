@@ -188,7 +188,7 @@ class ActivityPageTests(ActivityTestCase):
         html = self.client.get(self.url).content.decode()
         self.assertIn('id="activity"', html)
         self.assertIn('Feedback and history', html)
-        self.assertLess(html.index('Assemblies using this part'), html.index('Feedback and history'))
+        self.assertLess(html.index('id="sec-usage"'), html.index('Feedback and history'))
         self.assertIn('created this part', html)
         self.assertIn('bomnado-activity-svg', html)
         self.assertNotIn('review_notes', html)
@@ -243,7 +243,7 @@ class FeedbackTests(ActivityTestCase):
         item = Feedback.objects.get()
         self.assertEqual(item.author, self.user)
         self.assertEqual(item.content_object, self.part)
-        self.assertIn('👀', stylised_part(self.part))
+        self.assertIn('bn-mark is-bad', stylised_part(self.part))  # the red dot: open feedback
         self.assertIn('Open feedback', self.client.get(self.url).content.decode())
         row = self.client.get('/api/parts/search/', {'search': 'CHASSIS'}).json()[0]
         self.assertTrue(row['has_open_feedback'])

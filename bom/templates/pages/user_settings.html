@@ -5,138 +5,79 @@
 <title>Settings / Bomnado</title>
 {% endblock %}
 
-{% block header %}
-<style type="text/css">
-    .settings-wrap { max-width: 780px; }
-    dl.account-details dt { font-weight: normal; color: #6c757d; }
-    dl.account-details dd { margin-bottom: 0.75rem; }
-</style>
-{% endblock %}
-
 {% block content %}
-<div class="w-100 overflow-auto">
-    <div class="settings-wrap mx-auto py-5 px-3">
+<div class="app-page bn-narrow">
+    {% include "partial/page_head.html" with title="Settings" lead="Your account, what you can see, and the AI assistant." %}
 
-        <h2 class="mb-4">Settings</h2>
+    {% if success_message %}
+    <div class="alert alert-success" role="alert">{{ success_message }}</div>
+    {% endif %}
 
-        {% if success_message %}
-        <div class="alert alert-success" role="alert">{{ success_message }}</div>
+    <section class="bn-section" id="account">
+        <div class="bn-section-head">
+            <h2>Account</h2>
+            <span class="bn-meta">Member since {{ user.date_joined|date:"j M Y" }} &middot; last signed in {{ user.last_login|date:"j M Y H:i"|default:"never" }}</span>
+        </div>
+        <form method="post" id="account-form">
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger" role="alert">{% for error in form.non_field_errors %}{{ error|escape }}{% endfor %}</div>
+            {% endif %}
+            <div class="form-row">
+                <div class="form-group col-md-6">
+                    <label class="bn-label" for="{{ form.first_name.id_for_label }}">{{ form.first_name.label }}</label>
+                    {{ form.first_name }}
+                    {% for error in form.first_name.errors %}<small class="text-danger d-block">{{ error|escape }}</small>{% endfor %}
+                </div>
+                <div class="form-group col-md-6">
+                    <label class="bn-label" for="{{ form.last_name.id_for_label }}">{{ form.last_name.label }}</label>
+                    {{ form.last_name }}
+                    {% for error in form.last_name.errors %}<small class="text-danger d-block">{{ error|escape }}</small>{% endfor %}
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="bn-label" for="{{ form.email.id_for_label }}">{{ form.email.label }}</label>
+                {{ form.email }}
+                <p class="bn-hint">{{ form.email.help_text }}</p>
+                {% for error in form.email.errors %}<small class="text-danger d-block">{{ error|escape }}</small>{% endfor %}
+            </div>
+            <div class="form-group">
+                <label class="bn-label" for="{{ form.username.id_for_label }}">{{ form.username.label }}</label>
+                {{ form.username }}
+                <p class="bn-hint">{{ form.username.help_text }}</p>
+                {% for error in form.username.errors %}<small class="text-danger d-block">{{ error|escape }}</small>{% endfor %}
+            </div>
+            <div class="bn-actions">
+                <a href="{% url "password_reset" %}" class="btn btn-sm btn-outline-secondary">Reset password</a>
+                <button type="submit" class="btn btn-sm btn-primary">Save account</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="bn-section" id="access">
+        <div class="bn-section-head">
+            <h2>Access</h2>
+            <span class="bn-meta">
+                {% if user.is_superuser %}<span class="bn-tag">administrator</span> every team, the Django admin, backups and setup
+                {% elif user.is_staff %}<span class="bn-tag">staff</span> the Django admin, plus the teams below
+                {% else %}<span class="bn-tag">member</span> the teams below{% endif %}
+            </span>
+        </div>
+        {% if teams %}
+        <ul class="bn-list">
+            {% for team in teams %}
+            <li>
+                <span class="bn-grow">{{ team.name }} <span class="bn-tag">{% if team.owner_id == user.id %}owner{% else %}member{% endif %}</span></span>
+                <span class="bn-meta">{{ team.projects.count }} project{{ team.projects.count|pluralize }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="bn-empty">You are not in a team yet.</p>
         {% endif %}
+        <div class="bn-actions"><a href="{% url "bom:teams" %}" class="btn btn-sm btn-outline-secondary">Manage teams</a></div>
+    </section>
 
-        <!-- ACCOUNT -->
-        <div class="card mb-4">
-            <div class="card-body">
-                <h5 class="card-title">Account</h5>
-
-                <dl class="row account-details mb-3">
-                    <dt class="col-sm-3">Member since</dt>
-                    <dd class="col-sm-9">{{ user.date_joined|date:"jS M Y" }}</dd>
-                    <dt class="col-sm-3">Last login</dt>
-                    <dd class="col-sm-9">{{ user.last_login|date:"jS M Y H:i"|default:"-" }}</dd>
-                </dl>
-
-                <form method="post" id="account-form">
-                    {% csrf_token %}
-
-                    {% if form.non_field_errors %}
-                    <div class="alert alert-danger" role="alert">
-                        {% for error in form.non_field_errors %}{{ error|escape }}{% endfor %}
-                    </div>
-                    {% endif %}
-
-                    <div class="form-row">
-                        <div class="form-group col-md-6">
-                            <label for="{{ form.first_name.id_for_label }}"><strong>{{ form.first_name.label }}</strong></label>
-                            {{ form.first_name }}
-                            {% for error in form.first_name.errors %}
-                            <small class="text-danger">{{ error|escape }}</small>
-                            {% endfor %}
-                        </div>
-                        <div class="form-group col-md-6">
-                            <label for="{{ form.last_name.id_for_label }}"><strong>{{ form.last_name.label }}</strong></label>
-                            {{ form.last_name }}
-                            {% for error in form.last_name.errors %}
-                            <small class="text-danger">{{ error|escape }}</small>
-                            {% endfor %}
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="{{ form.email.id_for_label }}"><strong>{{ form.email.label }}</strong></label>
-                        {{ form.email }}
-                        <small class="form-text text-muted">{{ form.email.help_text }}</small>
-                        {% for error in form.email.errors %}
-                        <small class="text-danger">{{ error|escape }}</small>
-                        {% endfor %}
-                    </div>
-
-                    <div class="form-group">
-                        <label for="{{ form.username.id_for_label }}"><small class="text-muted">{{ form.username.label }}</small></label>
-                        {{ form.username }}
-                        <small class="form-text text-muted">{{ form.username.help_text }}</small>
-                        {% for error in form.username.errors %}
-                        <small class="text-danger">{{ error|escape }}</small>
-                        {% endfor %}
-                    </div>
-
-                    <div class="d-flex align-items-center mt-4">
-                        <button type="submit" class="btn btn-primary mr-3">Save account</button>
-                        <a href="{% url "password_reset" %}" class="btn btn-outline-secondary">Reset password</a>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <!-- PRIVILEGES -->
-        <div class="card mb-4">
-            <div class="card-body">
-                <h5 class="card-title">Privileges</h5>
-
-                <p class="mb-3">
-                    {% if user.is_superuser %}
-                        <span class="badge badge-danger">Administrator</span>
-                        <small class="text-muted ml-2">Full access to every team, the Django admin, backups and setup tools.</small>
-                    {% elif user.is_staff %}
-                        <span class="badge badge-warning">Staff</span>
-                        <small class="text-muted ml-2">Can sign in to the Django admin.</small>
-                    {% else %}
-                        <span class="badge badge-secondary">Member</span>
-                        <small class="text-muted ml-2">Access is limited to the teams listed below.</small>
-                    {% endif %}
-                </p>
-
-                <h6>Teams</h6>
-                {% if teams %}
-                <table class="table table-sm table-striped mb-2">
-                    <tbody>
-                        {% for team in teams %}
-                        <tr>
-                            <th scope="row">{{ team.name }}</th>
-                            <td>
-                                {% if team.owner_id == user.id %}
-                                    <span class="badge badge-info">owner</span>
-                                {% else %}
-                                    <span class="badge badge-light">member</span>
-                                {% endif %}
-                            </td>
-                            <td class="text-muted text-right">{{ team.projects.count }} project{{ team.projects.count|pluralize }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-                {% else %}
-                <p class="text-muted">You are not a member of any teams yet.</p>
-                {% endif %}
-                <small><a href="{% url "bom:teams" %}">Manage teams</a></small>
-            </div>
-        </div>
-
-        <!-- WORKING WITH CLAUDE -->
-        {% include "partial/ai_settings_card.html" %}
-
-    </div>
+    {% include "partial/ai_settings_card.html" %}
 </div>
-{% endblock %}
-
-{% block jslibs %}
 {% endblock %}

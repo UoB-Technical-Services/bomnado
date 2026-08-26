@@ -41,7 +41,7 @@ class UserSettingsViewTests(TestCase):
         admin = User.objects.create_superuser(username='root', email='root@example.com', password='password123')
         self.client.force_login(admin)
         response = self.client.get(self.url)
-        self.assertContains(response, 'Administrator')
+        self.assertContains(response, 'administrator')
 
     def test_change_email_and_login_with_new_address(self):
         self.client.login(username='alice@example.com', password='password123')
@@ -159,5 +159,5 @@ class UserMenuTests(TestCase):
     def _menu(self, response):
         html = response.content.decode()
         start = html.index('id="app_user_menu"')
-        end = html.index('</nav>', start)
+        end = html.index('</header>', start)
         return html[start:end]

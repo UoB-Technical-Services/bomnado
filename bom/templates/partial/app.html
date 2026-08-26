@@ -23,6 +23,7 @@
 
     <!-- Application style sheets. -->
     <link rel="stylesheet" href="{% static 'app/style.css' %}" type="text/css" media="all" />
+    <link rel="stylesheet" href="{% static 'app/theme.css' %}" type="text/css" media="all" />
     <link rel='icon' href="{% static 'assets/favicon.svg' %}" type='image/x-icon' />
 
     <!-- 3rd party software. -->
@@ -52,302 +53,24 @@
     <script src="{% static 'app/pastepicture_widget.js' %}"></script>
     <script src="{% static 'app/picture_preview.js' %}"></script>
     <script src="{% static 'app/inputgroup_widget.js' %}"></script>
+    <script src="{% static 'app/editor.js' %}"></script>
+    <script src="{% static 'app/pages/part_editor.js' %}"></script>
+    <script src="{% static 'app/pages/assembly_editor.js' %}"></script>
 
-
-    {% block title %}
-    <title>Bomnado</title>
-    {% endblock %}
-
-    {% block header %}
-    {% endblock %}
-
-    {% kwacro isactiveurl link value %}
-    <!-- LINK: {{ link }} -->
-    <!-- REQUEST: {{ request.path }} -->
-        {% if link in request.path %}{{value}}{% endif %}
-    {% endkwacro %}
-
-</head>
-
-<body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}' data-ai-context="{% block ai_context %}{% endblock %}">
-
-    {% if SHOW_KEY_WARNING %}
-    <div class="alert alert-danger m-0 text-center" role="alert" style="border-radius: 0;">
-        <strong>⚠️ Security Warning:</strong> Application is using default security credentials. 
-        This is not secure for production use! Please set a proper DJANGO_SECRET_KEY environment variable.
-    </div>
-    {% endif %}
-
-
-    <header class="app-header">
-
-        <nav class="navbar navbar-expand-md navbar-dark bg-primary">
-
-            <!-- Left side. -->
-            <div class="d-flex order-0">
-                <img src="{% static 'assets/logo.svg' %}"  height="30" />
-            </div>
-
-            <!-- Central. -->
-            <div class="navbar-collapse collapse justify-content-center order-2" id="app-header-collapsing-nav">
-                <ul class="navbar-nav mr-auto">
-                    <li class="nav-item {% if "part" not in request.path and "assembly" not in request.path %}active{% endif %}">
-                        <a class="nav-link" href="{% url "bom:start" %}">Dashboard</a>
-                    </li>
-                    <li class="nav-item dropdown {% usekwacro isactiveurl "assembly" "active" %}">
-                        <a class="nav-link dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
-                           href="{% url "bom:assembly_editor" %}">Assembly Editor</a>
-                        <div class="dropdown-menu dropdown-menu-right">
-                            <p class="ml-1"><small class="text-muted">Recent Assemblies</small></p>
-                            {% for cache_assembly in request.session.recent_assemblies %}
-                                <a class="dropdown-item" href="{% url "bom:assembly_editor_update" pk=cache_assembly|first %}">{{cache_assembly|last}}</a>
-                            {% empty %}
-                                <p class="ml-4"><small class="text-muted">No recent assemblies</small></p>
-                            {% endfor %}
-                        </div>
-                    </li>
-                    <li class="nav-item {% usekwacro isactiveurl "part" "active" %}">
-                        <a class="nav-link" href="{% url "bom:part_editor" %}">Part Editor</a>
-                    </li>
-                    {% ai_status as ai %}
-                    <li class="d-none">
-                    </li>
-
-                </ul>
-            </div>
-
-            <!-- Right side. -->
-            <div class="d-flex order-1 order-md-last text-right">
-                <button id="app_search" class="btn btn-outline-light mr-4">🔍</button>
-                <button type="button" id="app_sidebar_toggle_btn" class="btn btn-outline-light mr-4">⬅️</button>
-                <button class="navbar-toggler ml-1" type="button" data-toggle="collapse" data-target="#app-header-collapsing-nav">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-
-                {% if ai.configured %}
-                <button type="button" class="btn btn-sm btn-ai bomnado-ai-toggle" id="aiChatToggle" title="Talk to the AI (Ctrl+K)">
-                    {% include "partial/ai_icon.html" with mono=True %} AI
-                </button>
-                <a class="btn btn-sm btn-outline-ai bomnado-ai-spend" href="{% url "bom:ai_jobs" %}"
-                    title="{% if ai.percent is not None %}{{ ai.percent }}% of this month's AI budget used ({{ ai.model }}). {% else %}${{ ai.spend|floatformat:2 }} spent on AI this month ({{ ai.model }}). {% endif %}What the AI is doing, and settings.">
-                    {% if ai.percent is not None %}{{ ai.percent }}%<span class="progress"><span class="progress-bar" style="width: {% if ai.percent > 100 %}100{% else %}{{ ai.percent }}{% endif %}%"></span></span>{% else %}${{ ai.spend|floatformat:2 }}{% endif %}
-                </a>
-                {% endif %}
-                <div class="nav-item dropdown ml-2" id="app_user_menu">
-                    <button type="button" class="btn btn-outline-light dropdown-toggle" data-toggle="dropdown" aria-haspopup="true"
-                                aria-expanded="false" title="{{ user.email|default:user.username }}">🧑🏽‍🤝‍🧑🏼</button>
-                    <div class="dropdown-menu dropdown-menu-right">
-                        <h6 class="dropdown-header">{{ user.email|default:user.username }}</h6>
-                        <a class="dropdown-item" href="{% url "bom:user_settings" %}">Settings</a>
-                        <a class="dropdown-item" href="{% url "bom:teams" %}">Teams</a>
-                        {% is_superuser user as is_user_superuser %}
-                        {% if is_user_superuser is True %}
-                            <div class="dropdown-divider"></div>
-                            <a class="dropdown-item d-flex justify-content-between align-items-center" href="{% url 'admin:index' %}">
-                                Django Admin <span class="badge badge-danger ml-3">Admin</span>
-                            </a>
-                            <a class="dropdown-item d-flex justify-content-between align-items-center" download href="{% url "bom:export_backup" %}">
-                                Export Database Backup <span class="badge badge-danger ml-3">Admin</span>
-                            </a>
-                        {% endif %}
-                        <div class="dropdown-divider"></div>
-                        <form method="post" action="{% url 'logout' %}" style="margin:0;">
-                            {% csrf_token %}
-                            <button type="submit" class="dropdown-item" style="width:100%;text-align:left;">Logout</button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-
-        </nav>
-
-    </header>
-
-    <section class="app-body app-viewport">
-        {% block content %}
-        <section id="app_left" class="split app-viewport ">
-            {% block content-left %}
-            {% endblock %}
-        </section>
-        <section id="app_right" class="split app-viewport ">
-            {% block content-right %}
-            {% endblock %}
-        </section>
-        {% endblock %}
-    </section>
-
-
-    <footer class="app-footer bg-dark">
-        <small class="m-2">🛠️ with ❤️ by </small>
-        <img src="{% static 'assets/HETiny.png' %}" height="14" class="d-inline-block align-center" alt="HE Inventions LTD">
-    </footer>
-
-
+    <!-- Shared page behaviour, defined before any page script runs. -->
     <script type="text/javascript">
+        window.Bomnado = window.Bomnado || {};
+        Object.assign(window.Bomnado, { marks: {{ MARKS_JSON|safe }}, pages: window.Bomnado.pages || {} });
+
+        /** A page names its behaviour with data-page on the main region; the module in app/pages/ is
+         *  initialised with the region on load and after every swap. No inline scripts, no template values
+         *  in JavaScript: everything a module needs is a data attribute next to data-page. */
+        window.Bomnado.initPage = function (main) {
+            const page = main && main.dataset.page && window.Bomnado.pages[main.dataset.page];
+            if (page) { page.init(main); }
+        };
 
 
-        // Try to load the previous split position.
-        let SPLIT_KEY = 'split';
-        if (window.location.pathname.indexOf('/part')) { SPLIT_KEY += '_part'; }
-        if (window.location.pathname.indexOf('/assembly')) { SPLIT_KEY += '_assembly'; }
-
-        const loadSplit = (size) => JSON.parse(window.localStorage.getItem(SPLIT_KEY) || size);
-        const saveSplit = (size) => window.localStorage.setItem(SPLIT_KEY, JSON.stringify(size));
-
-        // Split the page - but only if the page is multi-pane.
-        const hasBothPanes = document.querySelectorAll('#app_left, #app_right').length == 2;
-        if (hasBothPanes) {
-
-            // Get the button (we update the arrows based on position).
-            const btnToggle = document.querySelector('#app_sidebar_toggle_btn');
-            const updateButton = () => {
-                const [left, right] = split.getSizes();
-                btnToggle.textContent = left <= 2 ? '➡️' : '⬅️';
-            };
-    
-            // Create the app split.
-            const split = Split(['#app_left', '#app_right'], {
-                sizes: loadSplit("[25, 75]"),
-                minSize: [0, 0],
-                gutterSize: 20,
-                direction: 'horizontal',
-                gutterAlign: 'center',
-                onDragEnd: (size) => {
-                    const [left, right] = split.getSizes();
-                    if (left > 2 && right > 2) {
-                        saveSplit(size);
-                    }
-                    updateButton();
-                },
-            });
-
-            // First update.
-            updateButton();
-
-            // Toggle the split pane.
-            btnToggle.addEventListener('click', () => {
-                const [left, right] = split.getSizes();
-                if (left <= 2 || right <= 2) {
-                    split.setSizes(loadSplit("[25, 75]"));
-                }
-                else {
-                    split.collapse(0);
-                }
-                updateButton();
-            });
-        }
-
-        // Search bar.
-        // When the search button is clicked, open a dialog box that shows the search bar.
-        // In the background, issue the REST requests to get the data.
-        document.querySelector('#app_search').addEventListener('click', async () => {
-
-            // Open a new dialog box.
-            const dialog = bootbox.dialog({
-                onEscape: true,
-                closeButton: true,
-                backdrop: true,
-                animate: false,
-                size: 'large',
-                title: '<span class="icon"><i class="fa fa-fw fa-spin fa-spinner"></i></span> Search',
-                message: '<div id="app_search_box"><input type="search" class="d-none" id="app_search_bar" /></div>'
-            });
-
-            // Query the DB for parts and asssembles.
-            let partsResponse = fetch('/api/parts/');
-            let assembliesResponse = fetch('/api/subassemblies/');
-
-            // Formatting function for each search bar row.
-            function searchBarRowFormat(item) {
-
-                // Skip groups.
-                if (!item.id) {
-                    return item.text;
-                }
-
-                // Generate content.
-                let cssClass = item.type === 'part' ? 'part' : 'assembly';
-                let deprecated = item.data.deprecated ? '⚠️ ' : '';
-                let sale_code = item.data.sale_code ? ' 📑' : '';
-                let review = item.data.has_open_feedback ? '👀 ' : '';
-
-                // Generate URLS
-                const editURL = item.type === 'part' ? `/part/${item.data.id}` : `/assembly/${item.data.id}`;
-                const viewURL = item.type === 'part' ? `/part/${item.data.id}` : `/assembly/doc/${item.data.id}`;
-
-                // Generate row.
-                let html = `
-                <span style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <div class="table-icon">
-                            <img src="${item.data.picture_url}"/>
-                        </div>
-                        <a class="bomlink ${cssClass}">
-                            <kbd>${review}${deprecated}${item.data.reference}${sale_code}</kbd>
-                        </a>
-                        <small>${item.data.name}</small>
-                    </div>
-                    <div class="btn-group btn-group-sm" role="group">
-                        <a href=${viewURL} class="app-search-view btn btn-outline-light">📖</a>
-                        <a href=${editURL} class="app-search-edit btn btn-outline-light">✏️</a>
-                    </div>
-                </span>`;
-
-                // Generate HTML objects.
-                return $(html);
-            }
-
-            // When the dialog has started - remove the loading notice.
-            dialog.init(async () => {
-
-                // Search text transformer - combine reference, name, and (optionally) spec.
-                // const searchText = (p) => `${p.reference} ${p.name} ${p.spec}`.toUpperCase().substring(0, 100);
-                const searchText = (p) => `${p.has_open_feedback ? '👀review' : ''}${p.reference} ${p.name}`.toUpperCase();
-
-                // Transform a "part" into a select2-compatible data item.
-                partsResponse = await partsResponse;
-                const parts = await partsResponse.json();
-                const txPart = p => { return { type: 'part', text: searchText(p), id: p.reference, data: p }; };
-
-                // Transform an "assembly" into a select2-compatible data item.
-                assembliesResponse = await assembliesResponse;
-                const assemblies = await assembliesResponse.json();
-                const txAssembly = p => { return { type: 'assembly', text: searchText(p), id: p.reference, data: p }; };
-
-                // Change the icon.
-                dialog.get(0).querySelector('.modal-header h5').innerHTML = '🔍 Search';
-
-                // Create the search bar with the downloaded content.
-                let partSearch = null;
-                partSearch = $("#app_search_bar").select2({
-                    allowClear: true,
-                    placeholder: "",
-                    multiple: 'multiple',
-                    data: [...assemblies.map(txAssembly), ...parts.map(txPart)],
-                    width: 'style',
-                    closeOnSelect: false,
-                    templateResult: searchBarRowFormat,
-                    dropdownParent: '#app_search_box',
-                });
-
-                // Prevent selections from occuring.
-                partSearch.on("select2:selecting", (e) => e.preventDefault());
-
-                // Open the dropdown and focus on the selection so the user can just start typing.
-                partSearch.select2("open");
-
-                // Calculate and apply the desired height of the dropdown.
-                const marginPX = 50;
-                const dialogBounds = $("#app_search_box").get(0).getBoundingClientRect();
-                const target = window.innerHeight - dialogBounds.bottom - marginPX;
-                $('#app_search_box .select2-results__options').css('max-height', `${target}px`);
-            });
-        });
-
-        /**
-         * Keep track of when the user edits a form field
-         * and check they want to save / discard changes.
-         */
         class PageChanges {
 
             static TRIGGER_CLASS = '.bomnado-savechanges'
@@ -456,14 +179,277 @@
             // Raise the error.
             throw new Error(`${response.url}: ${response.status} ${response.statusText}`);
         }
+    </script>
+
+
+    {% block title %}
+    <title>Bomnado</title>
+    {% endblock %}
+
+    {% block header %}
+    {% endblock %}
+
+    {% kwacro isactiveurl link value %}
+    <!-- LINK: {{ link }} -->
+    <!-- REQUEST: {{ request.path }} -->
+        {% if link in request.path %}{{value}}{% endif %}
+    {% endkwacro %}
+
+</head>
+
+<body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+
+    {% if SHOW_KEY_WARNING %}
+    <div class="alert alert-danger m-0 text-center" role="alert" style="border-radius: 0;">
+        <strong>⚠️ Security Warning:</strong> Application is using default security credentials. 
+        This is not secure for production use! Please set a proper DJANGO_SECRET_KEY environment variable.
+    </div>
+    {% endif %}
+
+
+    <!-- The sparkle's gradient, defined once where it is always painted (an SVG inside display:none cannot be referenced). -->
+    <svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
+        <defs><linearGradient id="bomnado-ai-gradient" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f59e0b"/><stop offset="1" stop-color="#7c3aed"/></linearGradient></defs>
+    </svg>
+    {% ai_status as ai %}
+    <header class="app-topbar">
+        <button type="button" class="bn-icon-btn bn-only-mobile" id="app_library_toggle" title="Parts and assemblies" aria-label="Open the library">&#9776;</button>
+        <a class="bn-brand" href="{% url "bom:start" %}"><img src="{% static 'assets/logo.svg' %}" alt="" /></a>
+        <nav aria-label="Main">
+            <a href="{% url "bom:start" %}" class="{% if request.path == '/' %}active{% endif %}">Dashboard</a>
+            <a href="{% url "bom:assembly_start" %}" class="{% usekwacro isactiveurl "assembl" "active" %}">Assemblies</a>
+            <a href="{% url "bom:part_editor" %}" class="{% usekwacro isactiveurl "part" "active" %}">Parts</a>
+        </nav>
+        <div class="bn-topbar-actions">
+            <button type="button" id="app_search" class="bn-icon-btn" title="Search parts and assemblies (press /)" aria-label="Search">&#128269;&#xFE0E;</button>
+            {% if ai.configured %}
+            <button type="button" class="btn btn-sm btn-ai bomnado-ai-toggle" id="aiChatToggle" title="Talk to the AI (Ctrl+K)">
+                {% include "partial/ai_icon.html" with mono=True %} AI
+            </button>
+            <a class="btn btn-sm btn-outline-ai bomnado-ai-spend" href="{% url "bom:ai_jobs" %}"
+                title="{% if ai.percent is not None %}{{ ai.percent }}% of this month's AI budget used ({{ ai.model }}). {% else %}${{ ai.spend|floatformat:2 }} spent on AI this month ({{ ai.model }}). {% endif %}What the AI is doing, and settings.">
+                {% if ai.percent is not None %}{{ ai.percent }}%<span class="progress"><span class="progress-bar" style="width: {% if ai.percent > 100 %}100{% else %}{{ ai.percent }}{% endif %}%"></span></span>{% else %}${{ ai.spend|floatformat:2 }}{% endif %}
+            </a>
+            {% endif %}
+            <div class="dropdown" id="app_user_menu">
+                <button type="button" class="bn-avatar" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="{{ user.email|default:user.username }}">{{ user|initials }}</button>
+                    <div class="dropdown-menu dropdown-menu-right">
+                        <h6 class="dropdown-header">{{ user.email|default:user.username }}</h6>
+                        <a class="dropdown-item" href="{% url "bom:user_settings" %}">Settings</a>
+                        <a class="dropdown-item" href="{% url "bom:teams" %}">Teams</a>
+                        {% is_superuser user as is_user_superuser %}
+                        {% if is_user_superuser is True %}
+                            <div class="dropdown-divider"></div>
+                            <a class="dropdown-item d-flex justify-content-between align-items-center" href="{% url 'admin:index' %}">
+                                Django Admin <span class="badge badge-danger ml-3">Admin</span>
+                            </a>
+                            <a class="dropdown-item d-flex justify-content-between align-items-center" download href="{% url "bom:export_backup" %}">
+                                Export Database Backup <span class="badge badge-danger ml-3">Admin</span>
+                            </a>
+                        {% endif %}
+                        <div class="dropdown-divider"></div>
+                        <form method="post" action="{% url 'logout' %}" style="margin:0;">
+                            {% csrf_token %}
+                            <button type="submit" class="dropdown-item" style="width:100%;text-align:left;">Logout</button>
+                        </form>
+                    </div>
+            </div>
+        </div>
+    </header>
+
+    {% include "partial/search.html" %}
+
+    <div class="app-shell {% block shell_class %}{% endblock %}" id="app_shell">
+        <aside id="app_library" class="app-library">
+            {% block library %}{% block content-left %}{% endblock %}{% endblock %}
+        </aside>
+        <div class="bn-resizer" data-resize="library" title="Drag to resize"></div>
+        <main id="app_main" class="app-main" data-ai-context="{% block ai_context %}{% endblock %}" data-ai-reference="{% block ai_reference %}{% endblock %}" {% block page_data %}{% endblock %}>
+            {% block content %}{% block main %}{% block content-right %}{% endblock %}{% endblock %}{% endblock %}
+        </main>
+        <div class="bn-resizer" data-resize="drawer" title="Drag to resize"></div>
+        <aside id="app_drawer" class="app-drawer">
+            {% if ai.configured %}{% include "partial/ai_chat.html" %}{% endif %}
+        </aside>
+    </div>
+
+
+
+    <script type="text/javascript">
+
+
+        // Help marks (the "?" buttons): tap or click to pin a bubble, hover to peek; Esc or a click elsewhere closes.
+        (function () {
+            let bubble = null, pinned = null;
+            const hide = () => { if (bubble) { bubble.remove(); bubble = null; } pinned = null; };
+            const show = (mark) => {
+                hide();
+                bubble = document.createElement('div');
+                bubble.className = 'bn-help-bubble';
+                bubble.setAttribute('role', 'tooltip');
+                bubble.textContent = mark.dataset.help || '';
+                document.body.appendChild(bubble);
+                const rect = mark.getBoundingClientRect();
+                const width = Math.min(320, window.innerWidth - 16);
+                bubble.style.width = width + 'px';
+                bubble.style.left = Math.max(8, Math.min(rect.left + rect.width / 2 - width / 2, window.innerWidth - width - 8)) + 'px';
+                const above = rect.top > bubble.offsetHeight + 12;
+                bubble.style.top = (above ? rect.top - bubble.offsetHeight - 8 : rect.bottom + 8) + 'px';
+            };
+            document.addEventListener('click', (event) => {
+                const mark = event.target.closest('.bn-help');
+                if (mark) { event.preventDefault(); if (pinned === mark) { hide(); } else { show(mark); pinned = mark; } return; }
+                if (bubble && !event.target.closest('.bn-help-bubble')) { hide(); }
+            });
+            document.addEventListener('mouseover', (event) => { const mark = event.target.closest('.bn-help'); if (mark && !pinned) { show(mark); } });
+            document.addEventListener('mouseout', (event) => { const mark = event.target.closest('.bn-help'); if (mark && !pinned) { hide(); } });
+            document.addEventListener('keydown', (event) => { if (event.key === 'Escape') { hide(); } });
+            document.body.addEventListener('htmx:beforeSwap', hide);
+        })();
+
+        // The library and the drawer can be dragged wider or narrower; the widths are kept per browser.
+        (function () {
+            const KEY = 'bomnado.layout';
+            const root = document.documentElement;
+            const vars = { library: '--bn-library-w', drawer: '--bn-drawer-w' };
+            let saved = {};
+            try { saved = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) { saved = {}; }
+            Object.keys(vars).forEach((which) => { if (saved[which]) { root.style.setProperty(vars[which], saved[which] + 'px'); } });
+            document.querySelectorAll('.bn-resizer').forEach((handle) => {
+                handle.addEventListener('pointerdown', (event) => {
+                    event.preventDefault();
+                    handle.setPointerCapture(event.pointerId);
+                    const which = handle.dataset.resize;
+                    const region = document.getElementById(which === 'library' ? 'app_library' : 'app_drawer');
+                    const startX = event.clientX;
+                    const startWidth = region.getBoundingClientRect().width;
+                    handle.classList.add('is-dragging');
+                    document.body.classList.add('bn-resizing');
+                    const move = (ev) => {
+                        const delta = ev.clientX - startX;
+                        let width = which === 'library' ? startWidth + delta : startWidth - delta;
+                        width = Math.max(240, Math.min(width, window.innerWidth * 0.6));
+                        root.style.setProperty(vars[which], width + 'px');
+                        saved[which] = Math.round(width);
+                    };
+                    const up = () => {
+                        handle.removeEventListener('pointermove', move);
+                        handle.removeEventListener('pointerup', up);
+                        handle.classList.remove('is-dragging');
+                        document.body.classList.remove('bn-resizing');
+                        try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (e) { /* private mode */ }
+                    };
+                    handle.addEventListener('pointermove', move);
+                    handle.addEventListener('pointerup', up);
+                });
+            });
+        })();
+
+        // Small screens: the library slides over the page.
+        (function () {
+            const shell = document.getElementById('app_shell');
+            const toggle = document.getElementById('app_library_toggle');
+            if (!shell || !toggle) { return; }
+            let scrim = null;
+            const close = () => { shell.classList.remove('library-open'); if (scrim) { scrim.remove(); scrim = null; } };
+            toggle.addEventListener('click', () => {
+                if (shell.classList.contains('library-open')) { close(); return; }
+                shell.classList.add('library-open');
+                scrim = document.createElement('div');
+                scrim.className = 'bn-scrim';
+                scrim.addEventListener('click', close);
+                document.body.appendChild(scrim);
+            });
+        })();
+
+        // Search: the overlay (partial/search.html). "/" opens it anywhere you are not typing; Esc closes;
+        // arrows move through the results and Enter opens one.
+        (function () {
+            const overlay = document.getElementById('app_search_overlay');
+            const button = document.getElementById('app_search');
+            if (!overlay || !button) { return; }
+            const input = document.getElementById('app_search_input');
+            const results = document.getElementById('app_search_results');
+            const open = () => { overlay.hidden = false; input.value = ''; results.innerHTML = ''; input.focus(); };
+            const close = () => { overlay.hidden = true; };
+            button.addEventListener('click', open);
+            overlay.addEventListener('click', (event) => { if (event.target === overlay) { close(); } });
+            results.addEventListener('htmx:afterSwap', () => {
+                const first = results.querySelector('.bn-search-row');
+                if (first) { first.classList.add('is-active'); }
+            });
+            document.addEventListener('keydown', (event) => {
+                const active = document.activeElement;
+                const typing = active && (/^(input|textarea|select)$/i.test(active.tagName) || active.isContentEditable);
+                if (event.key === '/' && !typing && !event.ctrlKey && !event.metaKey && !event.altKey) { event.preventDefault(); open(); return; }
+                if (overlay.hidden) { return; }
+                if (event.key === 'Escape') { event.preventDefault(); close(); return; }
+                const rows = Array.from(results.querySelectorAll('.bn-search-row'));
+                if (!rows.length) { return; }
+                let index = rows.findIndex(row => row.classList.contains('is-active'));
+                if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                    event.preventDefault();
+                    rows.forEach(row => row.classList.remove('is-active'));
+                    index = event.key === 'ArrowDown' ? Math.min(index + 1, rows.length - 1) : Math.max(index - 1, 0);
+                    rows[index].classList.add('is-active');
+                    rows[index].scrollIntoView({ block: 'nearest' });
+                } else if (event.key === 'Enter') {
+                    event.preventDefault();
+                    rows[index >= 0 ? index : 0].click();
+                }
+            });
+        })();
 
         $.fn.select2.defaults.set("theme", "bootstrap4");
         // Surface DataTables problems in the console instead of a blocking alert().
         if ($.fn.dataTable) { $.fn.dataTable.ext.errMode = "throw"; }
 
         document.addEventListener('DOMContentLoaded', async () => {
-            console.log("APP LOADED");
+            Bomnado.initPage(document.getElementById('app_main'));
             PageChanges.install();
+            PageChanges.installActivity();
+        });
+
+        // Before the main region is swapped, forget the widget instances that live in it, so the new
+        // region's widgets can register under the same ids.
+        document.body.addEventListener('htmx:beforeSwap', (event) => {
+            if (event.detail.target.id !== 'app_main') { return; }
+            const registries = [typeof MarkdownField !== 'undefined' ? MarkdownField : null,
+                                typeof PastePictureField !== 'undefined' ? PastePictureField : null,
+                                typeof AttachmentList !== 'undefined' ? AttachmentList : null,
+                                typeof TinyPictureField !== 'undefined' ? TinyPictureField : null];
+            registries.forEach((cls) => {
+                if (!cls || !cls.instances) { return; }
+                Object.keys(cls.instances).forEach((key) => {
+                    const instance = cls.instances[key];
+                    if (!instance || !instance.element || event.detail.target.contains(instance.element)) { delete cls.instances[key]; }
+                });
+            });
+        });
+        // The main region is swapped by htmx (a part chosen in the library, a save): re-arm change tracking,
+        // drop the unsaved-changes flag, and show the library which record is now open.
+        document.body.addEventListener('htmx:afterSwap', (event) => {
+            if (event.detail.target.id !== 'app_main') { return; }
+            Bomnado.initPage(document.getElementById('app_main'));
+            PageChanges.supressNote();
+            PageChanges.install();
+            const main = document.getElementById('app_main');
+            const selected = document.querySelector('#library_list input[name="selected"]');
+            const search = document.querySelector('#library_list input[name="q"]');
+            if (selected && search && selected.value !== (main.dataset.aiContext || '')) {
+                selected.value = main.dataset.aiContext || '';
+                htmx.trigger(search, 'refresh');
+            }
+            document.dispatchEvent(new CustomEvent('bomnado:main-swapped'));
+        });
+        // Leaving a form with unsaved changes by an htmx navigation asks first, as leaving the page does.
+        document.body.addEventListener('htmx:confirm', (event) => {
+            if (!window.onbeforeunload || event.detail.elt.closest('form')) { return; }
+            if (event.detail.target && event.detail.target.id !== 'app_main') { return; }
+            event.preventDefault();
+            bootbox.confirm('You have unsaved changes. Leave without saving?', (ok) => {
+                if (ok) { PageChanges.supressNote(); event.detail.issueRequest(true); }
+            });
         });
     </script>
 
@@ -471,7 +457,6 @@
     {% endblock %}
 
     {% if ai.configured %}
-    {% include "partial/ai_chat.html" %}
     <script src="{% static 'app/ai_tornado.js' %}"></script>
     <script src="{% static 'app/ai_chat.js' %}"></script>
     {% endif %}

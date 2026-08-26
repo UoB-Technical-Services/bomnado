@@ -1,0 +1,13 @@
+{# The standard page header for pages without a record: breadcrumb, title, optional lead and actions. #}
+{# Usage: {% include "partial/page_head.html" with title="Production phases" parent="Tools" lead="..." %} #}
+{# Optional: `parent` (a breadcrumb label), `parent_url`, `lead` (one line under the title). Put actions in `{% block page_actions %}`-like #}
+{# markup by wrapping the include in a `.bn-page-head-row` yourself if needed. #}
+<header class="bn-page-head">
+    <div class="bn-crumbs">
+        <a href="{% url 'bom:start' %}">Dashboard</a>
+        {% if parent %}<span class="bn-crumb-sep">/</span> {% if parent_url %}<a href="{{ parent_url }}">{{ parent }}</a>{% else %}<span>{{ parent }}</span>{% endif %}{% endif %}
+        <span class="bn-crumb-sep">/</span> <span>{{ title }}</span>
+    </div>
+    <h1 class="bn-page-title">{{ title }}</h1>
+    {% if lead %}<p class="bn-page-lead">{{ lead }}</p>{% endif %}
+</header>

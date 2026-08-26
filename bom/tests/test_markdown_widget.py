@@ -63,7 +63,8 @@ class MarkdownEditorPageTests(TestCase):
         self.assertEqual(html.count('lib/expr-eval-2.0.2/expr-eval.min.js'), 1)
         self.assertEqual(html.count('ace.js'), 0)
         self.assertEqual(html.count('ace.edit('), 0)
-        self.assertEqual(html.count("MarkdownField.forTextarea('instructions')"), 2)
+        with open('bom/static/app/pages/assembly_editor.js', encoding='utf-8') as script:
+            self.assertEqual(script.read().count("MarkdownField.forTextarea('instructions')"), 2)
 
     def test_part_editor_renders_markdown_widgets(self):
         part = PartFactory(team=self.team, picture=None, spec='Spec for `OTHER-PART`')

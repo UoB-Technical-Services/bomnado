@@ -1,0 +1,58 @@
+{# The assemblies side of the library: a search box that stays, then either the flat list or the project tree. #}
+{# Context: `page` ((assembly, status) pairs), `query`, `selected`, `selected_key`, `view` ('list' | 'tree'), `tree` (roots), `orphans`. #}
+<div id="library_list" class="bn-library-list">
+    <div class="bn-library-search">
+        <input type="search" name="q" value="{{ query }}" class="form-control" placeholder="Search assemblies" autocomplete="off" aria-label="Search assemblies"
+               hx-get="{% url 'bom:library_assemblies' %}" hx-trigger="input changed delay:300ms, search, refresh" hx-include="#library_list [name=selected], #library_list [name=view]"
+               hx-target="#library_results" hx-select="#library_results" hx-swap="outerHTML">
+        <input type="hidden" name="selected" value="{{ selected_key }}">
+        <input type="hidden" name="view" value="{{ view }}">
+    </div>
+    <div id="library_results" hx-target="#library_results" hx-select="#library_results" hx-swap="outerHTML">
+        <div class="bn-library-filters" role="group" aria-label="View">
+            <a href="#" class="bn-pill {% if view == 'list' %}active{% endif %}" hx-get="{% url 'bom:library_assemblies' %}?view=list&q={{ query|urlencode }}&selected={{ selected_key }}">List</a>
+            <a href="#" class="bn-pill {% if view == 'tree' %}active{% endif %}" hx-get="{% url 'bom:library_assemblies' %}?view=tree&q={{ query|urlencode }}&selected={{ selected_key }}">Tree</a>
+        </div>
+        {% if view == 'tree' %}
+        <ul class="bn-tree">
+            {% for node in tree %}{% with template_name="partial/library_tree.html" %}{% include template_name %}{% endwith %}{% empty %}
+            <li class="bn-library-empty">No projects yet. Tick "top-level" on an assembly to make it one.</li>
+            {% endfor %}
+        </ul>
+        {% if orphans %}
+        <div class="bn-tree-heading">Not in any project</div>
+        <ul class="bn-tree">
+            {% for node in orphans %}{% with template_name="partial/library_tree.html" %}{% include template_name %}{% endwith %}{% endfor %}
+        </ul>
+        {% endif %}
+        {% else %}
+        <div class="bn-library-rows">
+            {% for assembly, status in page %}
+            <a class="bn-row {% if assembly.id == selected.id %}is-selected{% endif %}" href="{% url 'bom:assembly_editor_update' pk=assembly.id %}" {% if assembly.id == selected.id %}aria-current="page"{% endif %}
+               hx-get="{% url 'bom:assembly_editor_update' pk=assembly.id %}" hx-target="#app_main" hx-select="#app_main" hx-swap="outerHTML show:top" hx-push-url="true">
+                <img class="bn-thumb" src="{{ assembly.picture_url }}" alt="" loading="lazy">
+                <span class="bn-row-text">
+                    <span class="bn-row-ref"><span class="bn-ref is-assembly">{{ assembly.reference }}</span>{% if assembly.is_toplevel %} <span class="bn-tag">project</span>{% endif %}</span>
+                    <span class="bn-row-name">{{ assembly.name }} <span class="text-muted">&middot; v{{ assembly.revision }}</span></span>
+                </span>
+                {% if not status.quiet %}<span class="bn-status is-{{ status.tone }}">{{ status.label }}</span>{% endif %}
+            </a>
+            {% empty %}
+            <div class="bn-library-empty">{% if query %}Nothing matches.{% else %}No assemblies yet.{% endif %}</div>
+            {% endfor %}
+        </div>
+        {% if page.paginator.num_pages > 1 %}
+        <div class="bn-library-pager">
+            <span class="text-muted">{{ page.start_index }}&ndash;{{ page.end_index }} of {{ page.paginator.count }}</span>
+            <span>
+                {% if page.has_previous %}<a href="#" class="bn-pager-btn" hx-get="{% url 'bom:library_assemblies' %}?q={{ query|urlencode }}&selected={{ selected_key }}&page={{ page.previous_page_number }}" aria-label="Previous page">&lsaquo;</a>{% endif %}
+                <span class="bn-pager-num">{{ page.number }} / {{ page.paginator.num_pages }}</span>
+                {% if page.has_next %}<a href="#" class="bn-pager-btn" hx-get="{% url 'bom:library_assemblies' %}?q={{ query|urlencode }}&selected={{ selected_key }}&page={{ page.next_page_number }}" aria-label="Next page">&rsaquo;</a>{% endif %}
+            </span>
+        </div>
+        {% else %}
+        <div class="bn-library-pager"><span class="text-muted">{{ page.paginator.count }} assembl{{ page.paginator.count|pluralize:"y,ies" }}</span></div>
+        {% endif %}
+        {% endif %}
+    </div>
+</div>

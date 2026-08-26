@@ -1,0 +1,496 @@
+/* Bomnado theme: neutral surfaces, one primary colour, a type and spacing scale, and the
+   three-region shell (top bar · library · main · drawer). Loaded after Bootstrap and style.css,
+   so it overrides both; the older rules stay for the pages not yet moved over. */
+
+:root {
+    --bn-primary: #2563eb;
+    --bn-primary-hover: #1d4ed8;
+    --bn-primary-soft: #dbeafe;
+    --bn-ink: #0f172a;
+    --bn-text: #1e293b;
+    --bn-muted: #64748b;
+    --bn-faint: #94a3b8;
+    --bn-line: #e2e8f0;
+    --bn-line-strong: #cbd5e1;
+    --bn-surface: #ffffff;
+    --bn-canvas: #f8fafc;
+    --bn-topbar: #0b1b3a;
+    --bn-part: #334155;
+    --bn-assembly: #2563eb;
+    --bn-ok: #15803d; --bn-ok-bg: #dcfce7;
+    --bn-warn: #b45309; --bn-warn-bg: #fef3c7;
+    --bn-bad: #b91c1c; --bn-bad-bg: #fee2e2;
+    --bn-library-w: 360px;
+    --bn-drawer-w: 380px;
+    --bn-topbar-h: 52px;
+    --bn-radius: 8px;
+    --bn-mono: ui-monospace, "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --bn-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* ---- base ---------------------------------------------------------------------------------- */
+html { font-size: 15px; }
+body { font-family: var(--bn-font); color: var(--bn-text); background: var(--bn-canvas); line-height: 1.5; }
+h1, h2, h3, h4, h5, h6 { color: var(--bn-ink); font-weight: 600; letter-spacing: -0.01em; }
+a { color: var(--bn-primary); }
+a:hover { color: var(--bn-primary-hover); }
+small, .small { font-size: 0.86rem; }
+kbd { background: #f1f5f9; color: var(--bn-ink); border: 1px solid var(--bn-line); font-size: 0.85em; }
+code { color: #7c3aed; }
+
+.btn { border-radius: 6px; font-weight: 500; }
+.btn-primary, .btn-success { background: var(--bn-primary); border-color: var(--bn-primary); color: #fff; }
+.btn-primary:hover, .btn-success:hover, .btn-primary:focus, .btn-success:focus { background: var(--bn-primary-hover); border-color: var(--bn-primary-hover); color: #fff; }
+.btn-outline-primary { color: var(--bn-primary); border-color: var(--bn-line-strong); background: #fff; }
+.btn-outline-primary:hover { background: var(--bn-primary-soft); color: var(--bn-primary-hover); border-color: var(--bn-line-strong); }
+.btn-outline-secondary { color: var(--bn-text); border-color: var(--bn-line-strong); background: #fff; }
+.btn-outline-secondary:hover { background: #f1f5f9; color: var(--bn-ink); border-color: var(--bn-line-strong); }
+.form-control, .custom-select { border-color: var(--bn-line-strong); border-radius: 6px; color: var(--bn-text); }
+.form-control:focus, .custom-select:focus { border-color: var(--bn-primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15); }
+.form-control::placeholder { color: var(--bn-faint); }
+.card { border-color: var(--bn-line); border-radius: var(--bn-radius); box-shadow: none; }
+.card-header { background: #fff; border-bottom-color: var(--bn-line); }
+.alert { border-radius: var(--bn-radius); }
+.badge { font-weight: 500; border-radius: 999px; padding: 0.25em 0.6em; }
+.table td, .table th { border-top-color: var(--bn-line); }
+.dropdown-menu { border-color: var(--bn-line); border-radius: var(--bn-radius); box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12); }
+.text-muted { color: var(--bn-muted) !important; }
+::selection { background: var(--bn-primary-soft); }
+
+/* References (templatetags/utils.reference_html and the places that render their own): a tinted chip - slate
+   for parts, blue for assemblies - in a monospace face, with marks for state inside it: a red dot (needs
+   attention), an amber dot (missing data), struck through and dashed when deprecated, a small tag for a sale
+   code or a PCB. Reads as an object, not a hyperlink; hover darkens the border to say it is one. */
+.bn-ref { display: inline-block; font-family: var(--bn-mono); font-size: 0.86em; font-weight: 600; letter-spacing: 0.01em; white-space: nowrap;
+          line-height: 1.35; padding: 0.1em 0.45em; border-radius: 4px; border: 1px solid #cbd5e1; background: #f1f5f9; color: var(--bn-part);
+          text-decoration: none; vertical-align: baseline; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+a.bn-ref:hover, a.bn-ref:focus { color: var(--bn-ink); background: #e2e8f0; border-color: #94a3b8; text-decoration: none; outline: none; }
+.bn-ref.is-assembly { color: #1d4ed8; background: #eff6ff; border-color: #bfdbfe; }
+a.bn-ref.is-assembly:hover, a.bn-ref.is-assembly:focus { color: #1e40af; background: #dbeafe; border-color: #93c5fd; }
+.bn-ref.is-deprecated, a.bn-ref.is-deprecated:hover { color: var(--bn-muted); background: #f8fafc; border-style: dashed; border-color: #cbd5e1; text-decoration: line-through; }
+.bn-ref .reference { white-space: nowrap; }
+.bn-ref .bn-tag { margin-left: 0.35em; vertical-align: middle; font-family: var(--bn-font); }
+.bn-mark { display: inline-block; width: 0.45em; height: 0.45em; border-radius: 50%; margin-left: 0.32em; vertical-align: 0.12em; }
+.bn-mark.is-bad { background: #ef4444; }
+.bn-mark.is-warn { background: #f59e0b; }
+.bn-row-ref.bn-ref, .bn-row-ref .bn-ref { font-size: 0.78rem; white-space: normal; overflow-wrap: anywhere; text-overflow: clip; line-height: 1.3; }
+.bn-row.is-selected .bn-row-ref.bn-ref { color: var(--bn-primary); border-color: #93c5fd; background: #eff6ff; }
+.bn-crumbs .bn-ref { font-size: 0.76rem; }
+.bn-editor .table .bn-ref, .bn-tool .bn-ref { font-size: 0.8rem; }
+.bomnado-ai-chat-text .bn-ref, .bomnado-activity .bn-ref { font-size: 0.82em; }
+
+/* Status badges (library rows, editor header). The red and amber ones start with the same dot a reference
+   carries, so the colour and the words are learned together. */
+.bn-status { display: inline-block; padding: 0.15rem 0.55rem; border-radius: 999px; font-size: 0.75rem; font-weight: 500; white-space: nowrap; border: 1px solid transparent; }
+.bn-status.is-bad::before, .bn-status.is-warn::before { content: ''; display: inline-block; width: 0.5em; height: 0.5em; border-radius: 50%; margin-right: 0.4em; vertical-align: 0.05em; }
+.bn-status.is-bad::before { background: #ef4444; }
+.bn-status.is-warn::before { background: #f59e0b; }
+.bn-legend { display: flex; flex-wrap: wrap; gap: 0.35rem 1.1rem; margin-top: 0.6rem; font-size: 0.75rem; color: var(--bn-muted); }
+.bn-legend .bn-mark { margin: 0 0.1em 0 0; }
+.bn-legend-sample { font-size: 0.7rem; padding: 0 0.35em; }
+.bn-status.is-ok { color: var(--bn-ok); background: var(--bn-ok-bg); border-color: #bbf7d0; }
+.bn-status.is-warn { color: var(--bn-warn); background: var(--bn-warn-bg); border-color: #fde68a; }
+.bn-status.is-bad { color: var(--bn-bad); background: var(--bn-bad-bg); border-color: #fecaca; }
+.bn-status.is-muted { color: var(--bn-muted); background: #f1f5f9; border-color: var(--bn-line); }
+
+/* ---- the shell ----------------------------------------------------------------------------- */
+body { position: fixed; display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; }
+
+.app-topbar { flex: 0 0 var(--bn-topbar-h); display: flex; align-items: center; gap: 0.25rem; padding: 0 1rem; background: var(--bn-topbar); color: #fff; z-index: 1040; }
+.app-topbar .bn-brand { display: flex; align-items: center; gap: 0.5rem; color: #fff; font-weight: 700; font-size: 1.15rem; text-decoration: none; margin-right: 1.5rem; }
+.app-topbar .bn-brand img { height: 26px; }
+.app-topbar nav { display: flex; gap: 0.25rem; flex: 1; justify-content: center; }
+.app-topbar nav a { color: rgba(255, 255, 255, 0.78); text-decoration: none; padding: 0.35rem 0.8rem; border-radius: 6px; font-weight: 500; border-bottom: 2px solid transparent; }
+.app-topbar nav a:hover { color: #fff; background: rgba(255, 255, 255, 0.08); }
+.app-topbar nav a.active { color: #fff; border-bottom-color: #fff; border-radius: 6px 6px 0 0; }
+.app-topbar .bn-topbar-actions { display: flex; align-items: center; gap: 0.35rem; }
+.app-topbar .bn-icon-btn { color: rgba(255, 255, 255, 0.85); background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 0.3rem 0.55rem; line-height: 1; font-size: 1rem; }
+.app-topbar .bn-icon-btn:hover { color: #fff; background: rgba(255, 255, 255, 0.12); }
+.app-topbar .bn-avatar { width: 32px; height: 32px; border-radius: 50%; background: #e2e8f0; color: var(--bn-ink); font-weight: 600; font-size: 0.8rem; display: inline-flex; align-items: center; justify-content: center; border: 0; }
+.app-topbar .dropdown-menu { color: var(--bn-text); }
+.app-topbar .bomnado-ai-toggle { margin: 0; }
+.app-topbar .bomnado-ai-spend { margin: 0; }
+.bn-only-mobile { display: none; }
+
+.app-shell { flex: 1; display: flex; min-height: 0; }
+.app-library { flex: 0 0 var(--bn-library-w); width: var(--bn-library-w); display: none; flex-direction: column; min-height: 0; overflow-y: auto; background: var(--bn-surface); border-right: 1px solid var(--bn-line); }
+.app-shell.has-library .app-library { display: flex; }
+.app-main { flex: 1; min-width: 0; min-height: 0; overflow-y: auto; background: var(--bn-canvas); position: relative; }
+.app-main > .app-page { max-width: 1000px; margin: 0 auto; padding: 1.25rem 1.5rem 3rem; }
+.app-drawer { flex: 0 0 0; width: 0; display: none; min-height: 0; background: var(--bn-surface); border-left: 1px solid var(--bn-line); }
+.bn-resizer { flex: 0 0 6px; margin: 0 -3px; cursor: col-resize; position: relative; z-index: 5; display: none; }
+.bn-resizer::after { content: ''; position: absolute; inset: 0 2px; border-radius: 2px; background: transparent; transition: background 0.15s; }
+.bn-resizer:hover::after, .bn-resizer.is-dragging::after { background: var(--bn-primary-soft); }
+.app-shell.has-library .bn-resizer[data-resize="library"] { display: block; }
+.app-shell:has(.app-drawer.is-open) .bn-resizer[data-resize="drawer"] { display: block; }
+body.bn-resizing { cursor: col-resize; user-select: none; }
+body.bn-resizing iframe { pointer-events: none; }
+.app-drawer.is-open { flex-basis: var(--bn-drawer-w); width: var(--bn-drawer-w); display: flex; flex-direction: column; }
+
+/* Legacy pages render their old blocks inside the regions: keep their own width limits and padding. */
+.app-library > div, .app-main > div { max-width: none; }
+.app-main > .w-100 { height: auto; }
+
+/* The docked AI chat: the same element as the floating window, filling the drawer. */
+.app-drawer > .bomnado-ai-chat { position: static; flex: 1; width: auto !important; height: auto !important; min-height: 0; border: 0; border-radius: 0; box-shadow: none; resize: none; left: auto !important; top: auto !important; }
+.app-drawer > .bomnado-ai-chat .bomnado-ai-chat-header { cursor: default; background: #fff; color: var(--bn-ink); border-bottom: 1px solid var(--bn-line); padding: 0.6rem 0.75rem; }
+.app-drawer > .bomnado-ai-chat .bomnado-ai-chat-controls .btn { color: var(--bn-muted); }
+.app-drawer > .bomnado-ai-chat .bomnado-ai-chat-controls .btn:hover { color: var(--bn-ink); background: #f1f5f9; }
+.app-drawer > .bomnado-ai-chat .bomnado-ai-chat-messages { background: var(--bn-canvas); }
+
+/* ---- the library (partial/library.html) ---------------------------------------------------- */
+.bn-library { display: flex; flex-direction: column; min-height: 100%; }
+.bn-library-head { padding: 0.9rem 1rem 0.5rem; border-bottom: 1px solid var(--bn-line); }
+.bn-library-title { font-size: 1.15rem; font-weight: 600; margin: 0; color: var(--bn-ink); }
+.bn-library-or { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--bn-faint); text-align: center; margin: 0.6rem 0 0.4rem; display: flex; align-items: center; gap: 0.5rem; }
+.bn-library-or::before, .bn-library-or::after { content: ''; flex: 1; border-top: 1px solid var(--bn-line); }
+.bn-library-new summary { list-style: none; cursor: pointer; display: inline-block; }
+.bn-library-new summary::-webkit-details-marker { display: none; }
+.bn-library-new[open] summary { margin-bottom: 0.6rem; }
+.bn-library-new-body { background: var(--bn-canvas); border: 1px solid var(--bn-line); border-radius: var(--bn-radius); padding: 0.75rem; margin-bottom: 0.5rem; }
+.bn-library-search { padding: 0.6rem 1rem 0.4rem; }
+.bn-library-search .form-control { border-radius: 999px; padding-left: 0.9rem; }
+.bn-library-filters { display: flex; flex-wrap: wrap; gap: 0.35rem; padding: 0 1rem 0.6rem; }
+.bn-pill { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.2rem 0.65rem; border-radius: 999px; border: 1px solid var(--bn-line-strong); color: var(--bn-text); font-size: 0.8rem; text-decoration: none; background: #fff; }
+.bn-pill:hover { background: #f1f5f9; text-decoration: none; color: var(--bn-ink); }
+.bn-pill.active { border-color: var(--bn-primary); color: var(--bn-primary); background: var(--bn-primary-soft); }
+.bn-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+.bn-dot.is-bad { background: #ef4444; } .bn-dot.is-warn { background: #f59e0b; }
+.bn-library-rows { border-top: 1px solid var(--bn-line); }
+.bn-row { display: flex; align-items: center; gap: 0.7rem; padding: 0.55rem 1rem; border-bottom: 1px solid var(--bn-line); color: var(--bn-text); text-decoration: none; border-left: 3px solid transparent; }
+.bn-row:hover { background: #f8fafc; text-decoration: none; color: var(--bn-ink); }
+.bn-row.is-selected { background: #eff6ff; border-left-color: var(--bn-primary); }
+.bn-thumb { width: 40px; height: 40px; object-fit: contain; border-radius: 6px; background: #fff; border: 1px solid var(--bn-line); flex: 0 0 40px; }
+.bn-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+.bn-row-ref { font-weight: 600; font-size: 0.86rem; color: var(--bn-ink); word-break: break-word; }
+.bn-row.is-selected .bn-row-ref { color: var(--bn-primary); }
+.bn-row-name { font-size: 0.8rem; color: var(--bn-muted); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.bn-tag { font-size: 0.65rem; font-weight: 500; color: var(--bn-muted); background: #f1f5f9; border-radius: 4px; padding: 0.05rem 0.3rem; vertical-align: middle; }
+.bn-library-empty { padding: 1.5rem 1rem; color: var(--bn-muted); text-align: center; }
+.bn-library-pager { display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 1rem; font-size: 0.8rem; }
+.bn-pager-btn { display: inline-block; min-width: 1.6rem; text-align: center; padding: 0.1rem 0.35rem; border: 1px solid var(--bn-line-strong); border-radius: 6px; color: var(--bn-text); text-decoration: none; }
+.bn-pager-btn:hover { background: #f1f5f9; text-decoration: none; }
+.bn-pager-num { margin: 0 0.35rem; color: var(--bn-muted); }
+.bn-library-list.htmx-request { opacity: 0.6; }
+
+/* ---- the editor (pages/part_editor.html) --------------------------------------------------- */
+.app-main { scroll-behavior: smooth; }
+.bn-editor-head { position: sticky; top: 0; z-index: 60; background: var(--bn-canvas); margin: -1.25rem -1.5rem 1rem; padding: 1rem 1.5rem 0; border-bottom: 1px solid var(--bn-line); }
+.bn-crumbs { font-size: 0.85rem; color: var(--bn-muted); margin-bottom: 0.25rem; }
+.bn-crumbs a { color: var(--bn-muted); }
+.bn-crumb-sep { margin: 0 0.25rem; color: var(--bn-faint); }
+.bn-editor-title-row { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.bn-editor-title { font-size: 1.6rem; font-weight: 700; margin: 0; letter-spacing: -0.02em; line-height: 1.2; }
+.bn-editor-actions { margin-left: auto; display: flex; align-items: center; gap: 0.5rem; }
+.bn-unsaved { color: #c2410c; font-size: 0.85rem; font-weight: 500; }
+.bn-jump { display: flex; align-items: center; gap: 0.1rem; margin-top: 0.6rem; overflow-x: auto; white-space: nowrap; }
+.bn-jump-label { color: var(--bn-muted); font-size: 0.85rem; margin-right: 0.5rem; }
+.bn-jump a { padding: 0.45rem 0.7rem; color: var(--bn-muted); font-size: 0.9rem; font-weight: 500; text-decoration: none; border-bottom: 2px solid transparent; }
+.bn-jump a:hover { color: var(--bn-ink); }
+.bn-jump a.active { color: var(--bn-primary); border-bottom-color: var(--bn-primary); }
+.bn-section { margin: 1.5rem 0; scroll-margin-top: 130px; }
+.bn-editor { padding-bottom: 55vh; }  /* every section can reach the top when jumped to */
+.bn-more { padding: 0.375rem 0.55rem; font-size: 1.15rem; line-height: 1; }
+.bn-help { appearance: none; border: 0; padding: 0; font: inherit; }
+.bn-help:focus { outline: none; box-shadow: 0 0 0 2px var(--bn-primary-soft); }
+.bn-help-bubble { position: fixed; z-index: 1080; background: var(--bn-ink); color: #fff; font-size: 0.82rem; line-height: 1.4; padding: 0.5rem 0.7rem; border-radius: 8px; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.25); }
+.bn-count { display: inline-block; min-width: 1.5rem; text-align: center; margin-left: 0.35rem; padding: 0.05rem 0.45rem; border-radius: 999px; background: #f1f5f9; color: var(--bn-muted); font-size: 0.75rem; font-weight: 600; vertical-align: middle; }
+.bn-review-list { display: flex; flex-direction: column; gap: 0.6rem; }
+.bn-review { display: flex; gap: 0.75rem; background: var(--bn-surface); border: 1px solid var(--bn-line); border-radius: var(--bn-radius); padding: 0.75rem 0.9rem; }
+.bn-review-body { flex: 1; min-width: 0; }
+.bn-review-head { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.bn-review-head .bn-row-ref { font-size: 0.95rem; }
+.bn-review-note { margin-top: 0.4rem; font-size: 0.85rem; }
+.bn-review-text { margin-top: 0.15rem; padding-left: 0.6rem; border-left: 2px solid var(--bn-line); color: var(--bn-text); }
+.bn-section h2 { font-size: 1.05rem; font-weight: 600; margin: 0 0 0.6rem; }
+.bn-card { background: var(--bn-surface); border: 1px solid var(--bn-line); border-radius: var(--bn-radius); padding: 1rem 1.25rem; }
+.bn-label { display: block; font-size: 0.8rem; font-weight: 500; color: var(--bn-muted); margin-bottom: 0.3rem; }
+.bn-help { display: inline-flex; align-items: center; justify-content: center; width: 1.1rem; height: 1.1rem; border-radius: 50%; background: #e2e8f0; color: var(--bn-muted); font-size: 0.68rem; cursor: help; vertical-align: 1px; }
+.bn-help:hover { background: var(--bn-primary-soft); color: var(--bn-primary); }
+.bn-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1.25rem; }
+.bn-grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 1.25rem; }
+.bn-overview { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 1.5rem; }
+.bn-overview-picture .form-group { margin-bottom: 0; }
+.bn-overview-picture .bomnado-pastepicture-widget { min-height: 240px; }
+.bn-overview-picture .bomnado-pastepicture-widget-thumb { min-height: 180px; background-color: #fff; }
+.bn-overview-picture .img-thumbnail { border-color: var(--bn-line); border-radius: var(--bn-radius); }
+.bn-danger-row { display: flex; gap: 0.5rem; justify-content: flex-end; border-top: 1px solid var(--bn-line); padding-top: 0.9rem; margin-top: 0.5rem; }
+.bn-editor .bomnado-usedby-list { margin: 0; background: transparent; border: 0; padding: 0; color: var(--bn-text); }
+.bn-editor .form-group { margin-bottom: 1rem; }
+.bn-editor .card { margin-bottom: 0.5rem; }
+.bn-editor #sec-sourcing .card-header { cursor: pointer; padding: 0.6rem 0.9rem; }
+.bn-editor #sec-sourcing .card-header:hover { background: #f8fafc; }
+.bn-editor .toastui-editor-defaultUI { z-index: 1; border-color: var(--bn-line-strong); border-radius: 6px; }
+.bn-editor .toastui-editor-defaultUI .toastui-editor-main { min-height: 220px; }
+.bn-editor .toastui-editor-defaultUI .ProseMirror, .bn-editor .toastui-editor-md-container .toastui-editor { min-height: 180px; }
+.bn-editor .toastui-editor-defaultUI-toolbar { zoom: 0.85; padding: 0 6px; background: #f8fafc; border-bottom-color: var(--bn-line); }
+.bn-editor .toastui-editor-defaultUI .toastui-editor-mode-switch { zoom: 0.85; }
+.bn-editor .bomnado-activity-rule { display: none; }
+.bn-editor .bomnado-ai-callouts { margin: 0.35rem 0 0; }
+@media (max-width: 767.98px) {
+    .bn-editor-head { margin: -1rem -0.9rem 1rem; padding: 0.75rem 0.9rem 0; }
+    .bn-editor-title { font-size: 1.25rem; }
+    .bn-editor-actions { margin-left: 0; width: 100%; justify-content: flex-end; }
+    .bn-grid-2, .bn-grid-3, .bn-overview { grid-template-columns: minmax(0, 1fr); }
+    .bn-card { padding: 0.8rem 0.9rem; }
+}
+
+/* ---- the AI drawer's look (partial/ai_chat.html): neutral, consistent with the editor --------- */
+.app-drawer #aiChatMin { display: none; }
+.app-drawer .bomnado-ai-chat-title { font-weight: 600; font-size: 0.95rem; color: var(--bn-ink); }
+.app-drawer .bomnado-ai-chat-controls .btn { border-radius: 6px; font-size: 0.85rem; padding: 0.15rem 0.4rem; }
+.app-drawer .bomnado-ai-chat-controls .bn-chat-new { border: 1px solid var(--bn-line-strong); color: var(--bn-primary); background: #fff; margin-right: 0.25rem; }
+.app-drawer .bomnado-ai-chat-controls .bn-chat-new:hover { background: var(--bn-primary-soft); color: var(--bn-primary-hover); }
+.app-drawer .bomnado-ai-chat-threads { background: #fff; }
+.app-drawer .bomnado-ai-chat-messages { background: #fff; padding: 0.9rem 0.9rem; }
+.app-drawer .bomnado-ai-chat-msg { border-radius: 10px; padding: 0.6rem 0.8rem; line-height: 1.45; }
+.app-drawer .bomnado-ai-chat-msg.is-user { background: #eef4ff; color: var(--bn-ink); max-width: 88%; }
+.app-drawer .bomnado-ai-chat-msg.is-ai { background: #fff; border: 1px solid var(--bn-line); box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04); max-width: 100%; }
+.app-drawer .bomnado-ai-chat-chip { color: var(--bn-muted); }
+.app-drawer .bomnado-ai-chat-sent-file { background: #fff; border-color: #c7d7fe; color: var(--bn-text); }
+.app-drawer .bomnado-ai-chat-empty { color: var(--bn-text); font-size: 0.9rem; }
+.app-drawer .bomnado-ai-chat-empty .btn-outline-ai { color: var(--bn-primary); border-color: var(--bn-line-strong); border-radius: 999px; background: #fff; }
+.app-drawer .bomnado-ai-chat-empty .btn-outline-ai:hover { background: var(--bn-primary-soft); color: var(--bn-primary-hover); border-color: var(--bn-line-strong); }
+.app-drawer .bomnado-ai-chat-progress { color: var(--bn-primary); }
+.app-drawer .bomnado-ai-chat-composer { border-top: 1px solid var(--bn-line); padding: 0.6rem 0.75rem 0.75rem; }
+.app-drawer .bomnado-ai-chat-page { color: var(--bn-muted); }
+.app-drawer .bomnado-ai-chat-input textarea { border: 1px solid var(--bn-line-strong); border-radius: 8px; padding: 0.5rem 0.65rem; }
+.app-drawer .bomnado-ai-chat-input textarea:focus { border-color: var(--bn-primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15); }
+.app-drawer .bomnado-ai-chat-buttons .btn-ai { background: var(--bn-primary); border-color: var(--bn-primary); border-radius: 8px; }
+.app-drawer .bomnado-ai-chat-buttons .btn-ai:hover { background: var(--bn-primary-hover); }
+.app-drawer .bomnado-ai-chat-cost { color: var(--bn-faint); }
+
+/* ---- the assembly tree in the library (partial/library_tree.html) -------------------------- */
+/* The assembly tree: dotted guide lines with an elbow into each node, the file-explorer idiom. The elbow sits
+   on the first line of the row (the reference), where the caret is. */
+.bn-tree { list-style: none; margin: 0; padding: 0.25rem 0 0.25rem 0.25rem; }
+.bn-tree-children { list-style: none; margin: 0; padding-left: 1.35rem; }
+.bn-tree-node { position: relative; }
+.bn-tree-children > .bn-tree-node::before { content: ''; position: absolute; left: -0.85rem; top: 0; bottom: 0; border-left: 1px dotted var(--bn-line-strong); }
+.bn-tree-children > .bn-tree-node::after { content: ''; position: absolute; left: -0.85rem; top: 1rem; width: 0.7rem; border-top: 1px dotted var(--bn-line-strong); }
+.bn-tree-children > .bn-tree-node:last-child::before { bottom: auto; height: 1rem; }
+.bn-tree-toggle { position: absolute; opacity: 0; width: 0; height: 0; }
+.bn-tree-toggle ~ .bn-tree-children { display: none; }
+.bn-tree-toggle:checked ~ .bn-tree-children { display: block; }
+.bn-tree-caret { position: absolute; left: -0.1rem; top: 0.45rem; width: 1.1rem; height: 1.1rem; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--bn-faint); font-size: 0.7rem; margin: 0; }
+.bn-tree-caret::before { content: '\25B6'; transition: transform 0.15s; }
+.bn-tree-caret.is-leaf::before { content: ''; }
+.bn-tree-toggle:checked ~ .bn-tree-caret::before { transform: rotate(90deg); }
+.bn-tree-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 0.5rem; align-items: center; padding: 0.35rem 0.6rem 0.35rem 1.2rem; border-radius: 6px; color: var(--bn-text); text-decoration: none; }
+.bn-tree-row:hover { background: #f8fafc; text-decoration: none; color: var(--bn-ink); }
+.bn-tree-node.is-selected > .bn-tree-row { background: #eff6ff; }
+.bn-tree-node.is-selected > .bn-tree-row .bn-row-ref { color: var(--bn-primary); }
+.bn-tree-row .bn-row-ref { font-size: 0.83rem; }
+.bn-tree-row .bn-row-name { grid-column: 1; font-size: 0.76rem; }
+.bn-tree-row .bn-status { grid-column: 2; grid-row: 1 / span 2; }
+.bn-tree-heading { padding: 0.6rem 1rem 0.2rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--bn-faint); }
+.bn-library .bn-tree > .bn-library-empty { list-style: none; }
+.bn-check { display: flex; align-items: flex-end; padding-bottom: 0.6rem; }
+.bn-editor .form-control-file { font-size: 0.85rem; }
+.bn-editor #subComponentsTable { font-size: 0.9rem; }
+.bn-editor #existingsubComponentsContainer { border: 0; background: transparent; font-size: inherit; overflow-x: auto; }
+.bn-editor #existingsubComponentsContainer .top { padding: 0.25rem 0 0.6rem; flex-direction: row; align-items: center; gap: 1rem; }
+.bn-editor #existingsubComponentsContainer .top .dataTables_filter label { display: flex; align-items: center; gap: 0.5rem; margin: 0; font-size: 0.8rem; color: var(--bn-muted); }
+.bn-editor #existingsubComponentsContainer .dataTables_filter input { border: 1px solid var(--bn-line-strong); border-radius: 999px; padding: 0.25rem 0.7rem; font-size: 0.85rem; width: 12rem; }
+.bn-editor #existingsubComponentsContainer .dataTables_info { font-size: 0.8rem; color: var(--bn-muted); padding: 0; }
+.bn-editor #subComponentsTable { min-width: 560px; }
+.bn-editor #subComponentsTable .btn-group .btn { font-size: 1rem; line-height: 1; padding: 0.2rem 0.5rem; }
+.bn-editor #subComponentsTable.table-striped tbody tr:nth-of-type(odd) { background: #f8fafc; }
+.bn-editor #subComponentsTable th { font-size: 0.78rem; color: var(--bn-muted); font-weight: 600; border-top: 0; }
+.bn-editor #subComponentsTable td, .bn-editor #subComponentsTable th { vertical-align: middle; border-top-color: var(--bn-line); }
+
+/* ---- pages without a record: the standard header, the same width ---------------------------- */
+.bn-page-head { margin: 0 0 1.25rem; }
+.bn-page-title { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; margin: 0.1rem 0 0; line-height: 1.2; }
+.bn-page-lead { color: var(--bn-muted); margin: 0.35rem 0 0; }
+.bn-h2 { font-size: 1.05rem; font-weight: 600; margin: 1.5rem 0 0.6rem; }
+.app-page.bn-narrow { max-width: 780px; }
+.bn-tool p { color: var(--bn-text); }
+.bn-tool section { margin: 1.25rem 0; }
+.bn-tool section > table, .bn-tool .sales-codes-list table, .bn-tool .orphan-list table { width: 100%; background: var(--bn-surface); border: 1px solid var(--bn-line); border-radius: var(--bn-radius); border-collapse: separate; border-spacing: 0; font-size: 0.9rem; }
+.bn-tool table th, .bn-tool table td { padding: 0.5rem 0.75rem; border-top: 1px solid var(--bn-line); vertical-align: middle; }
+.bn-tool table tr:first-child th, .bn-tool table tr:first-child td { border-top: 0; }
+.bn-tool table th { font-size: 0.8rem; font-weight: 600; color: var(--bn-muted); }
+.bn-tool h2 { font-size: 1.05rem; font-weight: 600; margin: 0 0 0.6rem; }
+.app-page .card { margin-bottom: 1rem; }
+.app-page .alert.w-75 { width: 100% !important; }
+
+/* ---- the secondary pages: Teams, Settings, the dashboard's form, the tools ----------------------
+   One vocabulary: a page is a stack of sections; a section has a head (title + meta or actions), then
+   sub-headings, lists, labelled forms. The same pieces the library's New forms use. */
+.bn-section { background: var(--bn-surface); border: 1px solid var(--bn-line); border-radius: var(--bn-radius); padding: 1rem 1.25rem 1.1rem; margin-bottom: 1rem; }
+.bn-section-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem 1rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+.bn-section-head h2 { font-size: 1.05rem; font-weight: 600; margin: 0; }
+.bn-section-head:only-child, .bn-section-head:last-child { margin-bottom: 0; }
+.bn-meta { color: var(--bn-muted); font-size: 0.85rem; margin: 0; }
+.bn-subhead { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--bn-faint); margin: 1.1rem 0 0.45rem; }
+.bn-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--bn-line); border-radius: var(--bn-radius); }
+.bn-list li { display: flex; align-items: center; gap: 0.75rem; padding: 0.45rem 0.75rem; border-top: 1px solid var(--bn-line); font-size: 0.9rem; }
+.bn-list li:first-child { border-top: 0; }
+.bn-list li form { margin: 0; }
+.bn-grow { flex: 1 1 auto; min-width: 0; }
+.bn-form-row { display: flex; gap: 0.5rem; align-items: center; }
+.bn-form-row .form-control { flex: 1 1 auto; }
+.bn-form-row .bn-form-team { flex: 0 1 14rem; width: auto; }
+.bn-hint { font-size: 0.8rem; color: var(--bn-muted); margin: 0.4rem 0 0; line-height: 1.4; }
+.bn-actions { display: flex; justify-content: flex-end; align-items: center; gap: 0.5rem; margin-top: 0.5rem; }
+.bn-empty { color: var(--bn-muted); padding: 1rem; text-align: center; border: 1px dashed var(--bn-line-strong); border-radius: var(--bn-radius); margin: 0 0 1rem; font-size: 0.9rem; }
+.bn-details > summary { list-style: none; display: inline-block; }
+.bn-details > summary::-webkit-details-marker { display: none; }
+.bn-remove { border: 0; background: transparent; color: var(--bn-faint); font-size: 1.1rem; line-height: 1; padding: 0.1rem 0.4rem; border-radius: 4px; }
+/* The offer to add a just-picked reference to the BOM (assembly editor's markdown fields). */
+.bn-addref { position: absolute; right: 0.6rem; bottom: 0.6rem; z-index: 40; background: var(--bn-surface); border: 1px solid var(--bn-line-strong); border-radius: 8px; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16); padding: 0.55rem 0.7rem; font-size: 0.85rem; max-width: 320px; }
+.bn-addref-actions { display: flex; justify-content: flex-end; gap: 0.4rem; margin-top: 0.5rem; }
+
+/* The arrow that opens a filled-in HS code on the team's tariff site: the "?" help mark's look, as a link. */
+.bn-hs-link { display: inline-flex; align-items: center; justify-content: center; width: 1.05rem; height: 1.05rem; border-radius: 50%; border: 1px solid var(--bn-line-strong); color: var(--bn-muted); font-size: 0.7rem; line-height: 1; text-decoration: none; vertical-align: 0.1em; }
+.bn-hs-link:hover { background: var(--bn-primary-soft); color: var(--bn-primary); border-color: var(--bn-primary); text-decoration: none; }
+.bn-label .bn-label-ai { font-size: 0.75rem; vertical-align: baseline; }
+.bn-remove:hover { color: #b91c1c; background: #fee2e2; }
+.bn-section .form-group { margin-bottom: 0.9rem; }
+.bn-section .form-control, .bn-section .custom-select { font-size: 0.9rem; }
+.bn-section .bn-hint + .text-danger { margin-top: 0.2rem; }
+.app-page .alert { font-size: 0.9rem; }
+
+/* The tools' tables. */
+.bn-tool thead th { border-top: 0; }
+.bn-tool .bn-cell-thumb { width: 52px; }
+.bn-tool .bn-qty { white-space: nowrap; color: var(--bn-muted); }
+.bn-tool .bn-qty strong { font-size: 1.1rem; color: var(--bn-ink); }
+.bn-tool .bn-tick { width: 5.5rem; text-align: center; }
+.bn-tool .bn-tick input { width: 1.1rem; height: 1.1rem; }
+.bn-tool .bn-row-name { font-size: 0.85rem; }
+.bn-tool section > .bn-section-head { margin-bottom: 0.6rem; }
+.bn-tool section > .bn-section-head h2 { margin: 0; }
+.bn-tool .ai-jobs td { vertical-align: middle; }
+.bn-tool .ai-jobs { table-layout: fixed; }
+.bn-tool .ai-jobs td:first-child { width: 55%; }
+.bn-tool .ai-jobs td:nth-child(3) { width: 13rem; }
+.bn-tool .ai-jobs td:nth-child(4) { width: 8rem; }
+.bn-tool > .bn-meta { margin-bottom: 1rem; }
+.bn-tool .deal-part-table table { background: transparent; border: 0; }
+.bn-tool .deal-part-table .form-control { font-size: 0.9rem; }
+
+/* ---- outside the app: signing in, resetting a password, 403 and 404 ------------------------ */
+.bn-auth { flex: 1; min-height: 0; overflow-y: auto; display: flex; justify-content: center; align-items: flex-start; padding: 10vh 1rem 2rem; background: var(--bn-canvas); }
+.bn-auth-card { width: 100%; max-width: 400px; background: var(--bn-surface); border: 1px solid var(--bn-line); border-radius: 10px; padding: 1.5rem 1.5rem 1.25rem; }
+.bn-auth-card h1 { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 0.25rem; }
+.bn-auth-lead { color: var(--bn-muted); font-size: 0.9rem; margin: 0 0 1.1rem; }
+.bn-auth-card .form-group { margin-bottom: 0.9rem; }
+.bn-auth-links { margin: 1rem 0 0; font-size: 0.85rem; text-align: center; }
+.bn-auth-footer { flex: 0 0 auto; text-align: center; font-size: 0.75rem; color: var(--bn-faint); padding: 0.6rem; background: var(--bn-canvas); }
+
+/* ---- the search overlay (partial/search.html) --------------------------------------------- */
+.bn-search { position: fixed; inset: 0; z-index: 1070; background: rgba(15, 23, 42, 0.45); padding: 8vh 1rem 0; }
+.bn-search-box { max-width: 640px; margin: 0 auto; background: #fff; border-radius: 12px; box-shadow: 0 20px 60px rgba(15, 23, 42, 0.35); overflow: hidden; }
+.bn-search-input { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 0.9rem; border-bottom: 1px solid var(--bn-line); }
+.bn-search-input .form-control { border: 0; box-shadow: none; font-size: 1.05rem; padding-left: 0; }
+.bn-search-input .form-control:focus { box-shadow: none; }
+.bn-search-glyph { color: var(--bn-faint); }
+.bn-search-esc { background: #f1f5f9; border-color: var(--bn-line); color: var(--bn-muted); font-size: 0.7rem; }
+.bn-search-results { max-height: 60vh; overflow-y: auto; padding: 0.35rem 0; }
+.bn-search-hint { padding: 0.9rem 1rem; color: var(--bn-muted); font-size: 0.9rem; }
+.bn-search-hint kbd { background: #f1f5f9; border: 1px solid var(--bn-line); color: var(--bn-muted); font-size: 0.75rem; }
+.bn-search-group { padding: 0.5rem 1rem 0.2rem; font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--bn-faint); }
+.bn-search-row { display: flex; align-items: center; gap: 0.7rem; padding: 0.45rem 1rem; color: var(--bn-text); text-decoration: none; border-left: 3px solid transparent; }
+.bn-search-row:hover, .bn-search-row.is-active { background: #eff6ff; border-left-color: var(--bn-primary); text-decoration: none; color: var(--bn-ink); }
+.bn-search-row .bn-thumb { width: 32px; height: 32px; flex-basis: 32px; }
+@media (max-width: 767.98px) { .bn-search { padding-top: 0.5rem; } .bn-search-results { max-height: 75vh; } }
+
+/* ---- the dashboard's project cards ------------------------------------------------------------ */
+.dashboard-cards .card { flex-wrap: wrap; align-items: center; padding: 0.5rem 0.75rem; gap: 0.5rem 1rem; border: 1px solid var(--bn-line) !important; }
+.dashboard-cards .card:hover { background: #f8fafc !important; }
+.dashboard-cards .product-head img { width: 72px; height: 72px; object-fit: contain; border-radius: 6px; background: #fff; border: 1px solid var(--bn-line); margin: 0; }
+.dashboard-cards .product-body { margin: 0; flex: 1 1 200px; min-width: 0; }
+.dashboard-cards .product-body .card-title { margin-bottom: 0.2rem; font-size: 1rem; }
+.dashboard-cards .product-body .card-text { margin: 0; color: var(--bn-muted); font-size: 0.9rem; }
+.dashboard-cards .product-buttons { width: auto; margin: 0; gap: 0.4rem; flex-wrap: wrap; justify-content: flex-end; }
+.dashboard-cards .product-buttons > a.product-open { margin-left: 0.5rem !important; }
+@media (max-width: 767.98px) {
+    .bn-form-row { flex-wrap: wrap; }
+    .bn-form-row .form-control, .bn-form-row .bn-form-team { flex: 1 1 100%; }
+    .dashboard-cards .product-buttons { width: 100%; justify-content: flex-start; }
+    .dashboard-cards .product-buttons > a.product-open { margin-left: auto !important; }
+    .dashboard-create .input-group { flex-wrap: wrap; }
+    .dashboard-create .input-group > * { flex: 1 1 100%; margin-bottom: 0.4rem; border-radius: 6px !important; }
+}
+
+/* ---- the feedback & history strip on a phone: sentence first, then when and actions on their own line ------ */
+@media (max-width: 767.98px) {
+    .bomnado-activity-entry, .bomnado-feedback { flex-wrap: wrap; row-gap: 0.15rem; }
+    .bomnado-activity-body { flex: 1 1 calc(100% - 1.5rem); min-width: 0; }
+    .bomnado-activity-when { flex: 0 0 auto; margin-left: 1.5rem; }
+    .bomnado-activity-actions { flex: 1 1 auto; min-width: 0; text-align: right; }
+    .bomnado-feedback-form { flex-wrap: wrap; }
+    .bomnado-feedback-form textarea { flex: 1 1 100%; }
+}
+
+/* ---- spacing and alignment pass ------------------------------------------------------------------ */
+/* Breadcrumbs centre on the chip, whatever its height. */
+.bn-crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem; line-height: 1.3; }
+.bn-crumbs .bn-crumb-sep { margin: 0; }
+.bn-crumbs .bn-ref { line-height: 1.3; }
+.bn-editor-title-row { row-gap: 0.4rem; }
+.bn-editor-title-row .bn-status, .bn-editor-title-row .bn-tag { vertical-align: middle; }
+/* Chips are as wide as their text, even inside a flex column (library, search results, the tree). */
+.bn-row-text > .bn-ref, .bn-row-ref.bn-ref { align-self: flex-start; }
+.bn-row-ref { display: block; }
+.bn-tree-row .bn-row-ref { justify-self: start; }
+.bn-review-head { row-gap: 0.25rem; }
+/* Tables: chips and pills sit on the middle line of their row; headers share the cells' padding. */
+.bn-editor #subComponentsTable .bn-ref, .bn-tool table .bn-ref, .bn-editor table .bn-status { vertical-align: middle; }
+.bn-editor #subComponentsTable th, .bn-editor #subComponentsTable td { padding: 0.45rem 0.6rem; }
+.bn-editor #subComponentsTable th:first-child, .bn-editor #subComponentsTable td:first-child { padding-left: 0.25rem; }
+.bn-editor #existingsubComponentsContainer .top { flex-wrap: wrap; row-gap: 0.4rem; }
+.bn-editor #existingsubComponentsContainer .dataTables_info { white-space: nowrap; }
+/* Sourcing: even gaps between supplier / deal cards, tidy header rows. */
+.bn-editor #sec-sourcing .card { margin-bottom: 0.5rem; }
+.bn-editor #sec-sourcing .card:last-child { margin-bottom: 0; }
+.bn-editor #sec-sourcing .card-header > div { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; }
+.bn-editor #sec-sourcing .card-header .btn-group { flex-wrap: wrap; }
+.bn-editor #sec-sourcing .card-header .btn { padding: 0.25rem 0.6rem; font-size: 0.85rem; white-space: nowrap; }
+.bn-editor #sec-sourcing .card-body { padding: 1rem; }
+.bn-editor #newAccordian .card-header > div, .bn-editor #newDealAccordian .card-header > div { justify-content: space-between; }
+/* The drawer's header: icon, title and controls on one line. */
+.app-drawer .bomnado-ai-chat-header { display: flex; align-items: center; gap: 0.5rem; }
+.app-drawer .bomnado-ai-chat-title { display: inline-flex; align-items: center; gap: 0.4rem; min-width: 0; }
+.app-drawer .bomnado-ai-chat-title .bomnado-ai-icon, .app-drawer .bomnado-ai-chat-title .magic-icon { vertical-align: middle; flex: 0 0 auto; }
+.app-drawer .bomnado-ai-chat-controls { display: inline-flex; align-items: center; gap: 0.15rem; margin-left: auto; }
+.app-drawer .bomnado-ai-chat-input { align-items: stretch; }
+.app-drawer .bomnado-ai-chat-buttons { justify-content: space-between; }
+/* Tool pages: tables scroll inside the page on narrow screens; headings never wrap mid-word. */
+.bn-tool section { overflow-x: auto; }
+.bn-tool table th { white-space: nowrap; }
+.bn-tool table td.count, .bn-tool table td:first-child + td { white-space: nowrap; }
+/* The library head: the tabs and the New button share a baseline. */
+.bn-library-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.bn-library-new { flex: 0 0 auto; }
+.bn-library-new[open] { flex: 1 1 100%; }
+.bn-library-new[open] summary { margin-bottom: 0.6rem; }
+/* The AI activity page on a phone: each row becomes a small stack instead of running off the screen. */
+@media (max-width: 767.98px) {
+    .bn-tool section { overflow-x: auto; }
+    .bn-tool .ai-jobs td:first-child, .bn-tool .ai-jobs td:nth-child(3), .bn-tool .ai-jobs td:nth-child(4) { width: auto; }
+    .ai-jobs, .ai-jobs tbody, .ai-jobs tr { display: block; width: 100%; }
+    .ai-jobs tr { padding: 0.5rem 0; border-top: 1px solid var(--bn-line); }
+    .ai-jobs td, .bn-tool .ai-jobs td { display: inline-block; border: 0; padding: 0.1rem 0.5rem 0.1rem 0; vertical-align: middle; }
+    .ai-jobs td:first-child { display: block; }
+    .ai-jobs td.text-right { text-align: left; }
+    .bn-tool table { min-width: 520px; }
+    .bn-editor #sec-sourcing .card-header .btn-group { width: 100%; }
+    .bn-editor #sec-sourcing .card-header .btn-group .btn { flex: 1 1 auto; }
+}
+
+/* ---- small screens: library and drawer slide over the main region ------------------------- */
+@media (max-width: 991.98px) {
+    .app-topbar nav { display: none; }
+    .bn-only-mobile { display: inline-flex; }
+    .bn-resizer { display: none !important; }
+    .app-shell.has-library .app-library, .app-library { position: fixed; top: var(--bn-topbar-h); bottom: 0; left: 0; width: min(var(--bn-library-w), 92vw); z-index: 1030; display: flex; transform: translateX(-105%); transition: transform 0.2s ease; box-shadow: 0 0 30px rgba(15, 23, 42, 0.2); }
+    .app-shell.library-open .app-library { transform: none; }
+    .app-drawer.is-open { position: fixed; top: var(--bn-topbar-h); bottom: 0; right: 0; width: min(var(--bn-drawer-w), 100vw); z-index: 1030; box-shadow: 0 0 30px rgba(15, 23, 42, 0.2); }
+    .app-main > .app-page { padding: 1rem 0.9rem 3rem; }
+    .app-topbar .bomnado-ai-spend { display: none; }
+    .app-topbar .bn-brand { margin-right: auto; }
+    .bn-scrim { position: fixed; inset: var(--bn-topbar-h) 0 0 0; background: rgba(15, 23, 42, 0.35); z-index: 1025; }
+}

@@ -6,29 +6,22 @@
 <title>AI activity / Bomnado</title>
 {% endblock %}
 
-{% block header %}
-<style type="text/css">
-    .ai-jobs-wrap { max-width: 1000px; }
-    .ai-jobs td { vertical-align: middle; }
-</style>
-{% endblock %}
-
 {% block content %}
 {% ai_status as ai %}
-<div class="w-100 overflow-auto">
-    <div class="ai-jobs-wrap mx-auto py-4 px-3">
-        <div class="d-flex justify-content-between align-items-baseline">
-            <h4>AI activity</h4>
-            <span class="text-muted small">
-                {% if ai.percent is not None %}{{ ai.percent }}% of this month's ${{ ai.budget|floatformat:0 }} budget used{% else %}${{ ai.spend|floatformat:2 }} this month{% endif %}
-                &middot; {{ ai.model }} &middot; <a href="{% url 'bom:user_settings' %}#ai-settings">Settings</a>
-            </span>
-        </div>
-        <p class="text-muted small">Each row is one turn of a conversation. Open the assistant with the {% include "partial/ai_icon.html" %} button in the top bar, or press Ctrl+K.</p>
+<div class="app-page bn-tool">
+    {% include "partial/page_head.html" with title="AI activity" parent="Settings" parent_url="/settings/" lead="Each row is one turn of a conversation. Open the assistant with the AI button in the top bar, or press Ctrl+K." %}
+    <div class="bn-section-head">
+        <p class="bn-meta">
+            {% if ai.percent is not None %}{{ ai.percent }}% of this month's ${{ ai.budget|floatformat:0 }} budget used{% else %}${{ ai.spend|floatformat:2 }} this month{% endif %}
+            &middot; {{ ai.model }}
+        </p>
+        <a class="btn btn-sm btn-outline-secondary" href="{% url 'bom:user_settings' %}#ai-settings">AI settings</a>
+    </div>
 
-        <h6 class="text-muted mt-3">Running</h6>
+    <section>
+        <h2>Running</h2>
         {% if running %}
-        <table class="table table-sm ai-jobs">
+        <table class="ai-jobs">
             {% for job in running %}
             <tr>
                 <td>{% include "partial/ai_icon.html" with running=True %} <strong>{{ job.content_object|default:job.get_kind_display|truncatechars:60 }}</strong></td>
@@ -41,29 +34,39 @@
             </tr>
             {% endfor %}
         </table>
-        {% else %}<p class="text-muted">Nothing is running.</p>{% endif %}
+        {% else %}<p class="bn-empty">Nothing is running.</p>{% endif %}
+    </section>
 
-        <div class="d-flex justify-content-between align-items-baseline mt-3">
-            <h6 class="text-muted mb-0">Recent</h6>
+    <section>
+        <div class="bn-section-head">
+            <h2>Recent</h2>
             {% if recent %}<form method="post" action="{% url 'bom:ai_jobs_clear' %}">{% csrf_token %}
-                <button type="submit" class="btn btn-sm btn-outline-secondary py-0" title="Hide these; the month's spend is unaffected">Clear</button></form>{% endif %}
+                <button type="submit" class="btn btn-sm btn-outline-secondary" title="Hide these; the month's spend is unaffected">Clear</button></form>{% endif %}
         </div>
-        <table class="table table-sm ai-jobs">
+        {% if recent %}
+        <table class="ai-jobs">
             {% for job in recent %}
             <tr>
                 <td><strong>{{ job.content_object|default:job.get_kind_display|truncatechars:60 }}</strong>
-                    {% if job.outcome.touched %}<div class="small text-muted">Changed: {% for t in job.outcome.touched %}{{ t.reference }}{% if not forloop.last %}, {% endif %}{% endfor %}</div>{% endif %}</td>
-                <td><span class="badge badge-{% if job.status == 'done' or job.status == 'executed' %}success{% elif job.status == 'failed' %}warning{% else %}secondary{% endif %}">{{ job.status }}</span>
-                    {% if job.error %}<div class="small text-muted">{{ job.error|truncatechars:100 }}</div>{% endif %}</td>
+                    {% if job.outcome.touched %}<div class="small text-muted">Changed: {% for t in job.outcome.touched %}{{ t.reference }}{% if not forloop.last %}, {% endif %}{% endfor %}</div>{% endif %}
+                    {% if job.error %}<div class="small text-muted">{{ job.error|truncatechars:120 }}</div>{% endif %}</td>
+                <td>{% if job.status == 'failed' %}<span class="bn-status is-bad">Failed</span>{% elif job.status != 'done' and job.status != 'executed' %}<span class="bn-status is-muted">{{ job.status|capfirst }}</span>{% endif %}</td>
                 <td class="text-nowrap text-muted small">{{ job.created|date:"j M H:i" }} &middot; {{ job.seconds_running }}s &middot; ${{ job.cost|floatformat:3 }}</td>
-                <td class="text-right">
-                    {% if job.kind == 'chat' and job.object_id %}<button type="button" class="btn btn-sm btn-outline-secondary" data-ai-thread="{{ job.object_id }}">Open</button>{% endif %}
+                <td class="text-right text-nowrap">
+                    {% if job.kind == 'chat' and job.content_object %}
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-ai-thread="{{ job.object_id }}">Open</button>
+                    <form method="post" action="{% url 'bom:ai_chat_delete' job.object_id %}" class="d-inline"
+                        onsubmit="return confirm('Delete this conversation? All its rows leave the list; the month's spend is unaffected.')">{% csrf_token %}
+                        <button type="submit" class="bn-remove" title="Delete this conversation" aria-label="Delete this conversation">&times;</button></form>
+                    {% else %}
+                    <form method="post" action="{% url 'bom:ai_job_clear' job.id %}" class="d-inline">{% csrf_token %}
+                        <button type="submit" class="bn-remove" title="Take this off the list; the month's spend is unaffected" aria-label="Remove from the list">&times;</button></form>
+                    {% endif %}
                 </td>
             </tr>
-            {% empty %}
-            <tr><td class="text-muted">Nothing yet.</td></tr>
             {% endfor %}
         </table>
-    </div>
+        {% else %}<p class="bn-empty">Nothing yet.</p>{% endif %}
+    </section>
 </div>
 {% endblock %}
