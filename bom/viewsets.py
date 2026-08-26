@@ -16,9 +16,26 @@ from bom import models, serializers
 from bom.serializers import SubAssemblySerializer
 from bom.permissions import IsTeamMember
 from bom.utils import team_member_required
+from django.db import transaction
 
 
-class PartViewSet(viewsets.ModelViewSet):
+class TeamScopedWrites:
+    """ `get_queryset` walls off reads; this walls off writes. A create (or an update that moves a
+    record under a new parent) must still pass `IsTeamMember` once saved - checked inside a
+    transaction, so a refused write leaves nothing behind. """
+
+    def _save_checked(self, serializer):
+        with transaction.atomic():
+            self.check_object_permissions(self.request, serializer.save())
+
+    def perform_create(self, serializer):
+        self._save_checked(serializer)
+
+    def perform_update(self, serializer):
+        self._save_checked(serializer)
+
+
+class PartViewSet(TeamScopedWrites, viewsets.ModelViewSet):
     serializer_class = serializers.PartSerializer
     permission_classes = [IsAuthenticated, IsTeamMember]
 
@@ -59,7 +76,7 @@ class PartViewSet(viewsets.ModelViewSet):
         return Response(serializers.PartSearchSerializer(results, many=True, context={'request': request}).data)
 
 
-class PartSourceViewSet(viewsets.ModelViewSet):
+class PartSourceViewSet(TeamScopedWrites, viewsets.ModelViewSet):
     serializer_class = serializers.PartSourceSerializer
     permission_classes = [IsAuthenticated, IsTeamMember]
 
@@ -68,7 +85,7 @@ class PartSourceViewSet(viewsets.ModelViewSet):
         return models.PartSource.objects.filter(part__team__in=teams)
 
 
-class SubAssemblyViewSet(viewsets.ModelViewSet):
+class SubAssemblyViewSet(TeamScopedWrites, viewsets.ModelViewSet):
     serializer_class = serializers.SubAssemblySerializer
     permission_classes = [IsAuthenticated, IsTeamMember]
 
@@ -90,7 +107,7 @@ class SubAssemblyViewSet(viewsets.ModelViewSet):
         return Response(SubAssemblySerializer(all_shared, many=True, context={'request': request}).data)
 
 
-class SubAssemblyLineItemViewSet(viewsets.ModelViewSet):
+class SubAssemblyLineItemViewSet(TeamScopedWrites, viewsets.ModelViewSet):
     serializer_class = serializers.SubAssemblyLineItemSerializer
     permission_classes = [IsAuthenticated, IsTeamMember]
 
@@ -117,7 +134,7 @@ class SubAssemblyLineItemViewSet(viewsets.ModelViewSet):
             raise drf_serializers.ValidationError(e.message_dict if hasattr(e, 'message_dict') else str(e))
 
 
-class DealLineItemViewSet(viewsets.ModelViewSet):
+class DealLineItemViewSet(TeamScopedWrites, viewsets.ModelViewSet):
     serializer_class = serializers.DealLineItemSerializer
     permission_classes = [IsAuthenticated, IsTeamMember]
 
@@ -126,7 +143,7 @@ class DealLineItemViewSet(viewsets.ModelViewSet):
         return models.DealLineItem.objects.filter(part__team__in=teams)
 
 
-class DealViewSet(viewsets.ModelViewSet):
+class DealViewSet(TeamScopedWrites, viewsets.ModelViewSet):
     serializer_class = serializers.DealSerializer
     permission_classes = [IsAuthenticated, IsTeamMember]
 

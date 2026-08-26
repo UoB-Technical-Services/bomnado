@@ -28,8 +28,6 @@ dependencies = [
     "redis>=4.0.0,<5.0",
     "django-celery-results==2.4.0",
     "django-dbbackup>=4.1.0",
-    "dropbox~=11.36.0",
-    "django-storages==1.12.3",
     "python-dotenv>=1.1.1",
     "whitenoise>=6.11.0",
     "django-simple-history>=3.8",

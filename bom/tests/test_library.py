@@ -93,8 +93,8 @@ class ListTests(LibraryTestCase):
         self.assertIn('P-13', html)
 
     def test_assemblies_list(self):
-        project = SubAssemblyFactory(team=self.team, reference='BOX', is_toplevel=True, picture=None)
-        SubAssemblyFactory(team=self.team, reference='LID', picture=None)
+        project = SubAssemblyFactory(team=self.team, reference='BOX', name='A box', is_toplevel=True, picture=None)
+        SubAssemblyFactory(team=self.team, reference='LID', name='A lid', picture=None)   # pinned names: a random one can contain "box"
         html = self.client.get(reverse('bom:library_assemblies') + '?q=box').content.decode()
         self.assertIn('BOX', html)
         self.assertNotIn('>LID<', html)

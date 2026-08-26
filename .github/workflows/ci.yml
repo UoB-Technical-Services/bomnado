@@ -9,6 +9,11 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+# A newer push on the same branch cancels the stale run: no minutes burnt on outdated commits.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   BASE_SETTINGS_FILE: bomnado/settings/base.py
 
@@ -51,11 +56,6 @@ jobs:
         ports:
           - 5432:5432
       
-      memcached:
-        image: memcached:1.6-alpine
-        ports:
-          - 11211:11211
-    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -76,18 +76,27 @@ jobs:
     - name: Install Python dependencies
       run: pdm install -G dev
     
+    # bomnado.settings.ci reads these; DATABASE_URL was never read by anything.
     - name: Run Django migrations
       run: pdm run python manage.py migrate
       env:
-        DATABASE_URL: postgres://postgres:postgres@localhost:5432/test_bomnado
+        DJANGO_SETTINGS_MODULE: bomnado.settings.ci
+        POSTGRES_DB: test_bomnado
+        POSTGRES_PASSWORD: postgres
     
     - name: Collect static files
       run: pdm run python manage.py collectstatic --noinput
+      env:
+        DJANGO_SETTINGS_MODULE: bomnado.settings.ci
+        POSTGRES_DB: test_bomnado
+        POSTGRES_PASSWORD: postgres
     
     - name: Run Django tests
       run: pdm run python manage.py test
       env:
-        DATABASE_URL: postgres://postgres:postgres@localhost:5432/test_bomnado
+        DJANGO_SETTINGS_MODULE: bomnado.settings.ci
+        POSTGRES_DB: test_bomnado
+        POSTGRES_PASSWORD: postgres
 
   build-test:
     runs-on: ubuntu-latest
