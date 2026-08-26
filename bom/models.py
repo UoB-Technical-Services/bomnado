@@ -15,6 +15,7 @@ from django.db import models
 from django.urls import reverse
 from django.utils.timezone import now
 from django.templatetags.static import static
+from simple_history.models import HistoricalRecords
 
 """ Offical Semantic Version Regex. https://regex101.com/r/vkijKf/1/ """
 SEMVER = re.compile(r'^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)'
@@ -153,8 +154,8 @@ class Part(models.Model):
     """ If set, the date this part was deprecated. """
     deprecated = models.DateTimeField(blank=True, null=True)
 
-    """ Review notes - causal notes on how to improve this document. Markdown. """
-    review_notes = models.TextField(blank=True)
+    """ Is there unresolved `Feedback` on this part. Kept in step by `Feedback`; not edited directly. """
+    has_open_feedback = models.BooleanField(default=False, editable=False)
 
     """ When was this record first created. """
     created = models.DateTimeField(default=now)
@@ -170,6 +171,9 @@ class Part(models.Model):
         related_name='parts',
         db_index=True
     )
+
+    """ Every save is kept (see `bom.utils.activity`). `inherit` gives `PCBPart` its own history too. """
+    history = HistoricalRecords(inherit=True, excluded_fields=['updated', 'has_open_feedback'])
 
     @property
     def is_orphan(self):
@@ -270,6 +274,8 @@ class PartSource(models.Model):
     """ When was this record last updated. """
     updated = models.DateTimeField(auto_now=True)
 
+    history = HistoricalRecords(excluded_fields=['updated'])
+
     @property
     def source(self):
         """
@@ -342,6 +348,8 @@ class NamedPiece(models.Model):
 
     """ When was this record last updated. """
     updated = models.DateTimeField(auto_now=True)
+
+    history = HistoricalRecords(excluded_fields=['updated'])
 
     class Meta:
         unique_together = [('part', 'suffix')]
@@ -434,8 +442,8 @@ class SubAssembly(models.Model):
     """ Bullet pointed quality control instructions / steps. Accepts markdown. """
     qc_steps = models.TextField(blank=True)
 
-    """ Review notes - notes on how to improve this document. Markdown. """
-    review_notes = models.TextField(blank=True)
+    """ Is there unresolved `Feedback` on this assembly. Kept in step by `Feedback`; not edited directly. """
+    has_open_feedback = models.BooleanField(default=False, editable=False)
 
     """ If set, the date this assembly was deprecated. """
     deprecated = models.DateTimeField(blank=True, null=True)
@@ -456,6 +464,9 @@ class SubAssembly(models.Model):
     """ The top level assembly i.e. the project that this subassembly is associated with"""
     project = models.ForeignKey(
         'self', on_delete=models.SET_DEFAULT, default=None, verbose_name='Project', related_name='children', null=True)
+
+    """ Every save is kept (see `bom.utils.activity`). `inherit` gives `PCBSubAssembly` its own history too. """
+    history = HistoricalRecords(inherit=True, excluded_fields=['updated', 'has_open_feedback'])
 
     @property
     def is_orphan(self):
@@ -641,6 +652,8 @@ class SubAssemblyLineItem(models.Model):
     """ Notes on the inclusion of this line item. """
     notes = models.TextField(blank=True)
 
+    history = HistoricalRecords()
+
     def clean(self):
         """Validate that adding this line item won't create a circular reference"""
         super().clean()
@@ -749,6 +762,105 @@ class Attachment(models.Model):
     def filename(self):
         """ Get the filename and extension but excluding the path on disk. """
         return os.path.split(self.attachment_file.name)[1]
+
+
+class FeedbackManager(models.Manager):
+    """ Syntax::
+
+        Feedback.objects.for_object(part)   # all of it, newest first
+        Feedback.objects.open_for(part)     # only what is still unresolved
+    """
+
+    @staticmethod
+    def _base_model(obj):
+        """ Feedback is filed under `Part` / `SubAssembly`, whichever subclass the instance is. """
+        return Part if isinstance(obj, Part) else SubAssembly if isinstance(obj, SubAssembly) else type(obj)
+
+    def for_object(self, obj):
+        content_type = ContentType.objects.get_for_model(self._base_model(obj))
+        return self.filter(content_type=content_type, object_id=str(obj.pk))
+
+    def open_for(self, obj):
+        return self.for_object(obj).filter(resolved__isnull=True)
+
+
+class Feedback(models.Model):
+    """ A comment left on a `Part` or `SubAssembly` for the team: something to look at, and why.
+
+    It stays open - and the record shows the 👀 flag - until someone resolves it. Both
+    halves are kept, so the activity strip can show what was asked and what was then done.
+    """
+
+    objects = FeedbackManager()
+
+    """ The Django `ContentType` of the record this is about: `bom | part` or `bom | subassembly`. """
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+
+    """ Primary key of that record (a string, as `Attachment` does it). """
+    object_id = models.CharField(db_index=True, max_length=64)
+
+    """ The record this feedback is about. """
+    content_object = GenericForeignKey('content_type', 'object_id')
+
+    """ What needs looking at. Markdown; accepts references. """
+    text = models.TextField()
+
+    """ Who wrote it. """
+    author = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='feedback_written')
+
+    """ When it was written. """
+    created = models.DateTimeField(default=now)
+
+    """ When it was resolved, if it has been. """
+    resolved = models.DateTimeField(null=True, blank=True)
+
+    """ Who resolved it. """
+    resolved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='feedback_resolved')
+
+    class Meta:
+        ordering = ['-created']
+        verbose_name_plural = 'feedback'
+
+    @property
+    def is_open(self):
+        return self.resolved is None
+
+    def resolve(self, user):
+        self.resolved = now()
+        self.resolved_by = user
+        self.save()
+
+    def reopen(self):
+        self.resolved = None
+        self.resolved_by = None
+        self.save()
+
+    def can_access(self, user):
+        obj = self.content_object
+        return obj is not None and obj.can_access(user)
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        self.sync_flag(self.content_object)
+
+    def delete(self, *args, **kwargs):
+        obj = self.content_object
+        result = super().delete(*args, **kwargs)
+        self.sync_flag(obj)
+        return result
+
+    @classmethod
+    def sync_flag(cls, obj):
+        """ Keep `has_open_feedback` on the record in step. A plain `update()`: the flag is not an
+        edit of the record, so it is not recorded in its history. """
+        if obj is None:
+            return
+        model = cls.objects._base_model(obj)
+        model.objects.filter(pk=obj.pk).update(has_open_feedback=cls.objects.open_for(obj).exists())
+
+    def __str__(self):
+        return f'Feedback on {self.content_object}'
 
 
 class Deal(models.Model):

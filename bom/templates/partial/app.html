@@ -256,7 +256,7 @@
                 let cssClass = item.type === 'part' ? 'part' : 'assembly';
                 let deprecated = item.data.deprecated ? '⚠️ ' : '';
                 let sale_code = item.data.sale_code ? ' 📑' : '';
-                let review = item.data.review_notes ? '👀 ' : '';
+                let review = item.data.has_open_feedback ? '👀 ' : '';
 
                 // Generate URLS
                 const editURL = item.type === 'part' ? `/part/${item.data.id}` : `/assembly/${item.data.id}`;
@@ -289,7 +289,7 @@
 
                 // Search text transformer - combine reference, name, and (optionally) spec.
                 // const searchText = (p) => `${p.reference} ${p.name} ${p.spec}`.toUpperCase().substring(0, 100);
-                const searchText = (p) => `${p.review_notes ? '👀review' : ''}${p.reference} ${p.name}`.toUpperCase();
+                const searchText = (p) => `${p.has_open_feedback ? '👀review' : ''}${p.reference} ${p.name}`.toUpperCase();
 
                 // Transform a "part" into a select2-compatible data item.
                 partsResponse = await partsResponse;
@@ -364,6 +364,29 @@
             }
 
             /** Catch CTRL+S to save the current changes. */
+            /** Activity strip: "show changes" folds an entry's old -> new table out; Revert buttons
+             *  confirm first, then submit normally (the page reloads, as the form fields change). */
+            static installActivity() {
+                document.addEventListener('click', (event) => {
+                    const toggle = event.target.closest('.bomnado-activity-toggle');
+                    if (!toggle) { return; }
+                    const table = toggle.closest('.bomnado-activity-entry').querySelector('.bomnado-activity-changes');
+                    table.hidden = !table.hidden;
+                    toggle.textContent = table.hidden ? 'show changes' : 'hide changes';
+                });
+                document.addEventListener('submit', (event) => {
+                    const form = event.target.closest('.bomnado-activity-revert');
+                    if (!form || form.dataset.confirmed) { return; }
+                    event.preventDefault();
+                    bootbox.confirm('Revert this change? The current values stay in the activity log.', (ok) => {
+                        if (!ok) { return; }
+                        form.dataset.confirmed = '1';
+                        PageChanges.supressNote();
+                        form.submit();
+                    });
+                });
+            }
+
             static enableCtrlS(form) {
                 document.addEventListener('keydown', e => {
                     if (e.ctrlKey && e.key === 's') {

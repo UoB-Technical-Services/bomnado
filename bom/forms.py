@@ -35,7 +35,7 @@ class SubAssemblyForm(forms.ModelForm):
         fields = [
             'reference', 'name', 'sale_code', 'hs_code', 'picture', 'revision',
             'is_toplevel', 'instructions', 'qc_steps', 'deprecated', 'spec',
-            'production_phase', 'shared', 'review_notes'
+            'production_phase', 'shared'
         ]
         widgets = {
             'reference': BootstrapText(
@@ -61,7 +61,6 @@ class SubAssemblyForm(forms.ModelForm):
             'instructions': BootstrapMarkdownEditor(),
             'spec': BootstrapMarkdownEditor(),
             'qc_steps': BootstrapMarkdownEditor(),
-            'review_notes': BootstrapMarkdownEditor(),
             'picture': BootstrapPastePicture(accept='image/*'),
             'is_toplevel': forms.HiddenInput(),
             'deprecated': BootstrapDate(input_group_classes='input-group-sm'),
@@ -83,7 +82,6 @@ class SubAssemblyForm(forms.ModelForm):
             'deprecated': 'Deprecated On',
             'production_phase': 'Production Phase',
             'shared': 'Shared Assembly',
-            'review_notes': 'Comments and Feedback'
         }
         help_texts = {
             'reference': 'Abbreviated. Be consistent with others.',
@@ -100,7 +98,6 @@ class SubAssemblyForm(forms.ModelForm):
                                 'Case sensitive. e.g. "prebuild"',
             'shared': 'A shared assembly can be used by multiple different projects within your team. A non-shared '
                       'assembly can only be used by the project that created it.',
-            'review_notes': 'Improvement notices and tasks can be written here.'
         }
 
 
@@ -162,7 +159,7 @@ class PartCreationForm(forms.ModelForm):
         fields = [
             'reference', 'name', 'manufacturer', 'kgs', 'dimensions', 'colour',
             'nature', 'spec', 'qc_steps', 'picture', 'sale_code', 'hs_code', 'end_of_life',
-            'deprecated', 'review_notes'
+            'deprecated'
         ]
         widgets = {
             'reference': BootstrapText(placeholder='PART-REFERENCE', input_group_classes='input-group-sm'),
@@ -187,7 +184,6 @@ class PartCreationForm(forms.ModelForm):
             ], input_group_classes='input-group-sm'),
             'spec': BootstrapMarkdownEditor(),
             'qc_steps': BootstrapMarkdownEditor(),
-            'review_notes': BootstrapMarkdownEditor()
         }
         labels = {
             'reference': 'Part Reference',
@@ -202,7 +198,6 @@ class PartCreationForm(forms.ModelForm):
             'hs_code': 'HS Code',
             'end_of_life': 'Expected EOL',
             'deprecated': 'Deprecated On',
-            'review_notes': 'Comments and Feedback'
         }
         help_texts = {
             'reference': 'Abbreviated. Be consistent with others.',
@@ -219,7 +214,6 @@ class PartCreationForm(forms.ModelForm):
             'hs_code': 'The commodity export code for this part.',
             'end_of_life': 'An optional estimated date that the product line will be retired end of life.',
             'deprecated': 'The date this part was deprecated. If not set, then it is not deprecated.',
-            'review_notes': 'Improvement notices and tasks can be written here.'
         }
 
 

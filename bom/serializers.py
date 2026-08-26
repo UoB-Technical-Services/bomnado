@@ -15,7 +15,7 @@ class PartSerializer(serializers.ModelSerializer):
             'url', 'reference', 'name', 'sale_code', 'hs_code', 'picture',
             'picture_url', 'dimensions', 'nature', 'manufacturer', 'spec', 'qc_steps',
             'created', 'updated', 'id', 'kgs', 'sources', 'end_of_life',
-            'deprecated', 'review_notes'
+            'deprecated', 'has_open_feedback'
         )
 
 
@@ -36,7 +36,8 @@ class PartSearchSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.Part
-        fields = ('id', 'reference', 'name', 'picture_url', 'deprecated', 'sale_code', 'review_notes', 'named_pieces')
+        fields = ('id', 'reference', 'name', 'picture_url', 'deprecated', 'sale_code', 'has_open_feedback',
+                  'named_pieces')
 
 
 class PartSourceSerializer(serializers.ModelSerializer):
@@ -77,7 +78,7 @@ class SubAssemblySerializer(serializers.ModelSerializer):
             'reference', 'name', 'revision', 'picture', 'picture_url',
             'sale_code', 'hs_code', 'is_toplevel', 'created', 'updated',
             'id', 'url', 'deprecated', 'spec', 'qc_steps', 'instructions',
-            'production_phase', 'team', 'review_notes'
+            'production_phase', 'team', 'has_open_feedback'
         )
 
 

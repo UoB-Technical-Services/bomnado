@@ -69,7 +69,7 @@ class MarkdownEditorPageTests(TestCase):
         part = PartFactory(team=self.team, picture=None, spec='Spec for `OTHER-PART`')
         html = self.client.get(reverse('bom:part_editor_update', kwargs={'pk': part.id})).content.decode()
         self.assertEqual(html.count('Spec for `OTHER-PART`'), 1)
-        self.assertGreaterEqual(html.count('new MarkdownField('), 3)  # spec, qc_steps, review_notes
+        self.assertGreaterEqual(html.count('new MarkdownField('), 2)  # spec, qc_steps
 
 
 class MarkdownRoundTripTests(TestCase):

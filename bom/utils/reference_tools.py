@@ -58,7 +58,8 @@ class ReferenceSearch:
                     # Find and replace it.
                     setattr(instance, fieldname, instance_field.replace(self.search, wrapped_new_reference))
 
-                # Save changes to the model instance.
+                # Save changes to the model instance. The reason shows in the activity strip.
+                instance._change_reason = f'reference {self.search} renamed to {wrapped_new_reference}'
                 instance.save()
 
     def count(self):

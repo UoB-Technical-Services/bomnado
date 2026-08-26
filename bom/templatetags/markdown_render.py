@@ -85,4 +85,5 @@ def as_markdown(text, assembly_or_part):
     for el in soup.findAll(type='checkbox'):
         del el['disabled']
 
-    return str(soup)
+    # html5lib wraps the fragment in a document; hand back just the fragment.
+    return ''.join(str(child) for child in soup.body.children)

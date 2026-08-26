@@ -70,8 +70,8 @@ class PartSearchEndpointTests(TestCase):
     def test_returns_only_slim_fields(self):
         part = self._part('M8-NUT', name='Hex nut')
         row = self.client.get(SEARCH_URL, {'search': 'M8'}).json()[0]
-        self.assertEqual(set(row), {'id', 'reference', 'name', 'picture_url', 'deprecated', 'sale_code', 'review_notes',
-                                    'named_pieces'})
+        self.assertEqual(set(row), {'id', 'reference', 'name', 'picture_url', 'deprecated', 'sale_code',
+                                    'has_open_feedback', 'named_pieces'})
         self.assertEqual(row['named_pieces'], [])
         self.assertEqual(row['id'], part.id)
         self.assertEqual(row['name'], 'Hex nut')

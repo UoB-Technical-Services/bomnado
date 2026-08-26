@@ -27,7 +27,7 @@ def stylised_part(item):
 
     reference = f'<span class="reference" title="{item.name}">{item.reference}</span>'
     url = reverse_lazy('bom:part_editor_update', kwargs={'pk': item.id})
-    review = '<span title="Review required">👀 </span>' if item.review_notes else ''
+    review = '<span title="Open feedback">👀 </span>' if item.has_open_feedback else ''
 
     sale_code = ''
     if item.sale_code:
@@ -62,7 +62,7 @@ def stylised_assembly(item):
 
     reference = f'<span class="reference" title="{item.name}">{item.reference}</span>'
     url = reverse_lazy('bom:assembly_editor_update', kwargs={'pk': item.id})
-    review = '<span title="Review required">👀 </span>' if item.review_notes else ''
+    review = '<span title="Open feedback">👀 </span>' if item.has_open_feedback else ''
 
     sale_code = ''
     if item.sale_code:
