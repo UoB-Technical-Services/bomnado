@@ -31,6 +31,20 @@
             color: white;
         }
 
+        /* Named pieces quick-add table. */
+        .bomnado-piece-table td { vertical-align: middle; }
+        .bomnado-piece-table tr.bomnado-piece-deleted td { opacity: 0.4; text-decoration: line-through; }
+
+        /* The reference field reads as one value, `PARENT.SUFFIX`: the fixed `PARENT.` prefix sits
+           inside the same box as the editable suffix, and focus outlines the whole thing. */
+        .bomnado-piece-reference { font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+        /* (Selectors match Bootstrap's `.input-group-sm > ... ` specificity so the padding actually wins.) */
+        .bomnado-piece-reference > .input-group-prepend > .input-group-text { background: #fff; border-right: 0; padding-right: 0; color: #6c757d; }
+        .bomnado-piece-reference > .input-group-prepend { margin-right: 0; }
+        .bomnado-piece-reference > .form-control { border-left: 0; padding-left: 0; margin-left: 0; }
+        .bomnado-piece-reference > .form-control:focus { box-shadow: none; border-color: #ced4da; }
+        .bomnado-piece-reference:focus-within { border-radius: 0.2rem; box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25); }
+
         /* Show the toggle sidebar button on this screen. */
         #app_sidebar_toggle_btn { display: block; }
     </style>
@@ -195,6 +209,39 @@
 
         <div class="form-group">
             {% usekwacro bootstrapfield form.spec %}
+        </div>
+
+        <!-- NAMED PIECES -->
+        <div class="form-group" id="named_pieces">
+            <small class="text-muted mb-2 d-block">
+                <a href="#" rel="tooltip" title="Pieces of this part with a name (e.g. TOP) that instructions can reference as PARENT.SUFFIX. They are not BOM items: no quantity, cost or suppliers.">🙋</a>
+                <strong>Named pieces:</strong>
+            </small>
+
+            {{ piece_formset.management_form }}
+            {% if piece_formset.non_form_errors %}
+            <div class="alert alert-danger" role="alert">
+                {% for error in piece_formset.non_form_errors %}{{ error }}{% endfor %}
+            </div>
+            {% endif %}
+
+            <table class="table table-sm bomnado-piece-table">
+                <!-- No headings: the `PARENT.` prefix and the placeholders say what each column is. -->
+                <colgroup>
+                    <col style="width: 44px;">
+                    <col style="width: 45%;">
+                    <col>
+                    <col style="width: 40px;">
+                </colgroup>
+                <tbody id="pieceRows">
+                    {% for sub_form in piece_formset %}
+                        {% include "partial/piece_row.html" with sub_form=sub_form %}
+                    {% endfor %}
+                </tbody>
+            </table>
+            <!-- Cloned by `configurePiecesTable` for each "Add named piece" press. -->
+            <template id="pieceRowTemplate">{% include "partial/piece_row.html" with sub_form=piece_empty_form %}</template>
+            <button type="button" id="addPieceRow" class="btn btn-sm btn-outline-secondary">+ Add named piece</button>
         </div>
 
         <div class="form-group">
@@ -728,6 +775,83 @@
         });
     }
 
+    /** Named pieces table: add rows from the empty-form template, remove unsaved rows, flag saved rows for deletion. */
+    function configurePiecesTable() {
+        const rows = document.querySelector('#pieceRows');
+        const template = document.querySelector('#pieceRowTemplate');
+        const totalForms = document.querySelector('#id_named_pieces-TOTAL_FORMS');
+
+        document.querySelector('#addPieceRow').addEventListener('click', () => {
+            const index = parseInt(totalForms.value, 10);
+            // insertAdjacentHTML does not run the picture widget's inline script, so it is initialised by hand.
+            rows.insertAdjacentHTML('beforeend', template.innerHTML.replace(/__prefix__/g, index));
+            totalForms.value = index + 1;
+            const row = rows.lastElementChild;
+            new TinyPictureField(row.querySelector('.bomnado-tinypicture-widget'));
+            row.querySelector('input[name$="-suffix"]').focus();
+        });
+
+        // A suffix is uppercase letters, numbers and dashes. Normalise as the user types so what
+        // they see is what will be saved (the server validates again): `top half` -> `TOP-HALF`.
+        rows.addEventListener('input', (event) => {
+            const input = event.target;
+            if (!input.matches('input[name$="-suffix"]')) { return; }
+            const before = input.value;
+            const after = before.toUpperCase().replace(/[\s_.]+/g, '-').replace(/[^0-9A-Z-]/g, '');
+            if (after !== before) {
+                const caret = input.selectionStart + (after.length - before.length);
+                input.value = after;
+                input.setSelectionRange(caret, caret);
+            }
+            flagDuplicateSuffixes();
+        });
+
+        /** Each suffix must be unique on the part. Every row sharing a suffix (ignoring rows flagged
+         *  for deletion) is marked invalid, which also stops the browser submitting the form. */
+        function flagDuplicateSuffixes() {
+            const inputs = Array.from(rows.querySelectorAll('input[name$="-suffix"]'))
+                .filter(input => !input.closest('tr').classList.contains('bomnado-piece-deleted'));
+            const counts = {};
+            inputs.forEach(input => { if (input.value) { counts[input.value] = (counts[input.value] || 0) + 1; } });
+            inputs.forEach(input => {
+                const duplicate = input.value && counts[input.value] > 1;
+                const reference = `${input.closest('.input-group').querySelector('.input-group-text').textContent}${input.value}`;
+                input.setCustomValidity(duplicate ? `${reference} is already used on this part.` : '');
+                input.classList.toggle('is-invalid', duplicate);
+                // (The message is added and removed rather than hidden: `d-block` is !important
+                // in Bootstrap and would override the `hidden` attribute.)
+                let message = input.closest('td').querySelector('.bomnado-piece-duplicate');
+                if (duplicate) {
+                    if (!message) {
+                        message = document.createElement('small');
+                        message.className = 'text-danger d-block bomnado-piece-duplicate';
+                        input.closest('td').appendChild(message);
+                    }
+                    message.textContent = `${reference} is already used on this part.`;
+                } else if (message) {
+                    message.remove();
+                }
+            });
+        }
+
+        rows.addEventListener('click', (event) => {
+            const remove = event.target.closest('.bomnado-piece-remove');
+            const del = event.target.closest('.bomnado-piece-delete');
+            if (remove) {
+                // An unsaved row: drop it. Django ignores the missing (and so unchanged) extra form.
+                remove.closest('tr').remove();
+                flagDuplicateSuffixes();
+            } else if (del) {
+                // A saved row: toggle its DELETE flag, applied when the part is saved.
+                const row = del.closest('tr');
+                const checkbox = row.querySelector('input[name$="-DELETE"]');
+                checkbox.checked = !checkbox.checked;
+                row.classList.toggle('bomnado-piece-deleted', checkbox.checked);
+                flagDuplicateSuffixes();
+            }
+        });
+    }
+
     /** Setup the parts table. */
     async function configurePartsTable() {
         const options = {
@@ -746,6 +870,7 @@
 
     document.addEventListener('DOMContentLoaded', async () => {
         await configurePartsTable();
+        configurePiecesTable();
         
         // Add picture_url if it doesn't exist (for backwards compatibility)
         document.querySelectorAll('img[src="undefined"], img[src="null"]').forEach(img => {

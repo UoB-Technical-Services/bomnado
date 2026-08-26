@@ -8,7 +8,7 @@ from factory import LazyAttribute, SubFactory, Sequence
 from factory.django import DjangoModelFactory, ImageField
 from factory.fuzzy import FuzzyText, FuzzyDateTime, FuzzyFloat, FuzzyChoice, FuzzyInteger
 
-from bom.models import Part, PartSource, SubAssembly, SubAssemblyLineItem, Team, User, Deal, DealLineItem
+from bom.models import Part, PartSource, SubAssembly, SubAssemblyLineItem, NamedPiece, Team, User, Deal, DealLineItem
 
 start_dt = datetime.datetime(2008, 1, 1, tzinfo=datetime.timezone.utc)
 end_dt = datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc)
@@ -59,6 +59,15 @@ class PartSourceFactory(DjangoModelFactory):
     shipping = FuzzyFloat(low=0, high=5000)
     minimum_order = FuzzyInteger(low=1, high=10000)
     lead_time = FuzzyInteger(low=1, high=365)
+
+
+class NamedPieceFactory(DjangoModelFactory):
+    class Meta:
+        model = NamedPiece
+
+    part = SubFactory(PartFactory)
+    suffix = Sequence(lambda n: f'SUB{n}')
+    note = FuzzyText(length=50, chars=string.ascii_letters)
 
 
 class SubAssemblyFactory(DjangoModelFactory):

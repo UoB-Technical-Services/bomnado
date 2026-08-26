@@ -81,3 +81,45 @@ class PastePictureField {
         return null;
     }
 }
+
+
+/**
+ * Logic for the compact "tinypicture.html" widget: a thumbnail button over a hidden
+ * file input. Click to browse; focus it and press Ctrl+V to paste an image.
+ */
+class TinyPictureField {
+
+    /** @param element The widget root element. */
+    constructor(element) {
+        this.element = element;
+        this.input = element.querySelector('input[type=file]');
+        this.button = element.querySelector('.bomnado-tinypicture-widget-button');
+
+        // Show whatever file is chosen as the thumbnail.
+        this.input.addEventListener('change', () => {
+            const file = this.input.files && this.input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                this.button.style.backgroundImage = `url(${e.target.result})`;
+                this.button.classList.add('has-picture');
+                this.button.dataset.picturePreview = e.target.result;  // hover shows it larger
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // Click = browse.
+        this.button.addEventListener('click', () => this.input.click());
+
+        // Paste (with the button focused) = use the image on the clipboard.
+        this.button.addEventListener('paste', (event) => {
+            const file = Array.from(event.clipboardData.files).find(f => f.type.startsWith('image/'));
+            if (!file) return;
+            event.preventDefault();
+            const data = new DataTransfer();
+            data.items.add(file);
+            this.input.files = data.files;
+            this.input.dispatchEvent(new Event('change'));
+        });
+    }
+}

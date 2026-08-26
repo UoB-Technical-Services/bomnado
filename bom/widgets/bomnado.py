@@ -107,6 +107,18 @@ class BootstrapPastePicture(BootstrapInputGroup):
         return super().use_required_attribute(initial) and not initial
 
 
+class BootstrapTinyPicture(BootstrapPastePicture):
+    """ A compact picture input for table rows: a small thumbnail that is clicked to
+    browse (or focused and pasted into). Shows a placeholder glyph rather than an
+    inherited picture when the instance has none of its own. """
+    template_name = 'widgets/tinypicture.html'
+
+    def get_context(self, name, value, attrs):
+        context = super().get_context(name, value, attrs)
+        context['widget']['url_value'] = value.url if value and hasattr(value, 'url') else None
+        return context
+
+
 class BootstrapSelector(BootstrapInputGroup):
     input_type = 'select'  # not used
     template_name = 'widgets/selector.html'

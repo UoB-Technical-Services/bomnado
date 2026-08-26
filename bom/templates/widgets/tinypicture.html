@@ -1,0 +1,22 @@
+{# A compact picture input: a small thumbnail button that browses on click and accepts a pasted image when focused. #}
+{# This is a `django.forms.widget.` #}
+
+{# Requires: pastepicture_widget.js (TinyPictureField) #}
+
+<span id="{{ widget.attrs.id }}-root" class="bomnado-tinypicture-widget bomnado-savechanges-note">
+    <input type="{{ widget.type }}"
+        name="{{ widget.name }}"
+        class="d-none bomnado-savechanges"
+        {% if widget.custom.accept != None %}accept="{{ widget.custom.accept|stringformat:'s' }}"{% endif %}
+        {% include "django/forms/widgets/attrs.html" %}>
+    <button type="button"
+        class="bomnado-tinypicture-widget-button{% if widget.url_value %} has-picture{% endif %}"
+        title="Click to choose a picture, or focus and paste one"
+        {% if widget.url_value %}style="background-image: url('{{ widget.url_value }}');" data-picture-preview="{{ widget.url_value }}"{% endif %}></button>
+</span>
+
+<script type="text/javascript">
+    (function () {
+        new TinyPictureField(document.querySelector('#{{ widget.attrs.id }}-root'));
+    })();
+</script>

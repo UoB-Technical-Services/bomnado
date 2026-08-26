@@ -10,7 +10,7 @@ from bom.widgets.bomnado import (BootstrapDate, BootstrapMarkdownEditor,
                                  BootstrapModelSelector, BootstrapNumber,
                                  BootstrapPastePicture, BootstrapPrice,
                                  BootstrapSelector, BootstrapText,
-                                 BootstrapURL)
+                                 BootstrapTinyPicture, BootstrapURL)
 
 
 class SubAssemblyForm(forms.ModelForm):
@@ -289,6 +289,56 @@ PartSourceFormset = inlineformset_factory(
         'order_notes': 'Notes for the purchasing manager and important points for the supplier.'
     },
     extra=1
+)
+
+
+class BaseNamedPieceFormset(forms.models.BaseInlineFormSet):
+    """ Django's cross-row uniqueness check only flags the *later* duplicates; flag the
+    first one too so every offending row is highlighted on the page. """
+
+    def validate_unique(self):
+        try:
+            super().validate_unique()  # raises when there are duplicates, having flagged the later rows
+        finally:
+            seen = {}
+            for form in self.forms:
+                if not hasattr(form, 'cleaned_data') or form.cleaned_data.get('DELETE'):
+                    continue
+                # Django strips the duplicated value from the later row's cleaned_data, hence the raw fallback.
+                suffix = form.cleaned_data.get('suffix') or form.data.get(form.add_prefix('suffix'))
+                if not suffix:
+                    continue
+                if suffix in seen and not seen[suffix].non_field_errors():
+                    seen[suffix].add_error(None, self.get_form_error())
+                seen.setdefault(suffix, form)
+
+
+NamedPieceFormset = inlineformset_factory(
+    models.Part,
+    models.NamedPiece,
+    formset=BaseNamedPieceFormset,
+    fields=['suffix', 'note', 'picture'],
+    widgets={
+        # Rendered as `PARENT.` + suffix in one box (the view sets the prepend); the page
+        # uppercases and strips illegal characters as the user types, the pattern backs that up.
+        'suffix': BootstrapText(placeholder='SUFFIX', input_group_classes='input-group-sm bomnado-piece-reference',
+                                attrs={'pattern': '[0-9A-Z-]*', 'autocapitalize': 'characters', 'spellcheck': 'false',
+                                       'title': 'Uppercase letters, numbers and dashes only'}),
+        'note': BootstrapText(placeholder='What this piece is (optional)', input_group_classes='input-group-sm'),
+        'picture': BootstrapTinyPicture(accept='image/*'),
+    },
+    labels={
+        'suffix': 'Suffix',
+        'note': 'Note',
+        'picture': 'Picture',
+    },
+    help_texts={
+        'suffix': 'Referenced as PARENT.SUFFIX. Uppercase letters, numbers and dashes.',
+        'note': 'A one-line description. Accepts references.',
+        'picture': 'Optional. Falls back to the part picture.',
+    },
+    extra=1,
+    can_delete=True,
 )
 
 

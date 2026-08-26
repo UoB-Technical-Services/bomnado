@@ -358,7 +358,7 @@ class MarkdownField {
         this.editor.focus();
     }
 
-    /** Matching parts (server search) and assemblies (cached list) for a term. */
+    /** Matching parts and their pieces (server search) and assemblies (cached list) for a term. */
     static async searchReferences(term) {
         const needle = term.toUpperCase();
         const partsRequest = fetch(`/api/parts/search/?${new URLSearchParams({ search: term })}`).then(r => r.json());
@@ -370,7 +370,15 @@ class MarkdownField {
             .filter(a => !needle || `${a.reference} ${a.name}`.toUpperCase().includes(needle))
             .slice(0, 10)
             .map(a => ({ icon: '📦', reference: a.reference, name: a.name }));
-        return [...matching, ...parts.map(p => ({ icon: '🔩', reference: p.reference, name: p.name }))];
+        // Each part is followed by its `PARENT.SUFFIX` pieces that start with the term
+        // (so `CHASSIS` lists `CHASSIS.TOP` beneath it, and `CHASSIS.T` narrows to it).
+        const rows = parts.flatMap(p => [
+            { icon: '🔩', reference: p.reference, name: p.name },
+            ...(p.named_pieces || [])
+                .filter(sp => needle && sp.reference.toUpperCase().startsWith(needle))
+                .map(sp => ({ icon: '🔹', reference: sp.reference, name: sp.note })),
+        ]);
+        return [...matching, ...rows];
     }
 }
 

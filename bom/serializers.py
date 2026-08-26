@@ -23,13 +23,20 @@ class PartSearchSerializer(serializers.ModelSerializer):
     """ The few fields an autocomplete row needs. Keep this small: it is sent for
     every keystroke. """
     picture_url = serializers.SerializerMethodField()
+    named_pieces = serializers.SerializerMethodField()
 
     def get_picture_url(self, obj):
         return obj.picture_url
 
+    def get_named_pieces(self, obj):
+        """ The part's `PARENT.SUFFIX` pieces, so reference completion can offer them.
+        Relies on the queryset prefetching `named_pieces`: no query per row. """
+        return [{'id': sp.id, 'suffix': sp.suffix, 'reference': f'{obj.reference}{sp.SEPARATOR}{sp.suffix}',
+                 'note': sp.note} for sp in obj.named_pieces.all()]
+
     class Meta:
         model = models.Part
-        fields = ('id', 'reference', 'name', 'picture_url', 'deprecated', 'sale_code', 'review_notes')
+        fields = ('id', 'reference', 'name', 'picture_url', 'deprecated', 'sale_code', 'review_notes', 'named_pieces')
 
 
 class PartSourceSerializer(serializers.ModelSerializer):

@@ -2,9 +2,26 @@ from django.contrib.auth.models import User
 from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
 
-from bom.models import Part, SubAssembly
+from bom.models import Part, SubAssembly, NamedPiece
 from bom.utils.reference_tools import ReferenceSearch
 from bom.utils.signals import disable_for_loaddata
+
+
+def _rename_reference(instance, old_reference, new_reference):
+    """ Rewrite every `` `old_reference` `` in the database as `` `new_reference` ``.
+
+    `instance` is the model mid-save whose rename caused this: its own reference
+    fields are edited in place (so the change piggy-backs onto the current save)
+    and it is excluded from the database sweep.
+    """
+    oldref = f'`{old_reference}`'
+    newref = f'`{new_reference}`'
+    for fieldname in instance.REFERENCE_REPLACE_FIELDS:
+        setattr(instance, fieldname, getattr(instance, fieldname).replace(oldref, newref))
+
+    references = ReferenceSearch(old_reference)
+    references.exclude(instance)
+    references.replace(new_reference)
 
 
 @receiver(pre_save, sender=Part)
@@ -13,21 +30,40 @@ def rename_part_references(sender, instance=None, created=False, **kwargs):
     # Check if this is a modification of an existing part (i.e. saved in the DB)
     if not created and instance.pk:
         # Get unmodified object from the database
-        old_object = Part.objects.get(pk=instance.pk)
+        old_object = Part.objects.filter(pk=instance.pk).first()
 
         # Bail if reference not changed
-        if old_object.reference == instance.reference:
+        if old_object is None or old_object.reference == instance.reference:
             return
 
-        # Update the current Part if necessary, this is in pre-save so will piggy back onto the current save
-        oldref = f'`{old_object.reference}`'
-        newref = f'`{instance.reference}`'
-        instance.spec = instance.spec.replace(oldref, newref)
-
         # Find all occurances of the old part.reference string and replace it with the new one.
-        references = ReferenceSearch(old_object.reference)
-        references.exclude(instance)
-        references.replace(instance.reference)
+        _rename_reference(instance, old_object.reference, instance.reference)
+
+        # A piece reference is `PARENT.SUFFIX`, which a search for `PARENT` does not
+        # match (the closing backtick is part of the search), so rename each one too.
+        for suffix in instance.named_pieces.values_list('suffix', flat=True):
+            _rename_reference(instance, f'{old_object.reference}{NamedPiece.SEPARATOR}{suffix}',
+                              f'{instance.reference}{NamedPiece.SEPARATOR}{suffix}')
+
+
+@receiver(pre_save, sender=NamedPiece)
+@disable_for_loaddata
+def rename_piece_references(sender, instance=None, **kwargs):
+    """ Renaming a piece's suffix (or moving it to another part) rewrites its `PARENT.SUFFIX` references. """
+    if not instance.pk:
+        return
+    old_object = NamedPiece.objects.filter(pk=instance.pk).select_related('part').first()
+    if old_object is None:
+        return
+
+    # Read the parent's reference from the database: if the parent is itself mid-rename,
+    # `rename_part_references` owns rewriting its pieces.
+    parent_reference = Part.objects.filter(pk=instance.part_id).values_list('reference', flat=True).first()
+    new_reference = f'{parent_reference}{NamedPiece.SEPARATOR}{instance.suffix}'
+    if old_object.reference == new_reference:
+        return
+
+    _rename_reference(instance, old_object.reference, new_reference)
 
 
 @receiver(pre_save, sender=SubAssembly)
@@ -42,17 +78,8 @@ def rename_subassembly_references(sender, instance=None, created=False, **kwargs
         if old_object.reference == instance.reference:
             return
 
-        # Update the current Part if necessary, this is in presave so will piggy back onto the current save
-        oldref = f'`{old_object.reference}`'
-        newref = f'`{instance.reference}`'
-        instance.instructions = instance.instructions.replace(oldref, newref)
-        instance.qc_steps = instance.qc_steps.replace(oldref, newref)
-        instance.spec = instance.spec.replace(oldref, newref)
-
         # Find all occurances of the old subassembly.reference string and replace it with the new one.
-        references = ReferenceSearch(old_object.reference)
-        references.exclude(instance)
-        references.replace(instance.reference)
+        _rename_reference(instance, old_object.reference, instance.reference)
 
 
 @receiver(post_save, sender=SubAssembly)
