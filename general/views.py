@@ -8,6 +8,7 @@ from django.core.management import call_command
 from django.views.decorators.http import require_http_methods
 from django.db import close_old_connections
 
+from bom.middleware import mark_setup_incomplete
 from general.utils import perform_backup, perform_restore
 
 
@@ -42,6 +43,7 @@ def reset_database(request):
         call_command("reset_db", "--noinput")
 
     call_command("migrate", "--noinput")
+    mark_setup_incomplete()
     return HttpResponse(status=204)
 
 

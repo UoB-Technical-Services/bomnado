@@ -1,9 +1,14 @@
 from unittest import mock
 
 from django.contrib.auth.models import AnonymousUser, User
-from django.test import RequestFactory, SimpleTestCase, TestCase
+from django.core.cache import cache
+from django.test import RequestFactory, SimpleTestCase, TestCase, override_settings
+
+from bom.middleware import SETUP_COMPLETE_CACHE_KEY
 
 from general import views
+
+LOCMEM_CACHE = {'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache', 'LOCATION': 'danger-tests'}}
 
 
 class DangerViewGuardTests(TestCase):
@@ -71,7 +76,9 @@ class DangerViewGuardTests(TestCase):
         self.assertEqual(response.status_code, 204)
         restore.assert_called_once_with()
 
+    @override_settings(CACHES=LOCMEM_CACHE)
     def test_superuser_can_reset(self):
+        cache.set(SETUP_COMPLETE_CACHE_KEY, True, None)
         with mock.patch.object(views, 'call_command') as command, \
                 mock.patch.object(views.os, 'remove') as remove, \
                 mock.patch.object(views, 'close_old_connections'):
@@ -80,6 +87,8 @@ class DangerViewGuardTests(TestCase):
         command.assert_called_with('migrate', '--noinput')
         # The test database is SQLite, so the file-removal branch runs.
         remove.assert_called_once()
+        # The first-time-setup latch is released so the wizard runs again.
+        self.assertIsNone(cache.get(SETUP_COMPLETE_CACHE_KEY))
 
 
 class SuperuserRequiredDecoratorTests(SimpleTestCase):

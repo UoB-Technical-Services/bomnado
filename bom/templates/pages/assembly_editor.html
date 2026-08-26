@@ -643,9 +643,8 @@
      */
     async function createInsertables() {
 
-        // Query the DB for parts and asssembles.
-        const partsResponse = await fetch('/api/parts/');
-        const parts = await partsResponse.json();
+        // Assemblies available to this project are few, so load them once. Parts can
+        // run to thousands, so they are searched on the server as the user types.
         const assembliesResponse = await fetch('/api/subassemblies/{{ root.pk }}/available');
         const assemblies = await assembliesResponse.json();
 
@@ -653,13 +652,21 @@
         const searchText = (p) => `${p.review_notes ? '👀review' : ''}${p.reference} ${p.name}`.toUpperCase();
 
         // Transform a "part" into a select2-compatible data item.
-        const txPart = p => { return { type: 'part', id: searchText(p), text: `🔩 ${p.reference}`, data: p }; };
+        const txPart = p => { return { type: 'part', id: `part-${p.id}`, text: `🔩 ${p.reference}`, data: p }; };
 
         // Transform an "assembly" into a select2-compatible data item.
-        const txAssembly = p => { return { type: 'assembly', id: searchText(p), text: `📦 ${p.reference}`, data: p }; };
+        const txAssembly = p => { return { type: 'assembly', id: `assembly-${p.id}`, text: `📦 ${p.reference}`, data: p }; };
 
-        // Prepare the two groups for the select2
-        let selection = [...assemblies.map(txAssembly), ...parts.map(txPart)];
+        /** Assemblies whose reference or name contains the term (or the part of it before a dot). */
+        function matchingAssemblies(term) {
+            const needle = term.toUpperCase();
+            let found = assemblies.filter(a => searchText(a).includes(needle));
+            if (!found.length && needle.includes('.')) {
+                const parent = needle.split('.', 1)[0];
+                found = assemblies.filter(a => searchText(a).includes(parent));
+            }
+            return found.map(txAssembly);
+        }
 
         /** Format the dropdown list that contains the parts. */
         function formatInsertable(item) {
@@ -680,13 +687,21 @@
             }
         };
 
-        // Create the select2 element.
+        // Create the select2 element. `delay` debounces requests while typing.
+        // Typing `PARENT.SUFFIX` matches on PARENT (server side too), so selecting
+        // the result adds the parent part.
         const partSearch = $("#componentSearch").select2({
             allowClear: true,
             placeholder: "Choose a part or assembly to insert...",
-            data: selection,
-            // multiple: true,
-            // maximumSelectionLength: 1
+            ajax: {
+                url: '/api/parts/search/',
+                delay: 150,
+                cache: true,
+                data: params => ({ search: params.term || '' }),
+                processResults: (parts, params) => ({
+                    results: [...matchingAssemblies(params.term || ''), ...parts.map(txPart)]
+                }),
+            },
             templateResult: formatInsertable
         });
 

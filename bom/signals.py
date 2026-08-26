@@ -1,21 +1,10 @@
-from django.core.cache import cache
 from django.contrib.auth.models import User
-from django.db.models.signals import pre_save, post_save, post_delete
+from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
 
 from bom.models import Part, SubAssembly
 from bom.utils.reference_tools import ReferenceSearch
 from bom.utils.signals import disable_for_loaddata
-
-
-@receiver(post_save, sender=Part)
-@receiver(post_delete, sender=Part)
-def invalidate_parts_cache(sender, instance, **kwargs):
-    """ Clear cache for all users when a part is created, updated or deleted. """
-    # TODO: Only invalidate for users with relevant access.
-    for user in User.objects.all():
-        cache_key = f'parts_for_user_{user.id}'
-        cache.delete(cache_key)
 
 
 @receiver(pre_save, sender=Part)
