@@ -281,7 +281,7 @@
                 {% if assembly.forked %}
                 <div class="form-group">
                     <small class="text-muted mb-1 d-block">
-                        <strong>Forked from:</strong>
+                        <strong>Remix of:</strong>
                     </small>
                     <a class="btn btn-sm btn-outline-secondary" href="{% url "bom:assembly_editor_update" pk=assembly.forked.id %}">
                         {{ assembly.forked_reference_with_project }}
@@ -476,7 +476,7 @@
                         class="btn btn-outline-danger float-left">Delete Assembly</button>
                     {% if assembly.is_toplevel %}
                     <button type="button" onclick="duplicateAssembly('{{assembly.id}}', '{{assembly.reference}}')"
-                        class="btn btn-outline-secondary float-left ml-1">Fork Project</button>
+                        class="btn btn-outline-secondary float-left ml-1">Copy/Remix Project</button>
                     {% endif %}
                     <button type="submit" class="btn btn-success">Save Changes</button>
                 </div>
@@ -637,13 +637,13 @@
     /** Create a project fork by deep-copying the current top-level assembly tree. */
     async function duplicateAssembly(assemblyID, reference) {
         bootbox.prompt({
-            title: `Enter the new reference for a fork of ${reference}`,
+            title: `Enter the new reference for a copy/remix of ${reference}`,
             value: `${reference}-FORK`,
             callback: (result) => {
                 if (result === null) { return; }
                 const targetReference = `${result}`.trim();
                 if (!targetReference) {
-                    bootbox.alert('Fork reference is required.');
+                    bootbox.alert('Copy/Remix reference is required.');
                     return;
                 }
                 window.location = `{% url "bom:assembly_duplicate" %}?source_id=${assemblyID}&target_reference=${encodeURIComponent(targetReference)}`;
