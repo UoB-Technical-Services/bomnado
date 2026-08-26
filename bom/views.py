@@ -936,7 +936,9 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         teams = self.request.user.team_set.values_list('id')
 
         # Use annotate to create a custom field based on the deprecation date.
-        products = SubAssembly.objects.filter(team__in=teams, is_toplevel=True).annotate(
+        products = SubAssembly.objects.filter(team__in=teams, is_toplevel=True).select_related(
+            'team', 'original', 'original__project', 'original__team'
+        ).annotate(
             is_deprecated=Case(
                 When(deprecated__lte=datetime.date.today(), then=True),
                 default=False,
