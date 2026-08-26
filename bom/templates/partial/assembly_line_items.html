@@ -1,0 +1,119 @@
+{# The line-items table of the assembly editor. #}
+{# Rendered inside the main assembly form on page load, and re-rendered on its own #}
+{# (swapped in by htmx) when a line item is added or removed, so the rest of the page #}
+{# - in particular the assembly tree - is left alone. #}
+{# Args: `assembly`, `formset` (SubAssemblyItemFormset), optional `line_item_error`. #}
+{% load part_filters %}
+{% load utils %}
+
+{# Not hidden while DataTables initialises: htmx's settle step re-applies the fragment's #}
+{# own attributes ~20ms after an outerHTML swap, which would undo any un-hiding done #}
+{# in the meantime. The initialisation is synchronous, so there is no flash to hide. #}
+<div id="existingsubComponentsContainer">
+
+    {% if line_item_error %}
+    <div class="alert alert-danger" role="alert" id="lineItemError">
+        ⚠️ {{ line_item_error }}
+    </div>
+    {% endif %}
+
+    {% if formset.non_field_errors %}
+    <div class="alert alert-danger" role="alert">
+        {% for error in formset.non_field_errors %}
+        {{ error }}
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% if formset.errors %}
+    <div class="alert alert-danger" role="alert">
+        <strong>Please correct the line item errors: </strong><br/>
+            {% for error in formset.errors %}
+                ({{ forloop.counter }}) {{ error.as_text }}
+            {% endfor %}
+    </div>
+    {% endif %}
+
+    {{ formset.management_form }}
+
+    <table id="subComponentsTable" class="table table-striped table-sm table-hover">
+        <thead class="">
+            <tr>
+                <th>#</th>
+                <th></th>
+                <th></th>
+                <th>Qty</th>
+                <th>Reference</th>
+                <th>Notes</th>
+                <th>More</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for sub_form in formset %}
+            <tr>
+                <th class="align-middle" scope="row">{{ forloop.counter }}</th>
+
+                <td class="align-middle">
+                    {% if sub_form.instance.child_part %}
+                    🔩
+                    {% elif sub_form.instance.child_subassembly %}
+                    📦
+                    {% endif %}
+
+                    {% for hidden_field in sub_form.hidden_fields %}
+                        {{ hidden_field }}
+                    {% endfor %}
+                </td>
+
+                <td class="align-middle icon">
+                    {% if sub_form.instance.child_part %}
+                    <div class="table-icon">
+                        <img src="{{ sub_form.instance.child_part.picture_url }}"></img>
+                    </div>
+                    {% elif sub_form.instance.child_subassembly %}
+                    <div class="table-icon">
+                        <img src="{{ sub_form.instance.child_subassembly.picture_url }}"></img>
+                    </div>
+                    {% endif %}
+                </td>
+
+                <td>
+                    <span class="d-none">{{ sub_form.quantity.value }}</span>
+                    {{ sub_form.quantity }}
+                </td>
+
+                <td class="align-middle">
+                    {% if sub_form.instance.child_part %}
+                        {{ sub_form.instance.child_part|stylised_part }}
+                        {% if sub_form.instance.child_part|is_pcb_part_missing_lcsc %}
+                            <span title="This BOM PCB part does not have an associated LCSC number">⚠️</span>
+                        {% endif %}
+                    {% elif sub_form.instance.child_subassembly %}
+                        {{ sub_form.instance.child_subassembly|stylised_assembly }}
+                    {% endif %}
+                </td>
+
+                <td>
+                    {{ sub_form.notes }}
+                </td>
+                <td class="align-middle">
+                    <div class="btn-group">
+                        <button
+                            onclick="navigator.clipboard.writeText('`{{sub_form.instance.item.reference}}`');"
+                            title="Copy the reference to the clipboard within backticks."
+                            type="button"
+                            class="btn btn-sm btn-outline-secondary">
+                            📋
+                        </button>
+                        <button onclick="deleteSubAssemblyLineItem(this, '{{sub_form.instance.id}}', '{{ sub_form.instance.item }}')" type="button"
+                            class="btn btn-sm btn-outline-danger">
+                            🗑️
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            {# No placeholder row when empty: DataTables shows its own message, and a row #}
+            {# with fewer cells than the header makes it raise an error. #}
+        </tbody>
+    </table>
+</div>

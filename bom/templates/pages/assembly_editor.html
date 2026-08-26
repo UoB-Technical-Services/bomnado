@@ -236,9 +236,8 @@
 
                     <div class="col-8">
                         <!-- REFERENCE -->
-                        <div class="form-group" style="display:flex; align-items:center;">
-                            <div style="flex:1">{% usekwacro bootstrapfield form.reference %}</div>
-                            <div style="margin-left:8px; white-space:nowrap;">{{ assembly|stylised_assembly }}</div>
+                        <div class="form-group">
+                            {% usekwacro bootstrapfield form.reference %}
                         </div>
                         <!-- NAME -->
                         <div class="form-group">
@@ -329,122 +328,7 @@
                     </div>
 
 
-                    <div id="existingsubComponentsContainer" class="d-none">
-
-                        {% if formset.non_field_errors %}
-                        <div class="alert alert-danger" role="alert">
-                            {% for error in form.non_field_errors %}
-                            {{ error }}
-                            {% endfor %}
-                        </div>
-                        {% endif %}
-                        {% if formset.errors %}
-                        <div class="alert alert-danger" role="alert">
-                            <strong>Please correct the line item errors: </strong><br/>
-                                {% for error in formset.errors %}
-                                    ({{ forloop.counter }}) {{ error.as_text }}
-                                {% endfor %}
-                            <!-- {{ formset.errors }} -->
-                        </div>
-                        {% endif %}
-
-
-                        {{ formset.management_form }}
-
-                        <table id="subComponentsTable" class="table table-striped table-sm table-hover">
-                            <thead class="">
-                                <tr>
-                                    <!-- <a href="#" rel="tooltip" title="{{ field.help_text }}">️🙋🏽‍♂️</a> -->
-                                    <th>#</th>
-                                    <th></th>
-                                    <th></th>
-                                    <th>Qty</th>
-                                    <th>Reference</th>
-                                    <th>Notes</th>
-                                    <th>More</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for sub_form in formset %}
-                                <tr>
-                                    <th class="align-middle" scope="row">{{ forloop.counter }}</th>
-
-                                    <td class="align-middle">
-                                        {% if sub_form.instance.child_part %}
-                                        🔩
-                                        {% elif sub_form.instance.child_subassembly %}
-                                        📦
-                                        {% endif %}
-
-                                        {% for hidden_field in sub_form.hidden_fields %}
-                                            {{ hidden_field }}
-                                        {% endfor %}
-                                    </td>
-
-                                    <td class="align-middle icon">
-                                        {% if sub_form.instance.child_part %}
-                                        <div class="table-icon">
-                                            <img src="{{ sub_form.instance.child_part.picture_url }}"></img>
-                                        </div>
-                                        {% elif sub_form.instance.child_subassembly %}
-                                        <div class="table-icon">
-                                            <img src="{{ sub_form.instance.child_subassembly.picture_url }}"></img>
-                                        </div>
-                                        {% endif %}
-                                    </td>
-
-                                    <td>
-                                        <span class="d-none">{{ sub_form.quantity.value }}</span>
-                                        {{ sub_form.quantity }}
-                                    </td>
-
-                                    <td class="align-middle">
-                                        {% if sub_form.instance.child_part %}
-                                            {{ sub_form.instance.child_part|stylised_part }}
-                                            {% if sub_form.instance.child_part|is_pcb_part_missing_lcsc %}
-                                                <span title="This BOM PCB part does not have an associated LCSC number">⚠️</span>
-                                            {% endif %}
-                                        {% elif sub_form.instance.child_subassembly %}
-                                            {{ sub_form.instance.child_subassembly|stylised_assembly }}
-                                        {% endif %}
-                                    </td>
-
-                                    <td>
-                                        {{ sub_form.notes }}
-                                    </td>
-                                    <td class="align-middle">
-                                        <div class="btn-group">
-                                            <button
-                                                onclick="navigator.clipboard.writeText('`{{sub_form.instance.item.reference}}`');"
-                                                title="Copy the reference to the clipboard within backticks."
-                                                type="button"
-                                                class="btn btn-sm btn-outline-secondary">
-                                                📋
-                                            </button>
-                                            <button onclick="deleteSubAssemblyLineItem(this, '{{sub_form.instance.id}}', '{{ sub_form.instance.item }}')" type="button"
-                                            class="btn btn-sm btn-outline-danger">
-                                            🗑️
-                                        </button>
-                                        </div>
-
-                                        <!-- <button onclick="writeIntoInstructions(this)" type="button" class="btn btn-sm btn-outline-secondary">✏️</button> -->
-                                        <!-- { % if formset.can_delete % }
-                                        {{ sub_form.DELETE }}
-                                        { % endif % } -->
-                                    </td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <th scope="row">-</th>
-                                    <td></td>
-                                    <td></td>
-                                    <td></td>
-                                    <td></td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+                    {% include "partial/assembly_line_items.html" %}
                 </div>
 
                 <!-- ATTACHMENTS -->
@@ -619,21 +503,26 @@
         });
     }
 
+    /**
+     * Swap the line-items table for the fragment returned by `url` (an htmx endpoint),
+     * then wire the new table up again. Resolves once the swap is complete.
+     */
+    async function swapLineItems(url, values) {
+        await htmx.ajax('POST', url, {
+            target: '#existingsubComponentsContainer',
+            swap: 'outerHTML',
+            values: values,
+        });
+        configurePartsTable();
+        refreshColourise();
+    }
+
     /** Delete a given sub assembly line item ID. */
     async function deleteSubAssemblyLineItem(el, lineID, name) {
         bootbox.confirm(`Are you sure you want to delete ${name}?`, (result) => {
             if (!result) { return; }
-            const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-            let call = async () => {
-                let response = await fetch(`/api/subassemblylineitems/${lineID}/`, {
-                    method: 'DELETE',
-                    headers: { 'X-CSRFToken': csrftoken },
-                    mode: 'same-origin'
-                });
-                await processErrors(response);
-                window.location = window.location;
-            }
-            call();
+            const url = '{% url "bom:assembly_line_item_delete" pk=assembly.id line_id=0 %}'.replace('/0/', `/${lineID}/`);
+            swapLineItems(url, {});
         });
     }
 
@@ -696,8 +585,20 @@
             ajax: {
                 url: '/api/parts/search/',
                 delay: 150,
-                cache: true,
                 data: params => ({ search: params.term || '' }),
+                // The page uses the slim jQuery build, which has no $.ajax, so
+                // select2's default transport cannot be used: fetch instead.
+                transport: (params, success, failure) => {
+                    const controller = new AbortController();
+                    fetch(`${params.url}?${new URLSearchParams(params.data)}`, {
+                        signal: controller.signal,
+                        headers: { 'Accept': 'application/json' },
+                    })
+                        .then(response => processErrors(response).then(r => r.json()))
+                        .then(success)
+                        .catch(err => { if (err.name !== 'AbortError') { failure(err); } });
+                    return { abort: () => controller.abort() };
+                },
                 processResults: (parts, params) => ({
                     results: [...matchingAssemblies(params.term || ''), ...parts.map(txPart)]
                 }),
@@ -720,10 +621,9 @@
             return;
         }
 
-        const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-
-        // Prepare a request.
-        let request = { subassembly: "{{ assembly.id }}", quantity: '1' };
+        // Prepare a request. The server answers with the refreshed line-items
+        // table (or the table plus an inline error, e.g. a circular reference).
+        let request = { quantity: '1' };
         if (selected.type === 'part') {
             request['child_part'] = selected.data.id;
         }
@@ -731,38 +631,8 @@
             request['child_subassembly'] = selected.data.id;
         }
 
-        // Submit the request.
-        let response = await fetch(`/api/subassemblylineitems/`, {
-            method: 'POST',
-            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
-            mode: 'same-origin',
-            body: JSON.stringify(request)
-        });
-
-        // Check for circular reference error specifically
-        if (!response.ok) {
-            const clonedResponse = response.clone();
-
-            try {
-                // Read response as text regardless of content type
-                const errorText = await clonedResponse.text();
-
-                // Check for circular reference in the error response
-                if (errorText.toLowerCase().includes("circular reference")) {
-                    bootbox.alert({
-                        title: "⚠️ Warning",
-                        message: "You can't add this component because it it is already used by one of the parents.",
-                        className: 'error-dialog'
-                    });
-                }
-            } catch (e) {
-                console.warn("Error parsing cloned response:", e);
-            }
-        }
-
-        // Handle errors or reload.
-        await processErrors(response);
-        window.location = window.location;
+        await swapLineItems('{% url "bom:assembly_line_item_add" pk=assembly.id %}', request);
+        $("#componentSearch").val(null).trigger('change');
     }
 
 
@@ -770,9 +640,10 @@
      * Change the colour of the references in the assembly components list if
      * its reference appears within backticks in the instructions field.
      */
+    let refreshColourise = () => {};
     async function colouriseUsed() {
         const textarea = document.querySelector('textarea[name=instructions]');
-        const update = () => {
+        const update = refreshColourise = () => {
             const references = document.querySelectorAll('#subComponentsTable .bomlink .reference');
             for (const ref of references) {
                 ref.parentNode.classList.remove('in-instructions');
@@ -858,21 +729,21 @@
             ]
         };
 
-        const table = $('#subComponentsTable').DataTable(options);
-        document.querySelector('#existingsubComponentsContainer').classList.remove('d-none');
-
-
-        // Force all table elements back into the DOM before submit.
-        // NOTE: This is quite ugly and relies on no pagination!
-        const assyForm = document.querySelector('#bomando-assembly-form');
-        assyForm.addEventListener('submit', (e) => {
-            table.search('').draw();
-            return true;
-        });
+        lineItemsTable = $('#subComponentsTable').DataTable(options);
     }
+
+    // The current DataTable over #subComponentsTable (replaced whenever the table is swapped).
+    let lineItemsTable = null;
 
     // Ensure all the parts / subcomponts are rendered in datatables.
     configurePartsTable();
+
+    // Force all table elements back into the DOM before submit.
+    // NOTE: This is quite ugly and relies on no pagination!
+    document.querySelector('#bomando-assembly-form').addEventListener('submit', (e) => {
+        if (lineItemsTable) { lineItemsTable.search('').draw(); }
+        return true;
+    });
 
     document.addEventListener('DOMContentLoaded', async () => {
 
