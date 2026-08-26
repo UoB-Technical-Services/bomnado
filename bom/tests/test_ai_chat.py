@@ -201,6 +201,7 @@ class ConversationTests(ChatTestCase):
         html = self.client.get(reverse('bom:ai_chat') + f'?context=part:{self.nut.id}').content.decode()
         self.assertIn('Find other suppliers', html)
         self.assertIn('`M8-NUT-BZP`', html)
+        self.assertIn('data-ai-clear-context', html)                  # the page chip can be dismissed
         thread = AIThread.objects.create(user=self.user, team=self.team, title='Bolts')
         AIMessage.objects.create(thread=thread, role='user', content=[{'type': 'text', 'text': 'hi'}])
         html = self.client.get(reverse('bom:ai_chat')).content.decode()
