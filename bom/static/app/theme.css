@@ -289,10 +289,8 @@ body.bn-resizing iframe { pointer-events: none; }
 .bn-editor .form-control-file { font-size: 0.85rem; }
 .bn-editor #subComponentsTable { font-size: 0.9rem; }
 .bn-editor #existingsubComponentsContainer { border: 0; background: transparent; font-size: inherit; overflow-x: auto; }
-.bn-editor #existingsubComponentsContainer .top { padding: 0.25rem 0 0.6rem; flex-direction: row; align-items: center; gap: 1rem; }
-.bn-editor #existingsubComponentsContainer .top .dataTables_filter label { display: flex; align-items: center; gap: 0.5rem; margin: 0; font-size: 0.8rem; color: var(--bn-muted); }
-.bn-editor #existingsubComponentsContainer .dataTables_filter input { border: 1px solid var(--bn-line-strong); border-radius: 999px; padding: 0.25rem 0.7rem; font-size: 0.85rem; width: 12rem; }
-.bn-editor #existingsubComponentsContainer .dataTables_info { font-size: 0.8rem; color: var(--bn-muted); padding: 0; }
+.bn-editor .bn-table-tools { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 0.25rem 0 0.6rem; }
+.bn-editor .bn-table-tools .bn-table-search { border: 1px solid var(--bn-line-strong); border-radius: 999px; padding: 0.25rem 0.7rem; font-size: 0.85rem; width: 13rem; flex: 0 0 auto; }
 .bn-editor #subComponentsTable { min-width: 560px; }
 .bn-editor #subComponentsTable .btn-group .btn { font-size: 1rem; line-height: 1; padding: 0.2rem 0.5rem; }
 .bn-editor #subComponentsTable.table-striped tbody tr:nth-of-type(odd) { background: #f8fafc; }
@@ -441,8 +439,6 @@ body.bn-resizing iframe { pointer-events: none; }
 .bn-editor #subComponentsTable .bn-ref, .bn-tool table .bn-ref, .bn-editor table .bn-status { vertical-align: middle; }
 .bn-editor #subComponentsTable th, .bn-editor #subComponentsTable td { padding: 0.45rem 0.6rem; }
 .bn-editor #subComponentsTable th:first-child, .bn-editor #subComponentsTable td:first-child { padding-left: 0.25rem; }
-.bn-editor #existingsubComponentsContainer .top { flex-wrap: wrap; row-gap: 0.4rem; }
-.bn-editor #existingsubComponentsContainer .dataTables_info { white-space: nowrap; }
 /* Sourcing: even gaps between supplier / deal cards, tidy header rows. */
 .bn-editor #sec-sourcing .card { margin-bottom: 0.5rem; }
 .bn-editor #sec-sourcing .card:last-child { margin-bottom: 0; }

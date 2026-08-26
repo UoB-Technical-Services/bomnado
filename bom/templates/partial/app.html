@@ -28,20 +28,17 @@
 
     <!-- 3rd party software. -->
     <script src="{% static 'lib/popper-1.14.7/popper.min.js' %}"></script>
-    <script src="{% static 'lib/split-1.5.9/split.min.js' %}"></script>
     <script src="{% static 'lib/dropzonejs-5.7.0/dropzone.js' %}"></script>
     <script src="{% static 'lib/toastui-editor-3.2.2/toastui-editor-all.min.js' %}"></script>
     <link rel="stylesheet" href="{% static 'lib/toastui-editor-3.2.2/toastui-editor.min.css' %}" />
     <script src="{% static 'lib/expr-eval-2.0.2/expr-eval.min.js' %}"></script>
-    <script src="{% static 'lib/jquery-3.3.1/jquery-3.3.1.slim.min.js' %}"></script>
+    <script src="{% static 'lib/jquery-3.7.1/jquery-3.7.1.slim.min.js' %}"></script>
     <script src="{% static 'lib/bootbox-5.4.0/bootbox.js' %}"></script>
     <script src="{% static 'lib/htmx-2.0.4/htmx.min.js' %}"></script>
 
     <!-- 3rd party software (that depend on those above). -->
     <script src="{% static 'lib/bootstrap-4.3.1/bootstrap.min.js' %}"></script>
     <script src="{% static 'lib/select2-4.0.13/js/select2.full.min.js' %}"></script>
-    <script src="https://cdn.datatables.net/1.10.20/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.10.20/js/dataTables.bootstrap4.min.js"></script>
 
     <!-- Bomnado widgets and partial templates. -->
     <script src="{% static 'app/attachment_list.js' %}"></script>
@@ -401,8 +398,6 @@
         })();
 
         $.fn.select2.defaults.set("theme", "bootstrap4");
-        // Surface DataTables problems in the console instead of a blocking alert().
-        if ($.fn.dataTable) { $.fn.dataTable.ext.errMode = "throw"; }
 
         document.addEventListener('DOMContentLoaded', async () => {
             Bomnado.initPage(document.getElementById('app_main'));
