@@ -474,6 +474,18 @@ class SubAssembly(models.Model):
         return self.original
 
     @property
+    def forked_reference_with_project(self):
+        """Return a fork source label, including project for non-top-level assemblies."""
+        if not self.forked:
+            return ''
+
+        source_reference = self.forked.reference
+        source_project = self.forked.project
+        if not self.is_toplevel and source_project:
+            return f'{source_reference} ({source_project.reference})'
+        return source_reference
+
+    @property
     def picture_url(self):
         """ Return the URL for the picture, or a placeholder if none exists. """
         if self.picture:
@@ -558,6 +570,7 @@ class SubAssembly(models.Model):
 
             source.pk = None
             source.picture = None
+            source.created = now()
             source.is_toplevel = is_root
             source.original_id = source_pk
             source.project = copied_root

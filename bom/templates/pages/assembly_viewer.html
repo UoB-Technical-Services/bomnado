@@ -162,7 +162,7 @@
                             {% if assembly.forked %}
                             <kbd class="assembly">
                                 <a title="{{ assembly.forked.reference }}" href="{% url "bom:assembly_editor_update" pk=assembly.forked.id %}">
-                                {{ assembly.forked.reference }}</a>
+                                {{ assembly.forked_reference_with_project }}</a>
                             </kbd>
                             {% else %}
                             -
