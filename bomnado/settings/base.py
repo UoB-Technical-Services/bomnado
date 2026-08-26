@@ -183,7 +183,7 @@ STORAGES = {
 STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
 
 # Project version.
-VERSION = '0.19.0'
+VERSION = '0.21.0'
 
 # Program settings
 BOM_MAX_RECENT_ASSEMBLIES = 5
