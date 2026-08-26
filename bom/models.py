@@ -1,3 +1,4 @@
+import datetime
 import math
 import os
 import re
@@ -32,7 +33,10 @@ def validate_semver(value):
 
 
 def validate_reference():
-    return RegexValidator('^[0-9A-Z-]*$', 'Only uppercase letters, numbers, and dashes are allowed.')
+    """ References (and named-piece suffixes): uppercase letters, digits, dashes and dots - a dot
+    only between characters (`XB4-BA31.1`, `V1.2-BRACKET`), never `>` which joins a part and a piece. """
+    return RegexValidator(r'^(?!\.)(?!.*\.$)[0-9A-Z.-]*$',
+                          'Only uppercase letters, numbers, dashes and dots are allowed (a dot only in the middle).')
 
 
 class OverwriteStorage(FileSystemStorage):
@@ -74,6 +78,9 @@ class Team(models.Model):
     name = models.TextField(unique=True, max_length=150)
     users = models.ManyToManyField(to=User)
     owner = models.ForeignKey(User, on_delete=models.PROTECT, related_name='owned_teams', null=True, blank=True)
+
+    """ How this team names part references, for the AI to follow (see `bom.ai.naming`). Blank = the default guide. """
+    naming_guide = models.TextField(blank=True)
 
     def projects(self):
         return self.assemblies.filter(is_toplevel=True)
@@ -247,8 +254,11 @@ class PartSource(models.Model):
     """ The `Part` that this source details. """
     part = models.ForeignKey(to=Part, on_delete=models.CASCADE, verbose_name='Part', related_name='sources')
 
+    """ The supplier's name, for sources that have no link (a quote, a phone order). """
+    supplier = models.CharField(max_length=100, blank=True)
+
     """ Unique suppliers unique part reference or part model number. """
-    partcode = models.CharField(max_length=100, default='')
+    partcode = models.CharField(max_length=100, default='', blank=True)
 
     """ A URL that links directly to the part. """
     url = models.URLField(blank=True)
@@ -283,10 +293,10 @@ class PartSource(models.Model):
         allow source based grouping in reports to allow purchaser to purchase multiple items in the same order.
         """
         try:
-            domain = urlparse(self.url).netloc
-            return domain.replace('www.', '')
+            domain = urlparse(self.url).netloc.replace('www.', '')
         except (ValueError, AttributeError):
-            return self.url
+            domain = ''
+        return domain or self.supplier or self.url
 
     def cost_quantity_for(self, quantity, include_shipping):
         """ Calculate the cost for a given quantity of this unit based on the RRP and minimum order.
@@ -321,15 +331,15 @@ class NamedPiece(models.Model):
     that instructions need to point at, but that is never bought or counted on its own.
 
     It is *not* a BOM item: it has no quantity, sources or line items, and plays no part in
-    costing, exports or the orphan tools. It exists so that a `PARENT.SUFFIX` reference in
+    costing, exports or the orphan tools. It exists so that a `PARENT>SUFFIX` reference in
     markdown resolves to something, renders as a link, and follows renames of either half.
     """
 
     """ Fields subject to find-and-replace when a `reference` is updated on selected models. """
     REFERENCE_REPLACE_FIELDS = ['note']
 
-    """ Joins the parent reference and the suffix: `PARENT.SUFFIX`. Not a legal reference character. """
-    SEPARATOR = '.'
+    """ Joins the parent reference and the suffix: `PARENT>SUFFIX`. Not a legal reference character. """
+    SEPARATOR = '>'
 
     """ The `Part` this is a piece of. """
     part = models.ForeignKey(to=Part, on_delete=models.CASCADE, verbose_name='Part', related_name='named_pieces')
@@ -357,12 +367,12 @@ class NamedPiece(models.Model):
 
     @property
     def reference(self):
-        """ The full reference: `PARENT.SUFFIX`. """
+        """ The full reference: `PARENT>SUFFIX`. """
         return f'{self.part.reference}{self.SEPARATOR}{self.suffix}'
 
     @classmethod
     def split_reference(cls, reference):
-        """ Split `PARENT.SUFFIX` into `('PARENT', 'SUFFIX')`, or `None` if it is not named-piece syntax. """
+        """ Split `PARENT>SUFFIX` into `('PARENT', 'SUFFIX')`, or `None` if it is not named-piece syntax. """
         if not reference or cls.SEPARATOR not in reference:
             return None
         parent, suffix = reference.split(cls.SEPARATOR, 1)
@@ -372,7 +382,7 @@ class NamedPiece(models.Model):
 
     @classmethod
     def find_by_reference(cls, reference):
-        """ Look up a named piece from its full `PARENT.SUFFIX` reference, or `None`. """
+        """ Look up a named piece from its full `PARENT>SUFFIX` reference, or `None`. """
         halves = cls.split_reference(reference)
         if halves is None:
             return None
@@ -953,6 +963,278 @@ class DealLineItem(models.Model):
 
     """ Notes on the inclusion of this line item. """
     notes = models.TextField(blank=True)
+
+
+class UserAISettings(models.Model):
+    """ A user's own AI API key and preferences (see `bom.ai`). The key is encrypted at
+    rest and never sent to the browser; only its last characters are ever shown. """
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='ai_settings')
+
+    """ The API key, encrypted with `bom.ai.crypto`. Use the `api_key` property. """
+    encrypted_api_key = models.TextField(blank=True)
+
+    """ The model calls are made with. """
+    model = models.CharField(max_length=50, default='claude-opus-5')
+
+    """ Monthly spending cap in USD; AI actions pause once it is reached. Blank = no cap. """
+    monthly_budget = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True, default=10)
+
+    created = models.DateTimeField(default=now)
+    updated = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name_plural = 'user AI settings'
+
+    @property
+    def api_key(self):
+        from bom.ai.crypto import decrypt
+        return decrypt(self.encrypted_api_key)
+
+    @api_key.setter
+    def api_key(self, value):
+        from bom.ai.crypto import encrypt
+        self.encrypted_api_key = encrypt((value or '').strip())
+
+    @property
+    def is_configured(self):
+        return bool(self.api_key)
+
+    @property
+    def masked_key(self):
+        """ `sk-ant-…wxyz`: enough to recognise, never enough to use. """
+        key = self.api_key
+        return f'{key[:7]}…{key[-4:]}' if len(key) > 12 else ('…' if key else '')
+
+    def spend_this_month(self):
+        """ USD spent on AI jobs since the start of the month, from recorded token usage. """
+        start = now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        total = AIJob.objects.filter(user=self.user, created__gte=start).aggregate(models.Sum('cost'))['cost__sum']
+        return total or 0
+
+    def percent_used(self):
+        """ Spend this month as a percentage of the budget (None without a budget). """
+        if not self.monthly_budget:
+            return None
+        return min(999, int(100 * self.spend_this_month() / self.monthly_budget))
+
+    def over_budget(self):
+        return self.monthly_budget is not None and self.spend_this_month() >= self.monthly_budget
+
+    def __str__(self):
+        return f'AI settings for {self.user}'
+
+
+class AIThread(models.Model):
+    """ One conversation between a user and the AI (see `bom.ai.chat`). It belongs to the
+    person, lives on the server (so it follows them across pages, tabs and devices), and
+    remembers the record they were looking at when it began. Files they drop in are
+    `Attachment`s on the thread. """
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='ai_threads')
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='ai_threads', null=True, blank=True)
+
+    """ Set from the first message; shown in the window's list of conversations. """
+    title = models.CharField(max_length=200, blank=True)
+
+    """ Where it started: `{"kind": "part", "id": 12}` or empty. """
+    context = models.JSONField(default=dict, blank=True)
+
+    created = models.DateTimeField(default=now)
+    updated = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated']
+
+    def can_access(self, user):
+        return self.user_id == user.id
+
+    @property
+    def latest_job(self):
+        """ The most recent turn, for its status, progress and cost. """
+        return AIJob.objects.filter(content_type=ContentType.objects.get_for_model(AIThread),
+                                    object_id=str(self.pk)).first()
+
+    def __str__(self):
+        return self.title or f'Conversation {self.pk}'
+
+
+class AIMessage(models.Model):
+    """ One message of an `AIThread`, in Messages API form: a list of content blocks. A person's
+    message holds text and file placeholders; the AI's holds text and tool calls; tool results
+    are a `user` message too (that is how the API wants them), with `meta` saying what was called
+    so the window can show it. """
+
+    thread = models.ForeignKey(AIThread, on_delete=models.CASCADE, related_name='messages')
+    role = models.CharField(max_length=10, choices=[('user', 'user'), ('assistant', 'assistant')])
+    content = models.JSONField(default=list, blank=True)
+
+    """ For the window: tool calls made (`tools`), what they touched (`touched`); never sent to the API. """
+    meta = models.JSONField(default=dict, blank=True)
+
+    """ The turn that produced this message, for its progress, cost and error. """
+    job = models.ForeignKey('AIJob', on_delete=models.SET_NULL, null=True, blank=True, related_name='messages_made')
+
+    created = models.DateTimeField(default=now)
+
+    class Meta:
+        ordering = ['pk']
+
+    @property
+    def text(self):
+        return ''.join(block.get('text', '') for block in self.content if block.get('type') == 'text')
+
+    @property
+    def is_tool_result(self):
+        return any(block.get('type') == 'tool_result' for block in self.content)
+
+    @property
+    def files(self):
+        return [block for block in self.content if block.get('type') == 'bomnado_file']
+
+    def __str__(self):
+        return f'{self.role}: {self.text[:40]}'
+
+
+class AIJob(models.Model):
+    """ One piece of work the AI did for a user - a turn of a conversation (`AIThread`) - with
+    its progress while it runs, what it cost, and how it ended. """
+
+    KIND_CHAT = 'chat'
+    KINDS = [
+        (KIND_CHAT, 'Chat'),
+        # Earlier kinds, kept so old rows still read.
+        ('scrape_url', 'Create a part from a link (old)'),
+        ('scrape_file', 'Create a part from a datasheet (old)'),
+        ('alternatives', 'Find alternative suppliers (old)'),
+        ('ingest', 'Turn notes and files into parts (old)'),
+    ]
+
+    STATUS_QUEUED = 'queued'
+    STATUS_RUNNING = 'running'
+    STATUS_DONE = 'done'
+    STATUS_EXECUTED = 'executed'  # old jobs whose plan was carried out
+    STATUS_FAILED = 'failed'
+    STATUSES = [(s, s) for s in (STATUS_QUEUED, STATUS_RUNNING, STATUS_DONE, STATUS_EXECUTED, STATUS_FAILED)]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='ai_jobs')
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='ai_jobs', null=True, blank=True)
+    kind = models.CharField(max_length=20, choices=KINDS, default=KIND_CHAT)
+    status = models.CharField(max_length=10, choices=STATUSES, default=STATUS_QUEUED)
+    model = models.CharField(max_length=50, blank=True)
+
+    """ What was asked, where a job is not a conversation turn. """
+    input = models.JSONField(default=dict, blank=True)
+
+    """ What the turn did: `{"touched": [{"model", "id", "reference", "what"}]}`. """
+    outcome = models.JSONField(null=True, blank=True)
+
+    error = models.TextField(blank=True)
+
+    """ What the job is doing right now, for the person watching it ("Reading the page..."). """
+    progress = models.CharField(max_length=200, blank=True)
+
+    """ When `progress` was last written: a running job that goes quiet for too long is presumed dead. """
+    progress_at = models.DateTimeField(null=True, blank=True)
+
+    """ Set by the Stop button; the runner checks it between steps and gives up. """
+    cancel_requested = models.BooleanField(default=False)
+
+    """ Cleared from the activity page (the job still counts towards the month's spend). """
+    cleared = models.BooleanField(default=False)
+
+    input_tokens = models.IntegerField(default=0)
+    output_tokens = models.IntegerField(default=0)
+    web_searches = models.IntegerField(default=0)
+    cost = models.DecimalField(max_digits=10, decimal_places=4, default=0)
+
+    """ The thread this turn belongs to (for old jobs: the record they were about). """
+    content_type = models.ForeignKey(ContentType, on_delete=models.SET_NULL, null=True, blank=True)
+    object_id = models.CharField(max_length=64, blank=True)
+    content_object = GenericForeignKey('content_type', 'object_id')
+
+    created = models.DateTimeField(default=now)
+    started = models.DateTimeField(null=True, blank=True)
+    finished = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created']
+
+    @property
+    def is_finished(self):
+        return self.status in (self.STATUS_DONE, self.STATUS_EXECUTED, self.STATUS_FAILED)
+
+    """ A running job that has not reported progress for this long is presumed dead (a restarted server). """
+    STALE_AFTER = datetime.timedelta(minutes=10)
+
+    def mark_running(self):
+        self.status, self.started, self.finished, self.error = self.STATUS_RUNNING, now(), None, ''
+        self.progress, self.progress_at, self.cancel_requested = 'Starting', now(), False
+        self.save(update_fields=['status', 'started', 'finished', 'error', 'progress', 'progress_at', 'cancel_requested'])
+
+    def note_progress(self, text):
+        """ Say what is happening now (shown on the job's banner while it runs). """
+        self.progress, self.progress_at = text[:200], now()
+        self.save(update_fields=['progress', 'progress_at'])
+
+    @property
+    def is_running(self):
+        return self.status in (self.STATUS_QUEUED, self.STATUS_RUNNING)
+
+    @property
+    def is_stale(self):
+        """ Running, but quiet for longer than `STALE_AFTER`. """
+        return self.is_running and (now() - (self.progress_at or self.started or self.created)) > self.STALE_AFTER
+
+    def reap_if_stale(self):
+        """ Turn a presumed-dead job into a failed one, so it can be retried instead of spinning forever. """
+        if self.is_stale:
+            self.mark_failed('It stopped without finishing (the server probably restarted). Try again.')
+        return self
+
+    @property
+    def seconds_running(self):
+        """ How long the job has been (or was) running, in whole seconds. """
+        if self.started is None:
+            return 0
+        end = self.finished if (self.is_finished and self.finished) else now()
+        return max(0, int((end - self.started).total_seconds()))
+
+    def cancel_wanted(self):
+        """ Has someone pressed Stop since this job started? Reads the database, not this instance. """
+        return bool(AIJob.objects.filter(pk=self.pk, cancel_requested=True).exists())
+
+    @property
+    def percent_of_budget(self):
+        """ This job's cost as a share of its user's monthly budget, or None without one. """
+        config = getattr(self.user, 'ai_settings', None)
+        if config is None or not config.monthly_budget:
+            return None
+        return int(100 * self.cost / config.monthly_budget)
+
+    def mark_done(self, result=None):
+        self.status, self.finished = self.STATUS_DONE, now()
+        self.save(update_fields=['status', 'finished'])
+
+    def mark_failed(self, error):
+        self.status, self.error, self.finished = self.STATUS_FAILED, str(error)[:2000], now()
+        self.save(update_fields=['status', 'error', 'finished'])
+
+    def add_usage(self, response):
+        """ Record a Messages API response's tokens and cost against this job. """
+        from bom.ai.client import cost_of, usage_of
+        input_tokens, output_tokens, web_searches = usage_of(response)
+        self.input_tokens += input_tokens
+        self.output_tokens += output_tokens
+        self.web_searches += web_searches
+        self.cost += cost_of(self.model, input_tokens, output_tokens, web_searches)
+        self.save(update_fields=['input_tokens', 'output_tokens', 'web_searches', 'cost'])
+
+    def can_access(self, user):
+        return self.user_id == user.id
+
+    def __str__(self):
+        return f'{self.get_kind_display()} ({self.status})'
 
 
 class PCBPart(Part):

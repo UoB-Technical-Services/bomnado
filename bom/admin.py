@@ -66,3 +66,28 @@ admin.site.register(models.NamedPiece, NamedPieceAdmin)
 admin.site.register(models.SubAssembly, SubAssemblyAdmin)
 admin.site.register(models.Team, TeamAdmin)
 admin.site.register(models.Feedback, FeedbackAdmin)
+
+
+class AIJobAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'user', 'team', 'model', 'cost', 'created', 'finished')
+    list_filter = ('kind', 'status', 'model')
+    readonly_fields = ('input', 'outcome', 'error', 'input_tokens', 'output_tokens',
+                       'web_searches', 'cost', 'created', 'started', 'finished')
+
+
+admin.site.register(models.AIJob, AIJobAdmin)
+
+
+class AIMessageInline(admin.TabularInline):
+    model = models.AIMessage
+    fields = ('role', 'content', 'meta', 'job', 'created')
+    readonly_fields = fields
+    extra = 0
+
+
+class AIThreadAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'user', 'team', 'context', 'updated')
+    inlines = [AIMessageInline]
+
+
+admin.site.register(models.AIThread, AIThreadAdmin)

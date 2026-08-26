@@ -36,14 +36,14 @@ def as_markdown(text, assembly_or_part):
             url = reverse_lazy('bom:assembly_editor_update', kwargs={'pk': assembly.id})
             text = text.replace(f'`{match}`', f'<a class="bomlink assembly" href="{url}">{query}</a>')
         elif piece:
-            # `PARENT.SUFFIX` links to the parent part's editor, at its named pieces table.
+            # `PARENT>SUFFIX` links to the parent part's editor, at its named pieces table.
             # Hovering shows the note and, when there is one, the picture (see picture_preview.js).
             url = reverse_lazy('bom:part_editor_update', kwargs={'pk': piece.part_id})
             attrs = f' title="{escape(piece.note)}"' if piece.note else ''
             if piece.picture or piece.part.picture:
                 attrs += f' data-picture-preview="{escape(piece.picture_url)}"'
             text = text.replace(f'`{match}`',
-                                f'<a class="bomlink part piece" href="{url}#named_pieces"{attrs}>{query}</a>')
+                                f'<a class="bomlink part piece" href="{url}#named_pieces"{attrs}>{escape(query)}</a>')
 
     # Convert the rest to HTML.
     html = gfm(text)

@@ -28,3 +28,8 @@ CACHES = {
 
 # Email Settings For Dev
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# No broker in development: AI jobs run in a background thread of the dev server.
+CELERY_TASK_ALWAYS_EAGER = True
+CELERY_TASK_EAGER_PROPAGATES = True
+BOMNADO_AI_THREADS = not TESTING  # tests run jobs inline

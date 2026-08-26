@@ -316,8 +316,8 @@ NamedPieceFormset = inlineformset_factory(
         # Rendered as `PARENT.` + suffix in one box (the view sets the prepend); the page
         # uppercases and strips illegal characters as the user types, the pattern backs that up.
         'suffix': BootstrapText(placeholder='SUFFIX', input_group_classes='input-group-sm bomnado-piece-reference',
-                                attrs={'pattern': '[0-9A-Z-]*', 'autocapitalize': 'characters', 'spellcheck': 'false',
-                                       'title': 'Uppercase letters, numbers and dashes only'}),
+                                attrs={'pattern': '[0-9A-Z]([0-9A-Z.-]*[0-9A-Z-])?', 'autocapitalize': 'characters',
+                                       'spellcheck': 'false', 'title': 'Uppercase letters, numbers, dashes and dots'}),
         'note': BootstrapText(placeholder='What this piece is (optional)', input_group_classes='input-group-sm'),
         'picture': BootstrapTinyPicture(accept='image/*'),
     },
@@ -327,7 +327,7 @@ NamedPieceFormset = inlineformset_factory(
         'picture': 'Picture',
     },
     help_texts={
-        'suffix': 'Referenced as PARENT.SUFFIX. Uppercase letters, numbers and dashes.',
+        'suffix': 'Referenced as PARENT>SUFFIX. Uppercase letters, numbers, dashes and dots.',
         'note': 'A one-line description. Accepts references.',
         'picture': 'Optional. Falls back to the part picture.',
     },
@@ -474,3 +474,40 @@ class UserAccountForm(forms.ModelForm):
         if others.exists():
             raise forms.ValidationError('That email address is already in use by another account.')
         return email
+
+
+class UserAISettingsForm(forms.ModelForm):
+    """ The "AI assistant" card on the settings page. The key field is write-only:
+    blank leaves the stored key alone. """
+    api_key = fields.CharField(required=False, label='API key', widget=forms.PasswordInput(
+        attrs={'class': 'form-control', 'placeholder': 'sk-ant-…', 'autocomplete': 'off'}),
+        help_text='Stored encrypted and never shown again. Leave blank to keep the current key.')
+    model = fields.ChoiceField(label='Model', choices=[], widget=forms.Select(attrs={'class': 'custom-select'}),
+                               help_text='Opus is the most capable; Sonnet is cheaper and faster.')
+    monthly_budget = fields.DecimalField(required=False, min_value=0, max_digits=8, decimal_places=2,
+                                         label='Monthly budget (USD)', initial=10,
+                                         widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '1'}),
+                                         help_text='AI actions pause once reached. Blank for no cap.')
+
+    class Meta:
+        model = models.UserAISettings
+        fields = ['model', 'monthly_budget']
+
+    def __init__(self, *args, **kwargs):
+        from bom.ai.client import MODEL_CHOICES
+        super().__init__(*args, **kwargs)
+        self.fields['model'].choices = MODEL_CHOICES
+
+    def clean_api_key(self):
+        key = (self.cleaned_data.get('api_key') or '').strip()
+        if key and not key.startswith('sk-ant-'):
+            raise forms.ValidationError('That does not look like an Anthropic API key (they start with sk-ant-).')
+        return key
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if self.cleaned_data.get('api_key'):
+            instance.api_key = self.cleaned_data['api_key']
+        if commit:
+            instance.save()
+        return instance

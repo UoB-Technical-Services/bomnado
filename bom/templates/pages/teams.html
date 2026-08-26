@@ -136,6 +136,20 @@
                                         </div>
                                     </div>
                                 </form>
+
+                                <!-- How this team names parts, for the AI to follow. -->
+                                <form method="post" action="{% url "bom:teams_naming_guide" pk=team.id %}" class="m-2">
+                                    {% csrf_token %}
+                                    <a class="small" data-toggle="collapse" href="#namingGuide{{ team.id }}" role="button" aria-expanded="false">
+                                        {% include "partial/ai_icon.html" %} Reference naming guide{% if not team.naming_guide %} (using the default){% endif %}
+                                    </a>
+                                    <div class="collapse mt-2" id="namingGuide{{ team.id }}">
+                                        <textarea name="naming_guide" class="form-control form-control-sm" rows="10"
+                                            placeholder="{{ default_naming_guide }}">{{ team.naming_guide }}</textarea>
+                                        <small class="form-text text-muted">What the AI follows when it names parts read from links and datasheets. Leave blank to use the default shown.</small>
+                                        <button type="submit" class="btn btn-sm btn-outline-primary mt-1">Save naming guide</button>
+                                    </div>
+                                </form>
                             {% endif %}
                         </div>
                     </div>

@@ -111,8 +111,8 @@ class ActivityEntriesTests(ActivityTestCase):
 
         entries = self.entries()
         self.assertEqual([(e.kind, e.target) for e in entries[:4]], [
-            ('deleted', 'named piece CHASSIS.TOP'),
-            ('created', 'named piece CHASSIS.TOP'),
+            ('deleted', 'named piece CHASSIS>TOP'),
+            ('created', 'named piece CHASSIS>TOP'),
             ('edited', 'supplier rs-online.com'),
             ('created', 'supplier rs-online.com'),
         ])

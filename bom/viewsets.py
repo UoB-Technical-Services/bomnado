@@ -35,8 +35,8 @@ class PartViewSet(viewsets.ModelViewSet):
 
         Matching, in order of preference:
           1. reference starts with the term;
-          2. the term is `PARENT.SUFFIX` syntax - reference starts with the part
-             before the dot (so typing `CHASSIS.TOP` offers `CHASSIS`);
+          2. the term is `PARENT>SUFFIX` syntax - reference starts with the part
+             before the chevron (so typing `CHASSIS>TOP` offers `CHASSIS`);
           3. reference or name contains the term.
         """
         term = request.query_params.get('search', '').strip()
@@ -51,8 +51,8 @@ class PartViewSet(viewsets.ModelViewSet):
             results = top(parts)
         else:
             results = top(parts.filter(reference__istartswith=term))
-            if not results and '.' in term:
-                results = top(parts.filter(reference__istartswith=term.split('.', 1)[0]))
+            if not results and models.NamedPiece.SEPARATOR in term:
+                results = top(parts.filter(reference__istartswith=term.split(models.NamedPiece.SEPARATOR, 1)[0]))
             if not results:
                 results = top(parts.filter(Q(reference__icontains=term) | Q(name__icontains=term)))
 

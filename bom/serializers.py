@@ -29,7 +29,7 @@ class PartSearchSerializer(serializers.ModelSerializer):
         return obj.picture_url
 
     def get_named_pieces(self, obj):
-        """ The part's `PARENT.SUFFIX` pieces, so reference completion can offer them.
+        """ The part's `PARENT>SUFFIX` pieces, so reference completion can offer them.
         Relies on the queryset prefetching `named_pieces`: no query per row. """
         return [{'id': sp.id, 'suffix': sp.suffix, 'reference': f'{obj.reference}{sp.SEPARATOR}{sp.suffix}',
                  'note': sp.note} for sp in obj.named_pieces.all()]

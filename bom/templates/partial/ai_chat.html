@@ -1,0 +1,24 @@
+{# The AI chat window: floats over every page, movable and minimisable, and survives navigation #}
+{# because the conversation lives on the server and the window's state in localStorage (ai_chat.js). #}
+{# Included once at the end of the page for users with an AI key. #}
+<div id="aiChat" class="bomnado-ai-chat" hidden role="dialog" aria-label="AI assistant"
+    data-open-url="{% url 'bom:ai_chat' %}" data-threads-url="{% url 'bom:ai_chat_threads' %}">
+    <div class="bomnado-ai-chat-header" data-drag-handle>
+        <span class="bomnado-ai-chat-title" title="Drag to move">
+            {% include "partial/ai_icon.html" with mono=True %} <span id="aiChatTitle">AI</span>
+        </span>
+        <span class="bomnado-ai-chat-controls">
+            <button type="button" class="btn btn-sm" id="aiChatNew" title="New conversation">+ New</button>
+            <button type="button" class="btn btn-sm" id="aiChatList" title="Conversations">&#9776;</button>
+            <button type="button" class="btn btn-sm" id="aiChatMin" title="Minimise">&minus;</button>
+            <button type="button" class="btn btn-sm" id="aiChatClose" title="Close">&times;</button>
+        </span>
+    </div>
+    <div id="aiChatThreads" class="bomnado-ai-chat-threads" hidden></div>
+    <div id="aiChatBody" class="bomnado-ai-chat-body">
+        <div class="text-muted small p-3">Loading&hellip;</div>
+    </div>
+</div>
+<button type="button" id="aiChatPill" class="btn btn-ai bomnado-ai-chat-pill" hidden title="Open the AI assistant">
+    {% include "partial/ai_icon.html" with mono=True %} <span id="aiChatPillTitle">AI</span>
+</button>

@@ -80,7 +80,7 @@ class MarkdownRoundTripTests(TestCase):
         team = TeamFactory()
         assembly = SubAssemblyFactory(team=team, picture=None, is_toplevel=True, revision='1.0.0')
         # (No trailing newline: Django's CharField strips surrounding whitespace, as it always has.)
-        markdown = "# Fit\n\n1. Take `M8-NUT` and *turn*\n   - sub `CHASSIS.TOP`\n\n```\ncode `not a ref`\n```"
+        markdown = "# Fit\n\n1. Take `M8-NUT` and *turn*\n   - sub `CHASSIS>TOP`\n\n```\ncode `not a ref`\n```"
 
         form = SubAssemblyForm({
             'reference': assembly.reference, 'name': assembly.name, 'revision': '1.0.0', 'is_toplevel': 'on',

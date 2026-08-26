@@ -5,6 +5,7 @@
 {% load attachments_tags %}
 {% load utils %}
 {% load activity_tags %}
+{% load ai_tags %}
 
 {% block title %}
 <title>{{part.reference}} / Part / Bomnado</title>
@@ -36,7 +37,7 @@
         .bomnado-piece-table td { vertical-align: middle; }
         .bomnado-piece-table tr.bomnado-piece-deleted td { opacity: 0.4; text-decoration: line-through; }
 
-        /* The reference field reads as one value, `PARENT.SUFFIX`: the fixed `PARENT.` prefix sits
+        /* The reference field reads as one value, `PARENT>SUFFIX`: the fixed `PARENT.` prefix sits
            inside the same box as the editable suffix, and focus outlines the whole thing. */
         .bomnado-piece-reference { font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
         /* (Selectors match Bootstrap's `.input-group-sm > ... ` specificity so the padding actually wins.) */
@@ -68,7 +69,10 @@
 {% endkwacro %}
 
 
+{% block ai_context %}part:{{ part.id }}{% endblock %}
+
 {% block content-right %}
+{% ai_status as ai %}
 
 <!-- New Part -->
 <div class="p-3" style="min-width: 600px;">
@@ -210,12 +214,13 @@
 
         <div class="form-group">
             {% usekwacro bootstrapfield form.spec %}
+            {% if ai.ready %}<div class="bomnado-ai-callouts"><button type="button" class="btn btn-link btn-sm p-0" data-ai-prompt="Write the spec of `{{ part.reference }}` from its supplier pages and attachments: what it is, materials, key dimensions, ratings, standards. Fill in the dimensions, weight, colour and manufacturer too where the pages give them.">{% include "partial/ai_icon.html" %} Fill in from the suppliers' pages</button></div>{% endif %}
         </div>
 
         <!-- NAMED PIECES -->
         <div class="form-group" id="named_pieces">
             <small class="text-muted mb-2 d-block">
-                <a href="#" rel="tooltip" title="Pieces of this part with a name (e.g. TOP) that instructions can reference as PARENT.SUFFIX. They are not BOM items: no quantity, cost or suppliers.">🙋</a>
+                <a href="#" rel="tooltip" title="Pieces of this part with a name (e.g. TOP) that instructions can reference as PARENT>SUFFIX. They are not BOM items: no quantity, cost or suppliers.">🙋</a>
                 <strong>Named pieces:</strong>
             </small>
 
@@ -247,6 +252,7 @@
 
         <div class="form-group">
             {% usekwacro bootstrapfield form.qc_steps %}
+            {% if ai.ready %}<div class="bomnado-ai-callouts"><button type="button" class="btn btn-link btn-sm p-0" data-ai-prompt="Draft quality-control steps for `{{ part.reference }}` from its spec and suppliers, and set them on the part as a task list.">{% include "partial/ai_icon.html" %} Draft QC steps</button></div>{% endif %}
         </div>
 
         <div class="form-row">
@@ -276,7 +282,7 @@
                     <div class="card-header">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
 
-                            <strong>{{ sub_form.url.value | get_domain }}</strong>
+                            <strong>{{ sub_form.instance.source|default:"Supplier" }}</strong>
                             
                             <div class="btn-group btn-group-sm" role="group" aria-label="Basic example">
                                 <button class="btn btn-outline-primary" type="button" data-toggle="collapse"
@@ -449,6 +455,11 @@
                                 data-target="#collapsePartSource-{{forloop.counter}}">
                                 New Supplier
                             </button>
+                            {% if ai.ready %}
+                            <button type="button" class="btn btn-outline-ai" data-ai-send="1"
+                                data-ai-prompt="Find other suppliers for `{{ part.reference }}`: search its name first, then its part number, then a plain description; open the best two or three product pages for prices and part numbers; add the good ones as suppliers (unit price ex VAT, pack size as minimum order)."
+                                title="The AI searches the web for other places to buy this part and adds them">{% include "partial/ai_icon.html" %} Find suppliers</button>
+                            {% endif %}
                         </div>
                     </div>
                     <!-- ADD THE CONTENT FORM FOR THIS SUPPLIER -->
@@ -630,6 +641,7 @@
     {% activity_strip part %}
     <br>
 </div>
+
 {% endblock %}
 
 {% block content-left %}
@@ -644,22 +656,29 @@
     </div>
     {% endif %}
     
-    <form method="post" action="{% url "bom:part_editor_create" %}">
+    {% ai_status as ai %}
+    <form method="post" action="{% url "bom:part_editor_create" %}" enctype="multipart/form-data" id="newPartForm" class="bomnado-new-part">
         {% csrf_token %}
+
         <div class="input-group mb-2">
-            <!-- <div class="input-group-prepend"><span class="input-group-text">URL / REF</span></div> -->
-            <input placeholder="e.g. M8-NUT or https://parts.com/mypart" type="text" name="url" class="form-control" style="width:40%;">
+            <input placeholder="Reference (e.g. M8-NUT-BZP) or a supplier link" type="text" name="url" class="form-control" style="width:40%;">
             <select name="team" class="custom-select" style="width:20%;">
-                <!-- <option selected value="">Choose Team...</option> -->
                 {% for team in user.team_set.all %}
                     <option {% if forloop.last %}selected{% endif %} value="{{ team.id }}">{{ team.name }}</option>
                 {% endfor %}
             </select>
             <div class="input-group-append">
-                <button type="submit" class="btn btn-outline-primary"><span>Create</span></button>
+                <button type="submit" class="btn btn-outline-primary" id="newPartCreate"><span>Create</span></button>
             </div>
         </div>
-        <small class="text-muted">Enter (1) the reference name of the part, or (2) copy and paste a link to attempt fetching details from the supplier.</small>
+        <small class="text-muted d-block">A reference makes a blank part to fill in yourself (uppercase letters, digits, dashes and dots);
+            a link to a known supplier site is read by the built-in scraper. KiCad BOMs are imported from the assembly editor.</small>
+        {% if ai.ready %}
+        <small class="d-block mt-1">
+            <button type="button" class="btn btn-link btn-sm p-0" data-ai-prompt="Create a part from this link: ">{% include "partial/ai_icon.html" %} Create a part from any link</button>
+            &middot; <button type="button" class="btn btn-link btn-sm p-0" data-ai-prompt="Turn the attached files into parts. Search for existing parts first, follow the naming guide, attach each file to the part it documents, and tell me what you assumed.">{% include "partial/ai_icon.html" %} from datasheets, drawings or photos</button>
+        </small>
+        {% endif %}
     </form>
 
 
@@ -791,13 +810,13 @@
             row.querySelector('input[name$="-suffix"]').focus();
         });
 
-        // A suffix is uppercase letters, numbers and dashes. Normalise as the user types so what
+        // A suffix is uppercase letters, numbers, dashes and dots. Normalise as the user types so what
         // they see is what will be saved (the server validates again): `top half` -> `TOP-HALF`.
         rows.addEventListener('input', (event) => {
             const input = event.target;
             if (!input.matches('input[name$="-suffix"]')) { return; }
             const before = input.value;
-            const after = before.toUpperCase().replace(/[\s_.]+/g, '-').replace(/[^0-9A-Z-]/g, '');
+            const after = before.toUpperCase().replace(/[\s_]+/g, '-').replace(/[^0-9A-Z.-]/g, '');
             if (after !== before) {
                 const caret = input.selectionStart + (after.length - before.length);
                 input.value = after;

@@ -1,0 +1,6 @@
+{# What a running job is doing, with how long it has been at it. Context: `job`. #}
+<span class="bomnado-ai-progress">
+    {% include "partial/ai_icon.html" with running=True %}
+    <strong>{{ job.progress|default:"Starting" }}&hellip;</strong>
+    <span class="text-muted">{{ job.seconds_running }}s{% if job.seconds_running > 90 %} - long documents and busy sites can take a few minutes{% endif %}</span>
+</span>

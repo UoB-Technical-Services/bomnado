@@ -31,6 +31,7 @@ from django.http import HttpResponse, HttpResponseRedirect, JsonResponse, HttpRe
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import Resolver404, reverse, reverse_lazy, resolve
 from django.utils.encoding import force_bytes
+from django.utils.html import escape
 from django.utils.http import urlsafe_base64_encode
 from django.views import View
 from django.views.decorators.clickjacking import xframe_options_exempt
@@ -38,10 +39,13 @@ from django.views.decorators.http import require_POST
 from django.views.generic.base import TemplateView, RedirectView
 
 from bom.forms import PartCreationForm, PartSourceFormset, SubAssemblyForm, SubAssemblyItemFormset, AttachmentForm, \
-    DealFormset, DealPartFormset, DealForm, UserAccountForm, NamedPieceFormset
+    DealFormset, DealPartFormset, DealForm, UserAccountForm, NamedPieceFormset, UserAISettingsForm
 from bom.models import Part, PartSource, SubAssembly, SubAssemblyLineItem, NamedPiece, Attachment, Team, Deal, PCBPart, \
-    PCBSubAssembly, Feedback, get_default_reference
+    PCBSubAssembly, Feedback, UserAISettings, AIJob, get_default_reference, AIThread, AIMessage
 from bom.utils import activity as activity_log
+from bom.ai import chat as ai_chat_module
+from bom.ai import client as ai_client
+from bom.ai import jobs as ai_jobs
 from bom.scrapers.amazon import AmazonScrape
 from bom.scrapers.rs import RSScrape
 from bom.scrapers.shopfour import Shop4Scrape
@@ -151,7 +155,7 @@ class PartEditorCreateView(LoginRequiredMixin, RedirectView):
                 raise PermissionDenied("You don't have access to this team")
 
         # Get URL/reference parameter
-        url = self.request.POST.get('url') or self.request.POST.get('reference')
+        url = (self.request.POST.get('url') or self.request.POST.get('reference') or '').strip()
 
         # Validate that the URL parameter is not empty
         if not url:
@@ -405,7 +409,7 @@ class PartDuplicateView(LoginRequiredMixin, View):
             source.part = part
             source.save()
 
-        # Copy the pieces (the new part gets its own `PARENT.SUFFIX` references).
+        # Copy the pieces (the new part gets its own `PARENT>SUFFIX` references).
         for piece in NamedPiece.objects.filter(part=old_id):
             piece_picture_path = piece.picture.path if piece.picture else None
             piece.pk = None
@@ -1034,6 +1038,8 @@ class TeamsView(LoginRequiredMixin, TemplateView):
             if key in self.request.session:
                 context[key] = self.request.session.pop(key)
 
+        from bom.ai.naming import DEFAULT_NAMING_GUIDE
+        context['default_naming_guide'] = DEFAULT_NAMING_GUIDE
         return context
 
 
@@ -1048,15 +1054,37 @@ class UserSettingsView(LoginRequiredMixin, TemplateView):
         context.setdefault('form', UserAccountForm(instance=self.request.user))
         context['teams'] = self.request.user.team_set.select_related('owner').order_by('name')
         context['success_message'] = self.request.session.pop('settings_success_message', None)
+
+        # AI assistant.
+        ai_settings = ai_client.settings_for(self.request.user)
+        context['ai_settings'] = ai_settings
+        context['ai_spend'] = ai_settings.spend_this_month() if ai_settings else 0
+        context.setdefault('ai_form', UserAISettingsForm(instance=ai_settings or UserAISettings(user=self.request.user)))
         return context
 
     def post(self, request, *args, **kwargs):
+        if request.POST.get('form_name') == 'ai':
+            return self._post_ai(request)
         form = UserAccountForm(request.POST, instance=request.user)
         if form.is_valid():
             form.save()
             request.session['settings_success_message'] = 'Account details saved.'
             return HttpResponseRedirect(reverse_lazy('bom:user_settings'))
         return self.render_to_response(self.get_context_data(form=form))
+
+    def _post_ai(self, request):
+        ai_settings = ai_client.settings_for(request.user) or UserAISettings(user=request.user)
+        if request.POST.get('remove_key'):
+            ai_settings.api_key = ''
+            ai_settings.save()
+            request.session['settings_success_message'] = 'AI API key removed.'
+            return HttpResponseRedirect(reverse_lazy('bom:user_settings') + '#ai-settings')
+        form = UserAISettingsForm(request.POST, instance=ai_settings)
+        if form.is_valid():
+            form.save()
+            request.session['settings_success_message'] = 'AI settings saved.'
+            return HttpResponseRedirect(reverse_lazy('bom:user_settings') + '#ai-settings')
+        return self.render_to_response(self.get_context_data(ai_form=form))
 
 
 class ToolProductionPhases(LoginRequiredMixin, TemplateView):
@@ -1619,3 +1647,246 @@ def activity_revert(request, model_name, pk, historical_model, history_id):
     obj = _activity_object(request, model_name, pk)
     activity_log.revert(obj, historical_model, history_id)
     return HttpResponseRedirect(f'{_activity_page_url(obj)}#activity')
+
+
+@login_required(login_url='/accounts/login/')
+@require_POST
+def ai_test_connection(request):
+    """ "Test connection" on the settings page: a one-line verdict, swapped in by htmx. """
+    try:
+        name = ai_client.test_connection(request.user)
+    except ai_client.AINotConfigured as error:
+        return HttpResponse(f'<span class="text-danger">{escape(error)}</span>')
+    except Exception as error:  # the SDK's typed errors all carry a readable message
+        return HttpResponse(f'<span class="text-danger">Could not connect: {escape(str(error)[:200])}</span>')
+    return HttpResponse(f'<span class="text-success">Connected - {escape(name)} is ready.</span>')
+
+
+# ---------------------------------------------------------------------------------------------
+# AI assistant: the chat window (see `bom.ai.chat`), its turns (`bom.ai.jobs`) and the naming guide.
+
+def _thread(request, thread_id):
+    thread = get_object_or_404(AIThread, pk=thread_id)
+    if not thread.can_access(request.user):
+        raise PermissionDenied("You don't have access to this conversation")
+    return thread
+
+
+def chat_context(request):
+    """ The record the window was opened over - `context=part:12` - as `{"kind", "id"}`, if it is real
+    and theirs; else `{}`. """
+    text = (request.POST.get('context') or request.GET.get('context') or '').strip()
+    kind, _, pk = text.partition(':')
+    model = {'part': Part, 'assembly': SubAssembly}.get(kind)
+    record = model.objects.filter(pk=pk).first() if model and pk.isdigit() else None
+    if record is None or not record.can_access(request.user):
+        return {}
+    return {'kind': kind, 'id': record.pk, 'reference': record.reference}
+
+
+def render_thread(request, thread, error='', messages_only=False):
+    """ The window's body for a thread: its messages, the running turn (polled), the composer. The
+    messages poll themselves while a turn runs and swap only themselves (`messages_only`). """
+    job = thread.latest_job if thread is not None else None
+    if job is not None:
+        job.reap_if_stale()
+    page = chat_context(request)
+    context = {'thread': thread, 'job': job, 'error': error, 'ai_ready': _ai_ready(request.user), 'page': page,
+               'messages': list(thread.messages.select_related('job')) if thread is not None else [],
+               'touched': (job.outcome or {}).get('touched', []) if job is not None and job.is_finished else [],
+               'suggestions': _suggestions(page)}
+    return render(request, 'partial/ai_chat_messages.html' if messages_only else 'partial/ai_chat_thread.html', context)
+
+
+def _suggestions(context):
+    """ Jumping-off points for an empty conversation, for the page it was opened over. """
+    reference = context.get('reference', '')
+    if context.get('kind') == 'part':
+        return [
+            {'label': 'Find other suppliers', 'send': True,
+             'prompt': f'Find other suppliers for `{reference}` and add the good ones, with unit prices ex VAT.'},
+            {'label': "Fill in from the suppliers' pages", 'send': True,
+             'prompt': f'Fill in `{reference}` from its supplier pages and attachments: spec, dimensions, weight, colour, '
+                       'manufacturer, part numbers and prices. Keep anything already filled in.'},
+            {'label': 'Draft QC steps', 'send': True,
+             'prompt': f'Draft quality-control steps for `{reference}` and set them on the part as a task list.'},
+        ]
+    if context.get('kind') == 'assembly':
+        return [
+            {'label': 'Check this BOM for gaps', 'send': True,
+             'prompt': f'Check the bill of materials of `{reference}`: anything missing, parts without a supplier or '
+                       'price, quantities that look wrong, deprecated parts. Report; fix only what is obvious.'},
+            {'label': 'Draft instructions', 'send': True,
+             'prompt': f'Draft assembly instructions for `{reference}` from its line items and set them on the assembly.'},
+        ]
+    return [
+        {'label': 'Create a part from a link', 'send': False, 'prompt': 'Create a part from this link: '},
+        {'label': 'Turn files into parts', 'send': False,
+         'prompt': 'Turn the attached files into parts. Search for existing parts first, follow the naming guide, and '
+                   'attach each file to the part it documents.'},
+        {'label': 'What needs reviewing?', 'send': True,
+         'prompt': 'Which parts and assemblies have open "requires human review" comments? List them with what changed.'},
+    ]
+
+
+def _ai_ready(user):
+    try:
+        ai_jobs.check_can_use(user)
+    except ai_client.AINotConfigured:
+        return False
+    return True
+
+
+@login_required(login_url='/accounts/login/')
+def ai_chat(request):
+    """ The window opening: `?thread=<id>` for a particular conversation, else the latest one (a fresh
+    window when there is none). """
+    thread = None
+    if request.GET.get('thread', '').isdigit():
+        thread = AIThread.objects.filter(pk=int(request.GET['thread']), user=request.user).first()
+    if thread is None and request.GET.get('thread') != 'new':
+        thread = AIThread.objects.filter(user=request.user).first()
+    return render_thread(request, thread)
+
+
+@login_required(login_url='/accounts/login/')
+def ai_chat_threads(request):
+    """ The list of conversations, for the window's menu. """
+    threads = AIThread.objects.filter(user=request.user)[:30]
+    return render(request, 'partial/ai_chat_threads.html', {'threads': threads})
+
+
+@login_required(login_url='/accounts/login/')
+@require_POST
+def ai_chat_send(request):
+    """ A message from the person: stored on the thread (a new one if there is none), with any files
+    as attachments, then answered by a job. Returns the thread, polling. """
+    thread = None
+    if request.POST.get('thread', '').isdigit():
+        thread = AIThread.objects.filter(pk=int(request.POST['thread']), user=request.user).first()
+    text = (request.POST.get('text') or '').strip()[:20000]
+    files = request.FILES.getlist('files')[:20]
+    if not text and not files:
+        return render_thread(request, thread, error='Say something, or drop a file in.')
+    try:
+        ai_jobs.check_can_use(request.user)
+    except ai_client.AINotConfigured as why:
+        return render_thread(request, thread, error=str(why))
+    context = chat_context(request)
+    if thread is None:
+        team = request.user.team_set.first()
+        if context:
+            record = (Part if context['kind'] == 'part' else SubAssembly).objects.get(pk=context['id'])
+            team = record.team
+        thread = AIThread.objects.create(user=request.user, team=team, context=context)
+    elif context != thread.context:
+        thread.context = context  # "this" now means the page they are on - or nothing, off a record's page
+        thread.save(update_fields=['context'])
+    job = thread.latest_job
+    if job is not None and job.reap_if_stale().is_running:
+        return render_thread(request, thread, error='Wait for the current answer, or stop it.')
+
+    blocks = [ai_chat_module.context_placeholder(context)]
+    for upload in files:
+        attachment = Attachment(content_object=thread)
+        attachment.attachment_file.save(upload.name, upload)
+        blocks.append(ai_chat_module.file_placeholder(attachment))
+    blocks.append({'type': 'text', 'text': text or 'I have added these files.'})
+    AIMessage.objects.create(thread=thread, role='user', content=blocks)
+    try:
+        ai_jobs.start(thread)
+    except ai_client.AINotConfigured as why:
+        return render_thread(request, thread, error=str(why))
+    return render_thread(request, thread)
+
+
+@login_required(login_url='/accounts/login/')
+def ai_chat_status(request, thread_id):
+    """ The messages, polled by the window while a turn runs. """
+    return render_thread(request, _thread(request, thread_id), messages_only=True)
+
+
+@login_required(login_url='/accounts/login/')
+@require_POST
+def ai_chat_stop(request, thread_id):
+    thread = _thread(request, thread_id)
+    job = thread.latest_job
+    if job is not None:
+        ai_jobs.cancel(job)
+    return render_thread(request, thread, messages_only=True)
+
+
+@login_required(login_url='/accounts/login/')
+@require_POST
+def ai_chat_retry(request, thread_id):
+    """ Answer the last message again: the failed turn's messages go, a new job starts. """
+    thread = _thread(request, thread_id)
+    job = thread.latest_job
+    if job is not None and job.reap_if_stale().is_running:
+        return render_thread(request, thread, error='It is still running.', messages_only=True)
+    if job is not None and job.status == AIJob.STATUS_FAILED:
+        thread.messages.filter(job=job).delete()
+    try:
+        ai_jobs.start(thread)
+    except ai_client.AINotConfigured as why:
+        return render_thread(request, thread, error=str(why), messages_only=True)
+    return render_thread(request, thread, messages_only=True)
+
+
+@login_required(login_url='/accounts/login/')
+@require_POST
+def ai_chat_delete(request, thread_id):
+    thread = _thread(request, thread_id)
+    job = thread.latest_job
+    if job is not None:
+        ai_jobs.cancel(job)
+    thread.delete()
+    return render_thread(request, None)
+
+
+@login_required(login_url='/accounts/login/')
+@require_POST
+def ai_job_cancel(request, job_id):
+    """ Stop, from the activity page. """
+    job = get_object_or_404(AIJob, pk=job_id)
+    if not job.can_access(request.user):
+        raise PermissionDenied("You don't have access to this job")
+    ai_jobs.cancel(job)
+    return HttpResponseRedirect(reverse_lazy('bom:ai_jobs'))
+
+
+class AIJobsView(LoginRequiredMixin, TemplateView):
+    """ What the AI is doing for this user, and has done: running turns with Stop, then recent ones. """
+    login_url = '/accounts/login/'
+    template_name = 'pages/ai_jobs.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        jobs = [job.reap_if_stale() for job in AIJob.objects.filter(user=self.request.user, cleared=False)[:50]]
+        context['running'] = [job for job in jobs if job.is_running]
+        context['recent'] = [job for job in jobs if not job.is_running][:30]
+        context['ai_settings'] = ai_client.settings_for(self.request.user)
+        return context
+
+
+@login_required(login_url='/accounts/login/')
+@require_POST
+def ai_jobs_clear(request):
+    """ Clear the activity list: finished jobs are hidden (they still count towards the month's spend). """
+    AIJob.objects.filter(user=request.user, cleared=False).exclude(
+        status__in=[AIJob.STATUS_QUEUED, AIJob.STATUS_RUNNING]).update(cleared=True)
+    return HttpResponseRedirect(reverse_lazy('bom:ai_jobs'))
+
+
+class TeamNamingGuideView(LoginRequiredMixin, RedirectView):
+    """ The team owner's reference naming guide (see `bom.ai.naming`). POST only. """
+    login_url = '/accounts/login/'
+
+    def post(self, request, *args, **kwargs):
+        team = get_object_or_404(Team, pk=kwargs['pk'])
+        if not team.is_owner(request.user):
+            raise PermissionDenied('Only the team owner can change the naming guide.')
+        team.naming_guide = (request.POST.get('naming_guide') or '').strip()[:20000]
+        team.save()
+        request.session['success_message'] = f'Naming guide for {team.name} saved.'
+        return redirect(reverse_lazy('bom:teams'))

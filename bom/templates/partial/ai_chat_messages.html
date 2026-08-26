@@ -1,0 +1,62 @@
+{# The messages of a conversation. Polled (swapped whole) every second while a turn runs. #}
+{# Context: `thread`, `job`, `messages`, `touched`, `suggestions`. #}
+{% load ai_tags %}
+{% load markdown_render %}
+<div id="aiChatMessages" class="bomnado-ai-chat-messages" data-running="{% if job.is_running %}1{% endif %}"
+    data-touched="{% for t in touched %}{{ t.model }}:{{ t.id }} {% endfor %}"
+    {% if job.is_running %}hx-get="{% url 'bom:ai_chat_status' thread.id %}" hx-trigger="every 1s" hx-swap="outerHTML"{% endif %}>
+    {% if not messages %}
+    <div class="bomnado-ai-chat-empty">
+        <p class="mb-2">I can look things up, create and change parts and assemblies, read links and files, and search the web for suppliers. Everything I change is flagged for review and can be reverted.</p>
+        {% for suggestion in suggestions %}
+        <button type="button" class="btn btn-sm btn-outline-ai mb-1 mr-1" data-ai-prompt="{{ suggestion.prompt }}" {% if suggestion.send %}data-ai-send="1"{% endif %}>{{ suggestion.label }}</button>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% for message in messages %}
+        {% if message.role == 'user' and not message.is_tool_result %}
+        <div class="bomnado-ai-chat-msg is-user">
+            {% for file in message.files %}<span class="badge badge-light">&#128206; {{ file.filename }}</span> {% endfor %}
+            <div class="bomnado-ai-chat-text">{{ message.text|linebreaksbr }}</div>
+        </div>
+        {% elif message.role == 'user' %}
+        <div class="bomnado-ai-chat-tools">
+            {% for call in message|ai_tool_calls %}
+            <span class="bomnado-ai-chat-chip{% if call.error %} is-error{% elif call.writes %} is-write{% endif %}" title="{{ call.error|default:call.name }}">{{ call.summary }}{% if call.error %} &middot; failed{% endif %}</span>
+            {% endfor %}
+        </div>
+        {% else %}
+        {% with uses=message|ai_web_uses %}
+        {% if uses %}<div class="bomnado-ai-chat-tools">{% for use in uses %}<span class="bomnado-ai-chat-chip is-web">{{ use }}</span>{% endfor %}</div>{% endif %}
+        {% endwith %}
+        {% if message.text %}
+        <div class="bomnado-ai-chat-msg is-ai">
+            <div class="bomnado-ai-chat-text bomnado-markdown">{{ message.text|as_markdown:None|ai_new_tab|safe }}</div>
+        </div>
+        {% endif %}
+        {% endif %}
+    {% endfor %}
+    {% if job.is_running %}
+    <div class="bomnado-ai-chat-progress">
+        {% include "partial/ai_icon.html" with running=True %}
+        <span>{{ job.progress|default:"Starting" }}&hellip;</span>
+        <span class="text-muted">{{ job.seconds_running }}s</span>
+        <button type="button" class="btn btn-sm btn-outline-danger py-0 ml-auto" hx-post="{% url 'bom:ai_chat_stop' thread.id %}"
+            hx-target="#aiChatMessages" hx-swap="outerHTML">Stop</button>
+    </div>
+    {% elif job.status == 'failed' %}
+    <div class="bomnado-ai-chat-error">
+        <span>{{ job.error }}</span>
+        <button type="button" class="btn btn-sm btn-outline-ai py-0 ml-2" hx-post="{% url 'bom:ai_chat_retry' thread.id %}"
+            hx-target="#aiChatMessages" hx-swap="outerHTML">Try again</button>
+    </div>
+    {% endif %}
+    {% if touched %}
+    <div class="bomnado-ai-chat-touched">
+        {% for t in touched %}<a class="bomnado-ai-chat-chip is-link" href="{% if t.model == 'subassembly' %}{% url 'bom:assembly_editor_update' t.id %}{% else %}{% url 'bom:part_editor_update' t.id %}{% endif %}" title="{{ t.what }}">{{ t.reference }}</a>{% endfor %}
+        <a href="#" class="bomnado-ai-chat-reload small" hidden onclick="window.location.reload(); return false;">This page changed &middot; reload</a>
+    </div>
+    {% endif %}
+    {% if error %}<div class="bomnado-ai-chat-error"><span>{{ error }}</span></div>{% endif %}
+    {% if job and job.is_finished and job.cost %}<div class="bomnado-ai-chat-cost text-muted">{{ job.seconds_running }}s &middot; ${{ job.cost|floatformat:3 }}</div>{% endif %}
+</div>
