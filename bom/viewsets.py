@@ -1,10 +1,10 @@
 from collections import Counter
 from urllib.parse import urlparse
 
-from django.core.cache import cache
 from django.shortcuts import get_object_or_404
 
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 
 from rest_framework import viewsets, status, serializers as drf_serializers
 
@@ -22,21 +22,40 @@ class PartViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.PartSerializer
     permission_classes = [IsAuthenticated, IsTeamMember]
 
+    """ Most rows an autocomplete query returns. """
+    SEARCH_LIMIT = 20
+
     def get_queryset(self):
-        # Unique key for the team.
         teams = self.request.user.team_set.values_list('id')
-        cache_key = f'parts_for_user_{self.request.user.id}'
+        return models.Part.objects.filter(team__in=teams).prefetch_related('sources')
 
-        # Return cached data if it exists.
-        cached_data = cache.get(cache_key)
-        if cached_data:
-            return cached_data
+    @action(methods=['get'], detail=False)
+    def search(self, request):
+        """ Lightweight autocomplete: `?search=TERM` -> at most SEARCH_LIMIT slim rows.
 
-        # Perform the query, prefetch related items, and cache for 5 minutes.
-        queryset = models.Part.objects.filter(team__in=teams)
-        queryset.prefetch_related("sources")
-        cache.set(cache_key, queryset, 60 * 5)
-        return queryset
+        Matching, in order of preference:
+          1. reference starts with the term;
+          2. the term is `PARENT.SUFFIX` syntax - reference starts with the part
+             before the dot (so typing `CHASSIS.TOP` offers `CHASSIS`);
+          3. reference or name contains the term.
+        """
+        term = request.query_params.get('search', '').strip()
+        parts = models.Part.objects.filter(team__in=request.user.team_set.values_list('id')).only(
+            'id', 'reference', 'name', 'picture', 'deprecated', 'sale_code', 'review_notes').order_by('reference')
+
+        def top(queryset):
+            return list(queryset[:self.SEARCH_LIMIT])
+
+        if not term:
+            results = top(parts)
+        else:
+            results = top(parts.filter(reference__istartswith=term))
+            if not results and '.' in term:
+                results = top(parts.filter(reference__istartswith=term.split('.', 1)[0]))
+            if not results:
+                results = top(parts.filter(Q(reference__icontains=term) | Q(name__icontains=term)))
+
+        return Response(serializers.PartSearchSerializer(results, many=True, context={'request': request}).data)
 
 
 class PartSourceViewSet(viewsets.ModelViewSet):

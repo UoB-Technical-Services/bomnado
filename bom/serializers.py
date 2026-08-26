@@ -19,6 +19,19 @@ class PartSerializer(serializers.ModelSerializer):
         )
 
 
+class PartSearchSerializer(serializers.ModelSerializer):
+    """ The few fields an autocomplete row needs. Keep this small: it is sent for
+    every keystroke. """
+    picture_url = serializers.SerializerMethodField()
+
+    def get_picture_url(self, obj):
+        return obj.picture_url
+
+    class Meta:
+        model = models.Part
+        fields = ('id', 'reference', 'name', 'picture_url', 'deprecated', 'sale_code', 'review_notes')
+
+
 class PartSourceSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.PartSource
