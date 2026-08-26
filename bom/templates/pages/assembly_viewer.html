@@ -157,6 +157,19 @@
                     <tr><td>Updated</td><td>{{ assembly.updated|date:"M d Y" }}</td></tr>
                     <tr><td>Printed</td><td>{% now "M d Y" %}</td></tr>
                     <tr>
+                        <td>Forked</td>
+                        <td>
+                            {% if assembly.forked %}
+                            <kbd class="assembly">
+                                <a title="{{ assembly.forked.reference }}" href="{% url "bom:assembly_editor_update" pk=assembly.forked.id %}">
+                                {{ assembly.forked.reference }}</a>
+                            </kbd>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
                         <td>Deprecated</td>
                         <td>
                             {% if assembly.deprecated|date_in_past %}

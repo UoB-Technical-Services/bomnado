@@ -469,6 +469,11 @@ class SubAssembly(models.Model):
         return not user.is_anonymous and self.team in user.team_set.all()
 
     @property
+    def forked(self):
+        """Return the original assembly this was forked from, if any."""
+        return self.original
+
+    @property
     def picture_url(self):
         """ Return the URL for the picture, or a placeholder if none exists. """
         if self.picture:
@@ -524,7 +529,7 @@ class SubAssembly(models.Model):
         descendants = self.get_all_descendants()
         return potential_parent_id in descendants
 
-    def copy_tree(self):
+    def copy_tree(self, new_reference=None):
         """Create a deep copy of this project tree, preserving shared child structure."""
         if not self.is_toplevel:
             raise ValidationError('Only top-level assemblies can be forked.')
@@ -587,8 +592,11 @@ class SubAssembly(models.Model):
 
         source_root = SubAssembly.objects.get(pk=self.pk)
         copied_root = clone_assembly(source_root, None)
+        if new_reference:
+            copied_root.reference = new_reference
         copied_root.project = copied_root
-        copied_root.save(update_fields=['project'])
+        copied_root.full_clean()
+        copied_root.save(update_fields=['reference', 'project'])
 
         copied_nodes = list(copied_by_source_id.values())
         for copied in copied_nodes:

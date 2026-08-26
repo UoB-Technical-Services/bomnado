@@ -167,6 +167,15 @@ class SubAssemblyForkTests(TestCase):
             1
         )
 
+    def test_copy_tree_uses_target_reference_for_fork_root(self):
+        copied_root = self.root.copy_tree(new_reference='PROJECT-A-FORK')
+
+        self.assertEqual(copied_root.reference, 'PROJECT-A-FORK')
+        self.assertEqual(copied_root.forked, self.root)
+
+        copied_branch = models.SubAssembly.objects.get(project=copied_root, original=self.branch_a)
+        self.assertEqual(copied_branch.forked, self.branch_a)
+
     def test_copy_tree_copies_attachments(self):
         copied_root = self.root.copy_tree()
         copied_shared = models.SubAssembly.objects.get(project=copied_root, original=self.shared)
