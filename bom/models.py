@@ -298,7 +298,7 @@ class PartSource(models.Model):
             cost, recieved = src.cost_quantity_for(quantity, include_shipping)
             return cost / recieved
 
-        return sorted(sources, key=_evaluate_buy_cost, reverse=True)
+        return sorted(sources, key=_evaluate_buy_cost)
 
 
 class SubAssembly(models.Model):
@@ -389,7 +389,7 @@ class SubAssembly(models.Model):
         """ Collect a list of line items that have sales codes. """
         return [line for line in self.line_items.all() if line.item.sale_code]
 
-    def collect_and_count_parts(self, parts, assemblies):
+    def collect_and_count_parts(self, parts, assemblies, multiplier=1):
         """
         Traverse the assembly tree and count the uses of each part and assembly.
 
@@ -398,19 +398,23 @@ class SubAssembly(models.Model):
             parts = Counter()
             assemblies = Counter()
             root.collect_and_count_parts(parts, assemblies)
+
+        :param multiplier: How many of *this* assembly are being built. Quantities
+            are multiplied down the tree rather than the tree being walked once per
+            unit, so the cost is proportional to the number of line items, not the
+            number of units.
         """
-        # For all line items.
-        for line in self.line_items.all():
+        for line in self.line_items.select_related('child_part', 'child_subassembly'):
+            count = line.quantity * multiplier
 
             # Count each part.
             if line.child_part:
-                parts[line.child_part] += line.quantity
+                parts[line.child_part] += count
 
-            # Count each sub-assembly and sub-parts the required number of times
+            # Count each sub-assembly, then everything inside it that many times over.
             if line.child_subassembly:
-                for count in range(line.quantity):
-                    assemblies[line.child_subassembly] += 1
-                    line.child_subassembly.collect_and_count_parts(parts, assemblies)
+                assemblies[line.child_subassembly] += count
+                line.child_subassembly.collect_and_count_parts(parts, assemblies, count)
 
     @property
     def kgs(self):
