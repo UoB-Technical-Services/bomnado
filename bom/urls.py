@@ -39,6 +39,7 @@ urlpatterns = [
     # Assembly
     path('assembly/new', views.AssemblyEditorCreateView.as_view(), name='assembly_editor_create'),
     path('assembly', views.DashboardView.as_view(), name='assembly_editor'),
+    path('assembly/duplicate', views.SubAssemblyDuplicateView.as_view(), name='assembly_duplicate'),
 
     re_path(r'^assembly/(?P<pk>([0-9]+))/export/xlsx', views.export_bom_as_xlsx, name='export_xlsx'),
     re_path(r'^assembly/(?P<pk>([0-9]+))/export/purchasing', views.export_purchasing, name='export_purchasing'),

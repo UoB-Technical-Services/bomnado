@@ -10,6 +10,7 @@ from django.core.exceptions import ValidationError
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.core.files.storage import FileSystemStorage
+from django.core.files.base import ContentFile
 from django.core.validators import RegexValidator
 from django.db import models
 from django.urls import reverse
@@ -313,7 +314,6 @@ class SubAssembly(models.Model):
 
     """ Unique sub-assembly reference. For example: `CHASSIS`. """
     reference = models.CharField(
-        unique=True,
         max_length=100,
         validators=[validate_reference()],
         default=get_default_reference,
@@ -372,6 +372,16 @@ class SubAssembly(models.Model):
     """ The top level assembly i.e. the project that this subassembly is associated with"""
     project = models.ForeignKey(
         'self', on_delete=models.SET_DEFAULT, default=None, verbose_name='Project', related_name='children', null=True)
+
+    """ If this assembly was copied, the original source assembly it was copied from. """
+    original = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='forks',
+        db_index=True
+    )
 
     @property
     def is_orphan(self):
@@ -513,6 +523,80 @@ class SubAssembly(models.Model):
         # If the potential parent is already a descendant of this assembly, it would create a cycle
         descendants = self.get_all_descendants()
         return potential_parent_id in descendants
+
+    def copy_tree(self):
+        """Create a deep copy of this project tree, preserving shared child structure."""
+        if not self.is_toplevel:
+            raise ValidationError('Only top-level assemblies can be forked.')
+
+        copied_by_source_id = {}
+        source_to_children = {}
+        source_to_parts = {}
+
+        line_items = SubAssemblyLineItem.objects.filter(subassembly__project=self.project).select_related(
+            'subassembly', 'child_subassembly', 'child_part'
+        )
+        for line in line_items:
+            if line.child_subassembly:
+                source_to_children.setdefault(line.subassembly_id, []).append(line)
+            else:
+                source_to_parts.setdefault(line.subassembly_id, []).append(line)
+
+        def clone_assembly(source, copied_root):
+            existing = copied_by_source_id.get(source.id)
+            if existing:
+                return existing
+
+            source_pk = source.pk
+            source_picture_path = source.picture.path if source.picture else None
+            is_root = source_pk == self.pk
+
+            source.pk = None
+            source.picture = None
+            source.is_toplevel = is_root
+            source.original_id = source_pk
+            source.project = copied_root
+            source.save()
+
+            if source_picture_path and os.path.exists(source_picture_path):
+                with open(source_picture_path, 'rb') as fh:
+                    with ContentFile(fh.read()) as file_content:
+                        source.picture.save(os.path.basename(source_picture_path), file_content)
+
+            copied_by_source_id[source_pk] = source
+            Attachment.copy_attachments_to_object(source_obj=SubAssembly.objects.get(pk=source_pk), target_obj=source)
+
+            for part_line in source_to_parts.get(source_pk, []):
+                SubAssemblyLineItem.objects.create(
+                    subassembly=source,
+                    child_part=part_line.child_part,
+                    quantity=part_line.quantity,
+                    notes=part_line.notes,
+                )
+
+            for assembly_line in source_to_children.get(source_pk, []):
+                copied_child = clone_assembly(assembly_line.child_subassembly, copied_root)
+                SubAssemblyLineItem.objects.create(
+                    subassembly=source,
+                    child_subassembly=copied_child,
+                    quantity=assembly_line.quantity,
+                    notes=assembly_line.notes,
+                )
+
+            return source
+
+        source_root = SubAssembly.objects.get(pk=self.pk)
+        copied_root = clone_assembly(source_root, None)
+        copied_root.project = copied_root
+        copied_root.save(update_fields=['project'])
+
+        copied_nodes = list(copied_by_source_id.values())
+        for copied in copied_nodes:
+            if copied.pk != copied_root.pk:
+                copied.project = copied_root
+                copied.save(update_fields=['project'])
+
+        return copied_root
 
     def clean(self):
         super().clean()
@@ -659,6 +743,22 @@ class Attachment(models.Model):
     def filename(self):
         """ Get the filename and extension but excluding the path on disk. """
         return os.path.split(self.attachment_file.name)[1]
+
+    @classmethod
+    def copy_attachments_to_object(cls, source_obj, target_obj):
+        """Copy attachments from source object to target object with new file instances."""
+        source_attachments = cls.objects.attachments_for_object(source_obj)
+        for source_attachment in source_attachments:
+            copied_attachment = cls(content_object=target_obj)
+
+            with source_attachment.attachment_file.open('rb') as fh:
+                copied_attachment.attachment_file.save(
+                    source_attachment.filename,
+                    ContentFile(fh.read()),
+                    save=False
+                )
+
+            copied_attachment.save()
 
 
 class Deal(models.Model):
