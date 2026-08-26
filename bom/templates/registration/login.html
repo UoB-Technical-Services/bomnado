@@ -1,31 +1,25 @@
-{%extends "registration/base.html"%}
-{% load static %}
-{% load part_filters %}
-{% load kwacros %}
+{% extends "registration/base.html" %}
 
-{%  block body %}
+{% block title %}<title>Sign in / Bomnado</title>{% endblock %}
 
-
-    <section class="app-body app-viewport">
-
-        <div class="text-center mt-5">
-            <form class="form-signin" method="post">
-                <h1 class="h3 mb-3 font-weight-normal">Please sign in</h1>
-
-                {% csrf_token %}
-
-                <label for="inputEmail" class="sr-only">Email address</label>
-                <input type="email" id="{{ form.username.id }}" name="{{ form.username.name }}" class="form-control" placeholder="Email Address" required autofocus>
-
-                <label for="inputPassword" class="sr-only">Password</label>
-                <input type="password" id="{{ form.password.id }}" name="{{ form.password.name }}" class="form-control" placeholder="Password" required>
-
-                <button class="btn btn-lg btn-primary btn-block" type="submit">Sign in</button>
-                <br/>
-                <a href="{% url "password_reset" %}">Forgot your password?</a>
-            </form>
-        </div>
-
-    </section>
-
+{% block body %}
+<h1>Sign in</h1>
+<p class="bn-auth-lead">With the email address you were invited with.</p>
+{% if form.errors %}
+<div class="alert alert-danger" role="alert">That email address and password did not match. Both are case-sensitive.</div>
+{% endif %}
+<form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ next }}">
+    <div class="form-group">
+        <label class="bn-label" for="{{ form.username.id_for_label }}">Email address</label>
+        <input type="email" id="{{ form.username.id_for_label }}" name="{{ form.username.html_name }}" class="form-control" autocomplete="username" required autofocus>
+    </div>
+    <div class="form-group">
+        <label class="bn-label" for="{{ form.password.id_for_label }}">Password</label>
+        <input type="password" id="{{ form.password.id_for_label }}" name="{{ form.password.html_name }}" class="form-control" autocomplete="current-password" required>
+    </div>
+    <button class="btn btn-primary btn-block" type="submit">Sign in</button>
+</form>
+<p class="bn-auth-links"><a href="{% url "password_reset" %}">Forgotten your password?</a></p>
 {% endblock %}

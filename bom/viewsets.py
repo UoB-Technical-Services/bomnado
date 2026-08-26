@@ -41,8 +41,8 @@ class PartViewSet(viewsets.ModelViewSet):
         """
         term = request.query_params.get('search', '').strip()
         parts = models.Part.objects.filter(team__in=request.user.team_set.values_list('id')).only(
-            'id', 'reference', 'name', 'picture', 'deprecated', 'sale_code', 'has_open_feedback').order_by(
-            'reference').prefetch_related('named_pieces')
+            'id', 'reference', 'name', 'picture', 'deprecated', 'sale_code', 'colour', 'has_open_feedback', 'kgs', 'dimensions').order_by(
+            'reference').prefetch_related('named_pieces', 'sources')
 
         def top(queryset):
             return list(queryset[:self.SEARCH_LIMIT])

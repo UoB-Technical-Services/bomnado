@@ -1,0 +1,45 @@
+{# The parts list. The search box is kept across searches (so it keeps focus); the results below it are swapped. #}
+{# Context: `page` (Paginator page of (part, status)), `query`, `which`, `selected`, `selected_key`. #}
+<div id="library_list" class="bn-library-list">
+    <div class="bn-library-search">
+        <input type="search" name="q" value="{{ query }}" class="form-control" placeholder="Search parts" autocomplete="off" aria-label="Search parts"
+               hx-get="{% url 'bom:library_parts' %}" hx-trigger="input changed delay:300ms, search, refresh" hx-include="#library_list [name=which], #library_list [name=selected]"
+               hx-target="#library_results" hx-select="#library_results" hx-swap="outerHTML">
+        <input type="hidden" name="which" value="{{ which }}">
+        <input type="hidden" name="selected" value="{{ selected_key }}">
+    </div>
+    <div id="library_results" hx-target="#library_results" hx-select="#library_results" hx-swap="outerHTML">
+        <div class="bn-library-filters" role="group" aria-label="Filter">
+            <a href="#" class="bn-pill {% if which == 'all' %}active{% endif %}" hx-get="{% url 'bom:library_parts' %}?which=all&q={{ query|urlencode }}&selected={{ selected_key }}">All</a>
+            <a href="#" class="bn-pill {% if which == 'attention' %}active{% endif %}" hx-get="{% url 'bom:library_parts' %}?which=attention&q={{ query|urlencode }}&selected={{ selected_key }}"><span class="bn-dot is-bad"></span>Needs review</a>
+            <a href="#" class="bn-pill {% if which == 'missing' %}active{% endif %}" hx-get="{% url 'bom:library_parts' %}?which=missing&q={{ query|urlencode }}&selected={{ selected_key }}"><span class="bn-dot is-warn"></span>Missing data</a>
+        </div>
+        <div class="bn-library-rows">
+            {% for part, status in page %}
+            <a class="bn-row {% if part.id == selected.id %}is-selected{% endif %}" href="{% url 'bom:part_editor_update' pk=part.id %}" {% if part.id == selected.id %}aria-current="page"{% endif %}
+               hx-get="{% url 'bom:part_editor_update' pk=part.id %}" hx-target="#app_main" hx-select="#app_main" hx-swap="outerHTML show:top" hx-push-url="true">
+                <img class="bn-thumb" src="{{ part.picture_url }}" alt="" loading="lazy">
+                <span class="bn-row-text">
+                    <span class="bn-row-ref bn-ref is-part">{{ part.reference }}</span>
+                    <span class="bn-row-name">{{ part.name }}</span>
+                </span>
+                {% if not status.quiet %}<span class="bn-status is-{{ status.tone }}" title="{% if status.missing %}Missing: {{ status.missing|join:', ' }}{% else %}{{ status.label }}{% endif %}">{{ status.label }}</span>{% endif %}
+            </a>
+            {% empty %}
+            <div class="bn-library-empty">{% if query or which != 'all' %}Nothing matches.{% else %}No parts yet.{% endif %}</div>
+            {% endfor %}
+        </div>
+        {% if page.paginator.num_pages > 1 %}
+        <div class="bn-library-pager">
+            <span class="text-muted">{{ page.start_index }}&ndash;{{ page.end_index }} of {{ page.paginator.count }}</span>
+            <span>
+                {% if page.has_previous %}<a href="#" class="bn-pager-btn" hx-get="{% url 'bom:library_parts' %}?which={{ which }}&q={{ query|urlencode }}&selected={{ selected_key }}&page={{ page.previous_page_number }}" aria-label="Previous page">&lsaquo;</a>{% endif %}
+                <span class="bn-pager-num">{{ page.number }} / {{ page.paginator.num_pages }}</span>
+                {% if page.has_next %}<a href="#" class="bn-pager-btn" hx-get="{% url 'bom:library_parts' %}?which={{ which }}&q={{ query|urlencode }}&selected={{ selected_key }}&page={{ page.next_page_number }}" aria-label="Next page">&rsaquo;</a>{% endif %}
+            </span>
+        </div>
+        {% else %}
+        <div class="bn-library-pager"><span class="text-muted">{{ page.paginator.count }} part{{ page.paginator.count|pluralize }}</span></div>
+        {% endif %}
+    </div>
+</div>

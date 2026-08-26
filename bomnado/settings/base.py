@@ -101,6 +101,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'bom.context_processors.security_settings',
+                'bom.context_processors.ui',
             ],
         },
     },

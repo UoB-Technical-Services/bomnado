@@ -13,3 +13,10 @@ def security_settings(request):
     return {
         'SHOW_KEY_WARNING': show_warning,
     }
+
+
+def ui(request):
+    """ Constants the templates and scripts share, so one value is defined once. """
+    import json
+    from bom.library import MARKS
+    return {'MARKS': MARKS, 'MARKS_JSON': json.dumps(MARKS)}

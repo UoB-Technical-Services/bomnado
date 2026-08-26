@@ -1,0 +1,61 @@
+{% extends "partial/app.html" %}
+{% load ai_tags %}
+{% load library_tags %}
+{# The editor skeleton both the part and the assembly editors extend: the library on the left, a sticky header #}
+{# (breadcrumb, title, status, actions, a "More" menu, jump links), alerts, the form's sections, and what sits #}
+{# after the form (history). A page supplies the blocks; it never repeats the frame. #}
+{#   editor_form_open   - the <form ...> opening tag (action, hx-post, target) #}
+{#   editor_crumbs      - breadcrumb items after the list link #}
+{#   editor_title / editor_badges / editor_buttons / editor_more / editor_jumps #}
+{#   editor_alerts      - warnings under the header #}
+{#   editor_sections    - the sections inside the form #}
+{#   editor_after       - sections outside the form (history) #}
+{#   page_data          - data-page="..." and the data attributes the page's module (app/pages/) reads #}
+
+{% block shell_class %}has-library{% endblock %}
+
+{% block content-right %}
+{% ai_status as ai %}
+<div class="app-page bn-editor" id="{% block editor_id %}editor{% endblock %}">
+    {% block editor_form_open %}{% endblock %}
+        {% csrf_token %}
+        {% for hidden_field in form.hidden_fields %}{{ hidden_field }}{% endfor %}
+
+        <header class="bn-editor-head" id="editorHead">
+            <div class="bn-crumbs">{% block editor_crumbs %}{% endblock %}</div>
+            <div class="bn-editor-title-row">
+                <h1 class="bn-editor-title">{% block editor_title %}{% endblock %}</h1>
+                {% block editor_badges %}{% endblock %}
+                <div class="bn-editor-actions">
+                    <span class="bn-unsaved" id="editorUnsaved" hidden>Unsaved changes</span>
+                    <div class="dropdown d-inline-block">
+                        <button type="button" class="btn btn-outline-secondary bn-more" id="editorMore" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="More actions" aria-label="More actions">&#8943;</button>
+                        <div class="dropdown-menu" aria-labelledby="editorMore">
+                            {% block editor_more %}{% endblock %}
+                        </div>
+                    </div>
+                    {% block editor_buttons %}{% endblock %}
+                    <button type="button" class="btn btn-outline-secondary" id="editorDiscard" disabled>Discard</button>
+                    <button type="submit" class="btn btn-primary" id="editorSave">Save changes</button>
+                </div>
+            </div>
+            <nav class="bn-jump" aria-label="Jump to section">
+                <span class="bn-jump-label">Jump to:</span>
+                {% block editor_jumps %}{% endblock %}
+            </nav>
+        </header>
+
+        {% block editor_alerts %}{% endblock %}
+        {% if form.non_field_errors or form.errors %}
+        <div class="alert alert-danger" role="alert">
+            {% for error in form.non_field_errors %}{{ error }} {% endfor %}
+            {% if form.errors %}<strong>Please correct the errors below.</strong>{% endif %}
+        </div>
+        {% endif %}
+
+        {% block editor_sections %}{% endblock %}
+    </form>
+
+    {% block editor_after %}{% endblock %}
+</div>
+{% endblock %}

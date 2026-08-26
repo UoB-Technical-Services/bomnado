@@ -1,0 +1,27 @@
+{# Search results for the overlay: parts, then assemblies, each row a link. Context: `query`, `parts`, `assemblies` ((record, status) pairs). #}
+{% if not query %}
+<div class="bn-search-hint">Type a reference, a name or a manufacturer. <kbd>&uarr;</kbd> <kbd>&darr;</kbd> to move, <kbd>Enter</kbd> to open.</div>
+{% elif not parts and not assemblies %}
+<div class="bn-search-hint">Nothing matches &ldquo;{{ query }}&rdquo;.</div>
+{% else %}
+{% if parts %}
+<div class="bn-search-group">Parts</div>
+{% for part, status in parts %}
+<a class="bn-search-row" href="{% url 'bom:part_editor_update' pk=part.id %}">
+    <img class="bn-thumb" src="{{ part.picture_url }}" alt="" loading="lazy">
+    <span class="bn-row-text"><span class="bn-row-ref bn-ref is-part">{{ part.reference }}</span><span class="bn-row-name">{{ part.name }}</span></span>
+    {% if not status.quiet %}<span class="bn-status is-{{ status.tone }}">{{ status.label }}</span>{% endif %}
+</a>
+{% endfor %}
+{% endif %}
+{% if assemblies %}
+<div class="bn-search-group">Assemblies</div>
+{% for assembly, status in assemblies %}
+<a class="bn-search-row" href="{% url 'bom:assembly_editor_update' pk=assembly.id %}">
+    <img class="bn-thumb" src="{{ assembly.picture_url }}" alt="" loading="lazy">
+    <span class="bn-row-text"><span class="bn-row-ref"><span class="bn-ref is-assembly">{{ assembly.reference }}</span>{% if assembly.is_toplevel %} <span class="bn-tag">project</span>{% endif %}</span><span class="bn-row-name">{{ assembly.name }}</span></span>
+    {% if not status.quiet %}<span class="bn-status is-{{ status.tone }}">{{ status.label }}</span>{% endif %}
+</a>
+{% endfor %}
+{% endif %}
+{% endif %}

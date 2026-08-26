@@ -16,7 +16,7 @@
     {% for message in messages %}
         {% if message.role == 'user' and not message.is_tool_result %}
         <div class="bomnado-ai-chat-msg is-user">
-            {% for file in message.files %}<span class="badge badge-light">&#128206; {{ file.filename }}</span> {% endfor %}
+            {% if message.files %}<div class="bomnado-ai-chat-sent-files">{% for file in message.files %}<span class="bomnado-ai-chat-sent-file">{{ file.filename }}</span>{% endfor %}</div>{% endif %}
             <div class="bomnado-ai-chat-text">{{ message.text|linebreaksbr }}</div>
         </div>
         {% elif message.role == 'user' %}
@@ -53,7 +53,7 @@
     {% endif %}
     {% if touched %}
     <div class="bomnado-ai-chat-touched">
-        {% for t in touched %}<a class="bomnado-ai-chat-chip is-link" href="{% if t.model == 'subassembly' %}{% url 'bom:assembly_editor_update' t.id %}{% else %}{% url 'bom:part_editor_update' t.id %}{% endif %}" title="{{ t.what }}">{{ t.reference }}</a>{% endfor %}
+        {% for t in touched %}<a class="bn-ref is-{% if t.model == 'subassembly' %}assembly{% else %}part{% endif %} mr-2" href="{% if t.model == 'subassembly' %}{% url 'bom:assembly_editor_update' t.id %}{% else %}{% url 'bom:part_editor_update' t.id %}{% endif %}" title="{{ t.what }}">{{ t.reference }}</a>{% endfor %}
         <a href="#" class="bomnado-ai-chat-reload small" hidden onclick="window.location.reload(); return false;">This page changed &middot; reload</a>
     </div>
     {% endif %}

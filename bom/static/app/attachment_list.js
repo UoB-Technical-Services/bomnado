@@ -45,7 +45,8 @@ class AttachmentList {
         // attachments in other parts of the software.
         AttachmentList._instanceCounter += 1;
         const instanceName = `${element.id || AttachmentList._instanceCounter}`;
-        if (AttachmentList.instances[instanceName] !== undefined) {
+        const previous = AttachmentList.instances[instanceName];
+        if (previous !== undefined && previous.element && document.body.contains(previous.element)) {
             throw new Error(`AttachmentList "${instanceName}" already registered.`);
         }
         AttachmentList.instances[instanceName] = this;
@@ -73,7 +74,7 @@ class AttachmentList {
             <td class="">
                 <div class="btn-group btn-group-sm float-right mr-1" role="group">
                     <a class="action-download btn btn btn-outline-secondary" href="javascript:undefined;">Download</a>
-                    <a class="action-remove btn btn btn-outline-danger" href="javascript:undefined;">🗑️</a>
+                    <a class="action-remove btn btn btn-outline-danger" href="javascript:undefined;">&times;</a>
                 </div>
             </td>
         </tr>`;

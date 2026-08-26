@@ -7,6 +7,8 @@ from marko.ext.gfm import gfm
 from django import template
 from bs4 import BeautifulSoup
 
+from bom.templatetags.utils import reference_html
+
 
 register = template.Library()
 
@@ -30,11 +32,9 @@ def as_markdown(text, assembly_or_part):
         assembly = SubAssembly.objects.filter(reference=query).first()
         piece = NamedPiece.find_by_reference(query) if not part and not assembly else None
         if part:
-            url = reverse_lazy('bom:part_editor_update', kwargs={'pk': part.id})
-            text = text.replace(f'`{match}`', f'<a class="bomlink part" href="{url}">{query}</a>')
+            text = text.replace(f'`{match}`', reference_html(part, 'part'))
         elif assembly:
-            url = reverse_lazy('bom:assembly_editor_update', kwargs={'pk': assembly.id})
-            text = text.replace(f'`{match}`', f'<a class="bomlink assembly" href="{url}">{query}</a>')
+            text = text.replace(f'`{match}`', reference_html(assembly, 'assembly'))
         elif piece:
             # `PARENT>SUFFIX` links to the parent part's editor, at its named pieces table.
             # Hovering shows the note and, when there is one, the picture (see picture_preview.js).
@@ -43,7 +43,7 @@ def as_markdown(text, assembly_or_part):
             if piece.picture or piece.part.picture:
                 attrs += f' data-picture-preview="{escape(piece.picture_url)}"'
             text = text.replace(f'`{match}`',
-                                f'<a class="bomlink part piece" href="{url}#named_pieces"{attrs}>{escape(query)}</a>')
+                                f'<a class="bn-ref is-part bomlink part piece" href="{url}#named_pieces"{attrs}>{escape(query)}</a>')
 
     # Convert the rest to HTML.
     html = gfm(text)

@@ -9,6 +9,9 @@
  * Jumping-off points anywhere on a page: `data-ai-prompt="..."` (opens the window with that text
  * typed, `data-ai-send="1"` sends it straight away) and `data-ai-thread="<id>"` (opens a
  * conversation). The page says what it is about with `<body data-ai-context="part:12">`.
+ *
+ * The window is docked in the page's right-hand drawer (`#app_drawer`); the floating window only
+ * remains for a page without one.
  */
 (function (global) {
     const KEY = 'bomnado.ai.chat';
@@ -16,11 +19,20 @@
     if (!root) { return; }
     const pill = document.getElementById('aiChatPill');
     const body = document.getElementById('aiChatBody');
-    const threads = document.getElementById('aiChatThreads');
     const title = document.getElementById('aiChatTitle');
     const pillTitle = document.getElementById('aiChatPillTitle');
-    const context = document.body.dataset.aiContext || '';
+    /** What the page is about right now: the main region carries it, and the main region gets swapped. */
+    const currentContext = () => {
+        const main = document.getElementById('app_main');
+        return (main && main.dataset.aiContext) || document.body.dataset.aiContext || '';
+    };
+    const currentReference = () => {
+        const main = document.getElementById('app_main');
+        return (main && main.dataset.aiReference) || '';
+    };
     const header = root.querySelector('.bomnado-ai-chat-title');
+    const drawer = document.getElementById('app_drawer');
+    const floatButton = document.getElementById('aiChatFloat');
 
     /** The AI signature: a couple of seconds of tornado where a sparkle was, when the AI is set going. */
     function signature(element) {
@@ -28,7 +40,8 @@
     }
 
     const load = () => { try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) { return {}; } };
-    const state = Object.assign({ open: false, min: false, x: null, y: null, w: 420, h: 560, thread: null, draft: '' }, load());
+    const state = Object.assign({ open: false, min: false, x: null, y: null, w: 420, h: 560, thread: null, draft: '', mode: 'docked' }, load());
+    const docked = () => drawer !== null;
     const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* private mode */ } };
 
     // --- placement --------------------------------------------------------------------------
@@ -44,15 +57,32 @@
     }
 
     function show() {
-        root.hidden = !state.open || state.min;
-        pill.hidden = !state.open || !state.min;
-        if (!root.hidden) { clamp(); }
+        if (docked()) {
+            // Docked: the drawer opens and closes; minimise means close (the top-bar button brings it back).
+            if (root.parentElement !== drawer) { drawer.appendChild(root); }
+            root.classList.remove('is-floating');
+            root.removeAttribute('style');
+            const open = state.open && !state.min;
+            drawer.classList.toggle('is-open', open);
+            root.hidden = !open;
+            pill.hidden = true;
+        } else {
+            if (root.parentElement !== document.body) { document.body.appendChild(root); }
+            root.classList.add('is-floating');
+            root.hidden = !state.open || state.min;
+            pill.hidden = !state.open || !state.min;
+            if (!root.hidden) { clamp(); }
+        }
+        if (floatButton) { floatButton.title = docked() ? 'Pop out into a floating window' : 'Dock into the page'; }
         save();
+    }
+    if (floatButton) {
+        floatButton.addEventListener('click', () => { state.mode = docked() ? 'floating' : 'docked'; state.min = false; show(); });
     }
 
     const handle = root.querySelector('[data-drag-handle]');
     handle.addEventListener('mousedown', (event) => {
-        if (event.target.closest('button')) { return; }
+        if (event.target.closest('button') || docked()) { return; }
         event.preventDefault();
         const startX = event.clientX - state.x, startY = event.clientY - state.y;
         const move = (e) => { state.x = e.clientX - startX; state.y = e.clientY - startY; clamp(); };
@@ -62,23 +92,22 @@
     });
     if (window.ResizeObserver) {
         new ResizeObserver(() => {
-            if (root.hidden) { return; }
+            if (root.hidden || docked()) { return; }
             const rect = root.getBoundingClientRect();
             if (Math.abs(rect.width - state.w) > 1 || Math.abs(rect.height - state.h) > 1) {
                 state.w = rect.width; state.h = rect.height; save();
             }
         }).observe(root);
     }
-    window.addEventListener('resize', () => { if (!root.hidden) { clamp(); } });
+    window.addEventListener('resize', () => { if (!root.hidden && !docked()) { clamp(); } });
 
     // --- opening conversations ------------------------------------------------------------------
     function open(thread) {
         state.open = true; state.min = false;
         if (thread !== undefined) { state.thread = thread; }
         show();
-        threads.hidden = true;
         const url = root.dataset.openUrl + '?thread=' + (state.thread === null ? '' : state.thread)
-            + '&context=' + encodeURIComponent(context);
+            + '&context=' + encodeURIComponent(currentContext());
         htmx.ajax('GET', url, { target: '#aiChatBody', swap: 'innerHTML' });
     }
 
@@ -86,10 +115,11 @@
         const thread = document.getElementById('aiChatThread');
         if (!thread) { return; }
         state.thread = thread.dataset.threadId ? parseInt(thread.dataset.threadId, 10) : null;
-        title.textContent = thread.dataset.title || 'AI';
+        title.textContent = 'AI';
+        title.title = thread.dataset.title || '';
         pillTitle.textContent = thread.dataset.title || 'AI';
         const form = document.getElementById('aiChatComposer');
-        form.querySelector('input[name="context"]').value = context;
+        form.querySelector('input[name="context"]').value = currentContext();
         const text = document.getElementById('aiChatText');
         if (state.draft && !text.value) { text.value = state.draft; }
         text.addEventListener('input', () => { state.draft = text.value; save(); });
@@ -118,6 +148,7 @@
         // A change to the record this page shows: offer a reload.
         const touched = (messages.dataset.touched || '').trim().split(/\s+/);
         const reload = messages.querySelector('.bomnado-ai-chat-reload');
+        const context = currentContext();
         if (reload && context && touched.includes(context.replace('assembly:', 'subassembly:'))) { reload.hidden = false; }
         messages.scrollTop = messages.scrollHeight;
     }
@@ -145,13 +176,31 @@
         listFiles();
     }
 
+    function removeFile(index) {
+        const input = document.getElementById('aiChatFiles');
+        const transfer = new DataTransfer();
+        Array.from(input.files).forEach((f, i) => { if (i !== index) { transfer.items.add(f); } });
+        input.files = transfer.files;
+        listFiles();
+    }
+
     function listFiles() {
         const input = document.getElementById('aiChatFiles');
         const list = document.getElementById('aiChatFileList');
         list.innerHTML = '';
-        Array.from(input.files).forEach((f) => {
+        Array.from(input.files).forEach((f, index) => {
             const item = document.createElement('li');
-            item.textContent = f.name;
+            const name = document.createElement('span');
+            name.textContent = f.name;
+            name.title = f.name;
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.innerHTML = '&times;';
+            remove.title = 'Remove';
+            remove.setAttribute('aria-label', 'Remove ' + f.name);
+            remove.addEventListener('click', () => removeFile(index));
+            item.appendChild(name);
+            item.appendChild(remove);
             list.appendChild(item);
         });
         list.hidden = !input.files.length;
@@ -167,13 +216,10 @@
 
     // --- controls ----------------------------------------------------------------------------------
     document.getElementById('aiChatNew').addEventListener('click', () => open('new'));
-    document.getElementById('aiChatMin').addEventListener('click', () => { state.min = true; show(); });
+    const minButton = document.getElementById('aiChatMin');
+    if (minButton) { minButton.addEventListener('click', () => { state.min = true; show(); }); }
     document.getElementById('aiChatClose').addEventListener('click', () => { state.open = false; show(); });
     pill.addEventListener('click', () => { state.min = false; show(); open(); });
-    document.getElementById('aiChatList').addEventListener('click', () => {
-        threads.hidden = !threads.hidden;
-        if (!threads.hidden) { htmx.ajax('GET', root.dataset.threadsUrl, { target: '#aiChatThreads', swap: 'innerHTML' }); }
-    });
 
     document.addEventListener('click', (event) => {
         const toggle = event.target.closest('#aiChatToggle');
@@ -202,6 +248,25 @@
         }
         const link = event.target.closest('[data-ai-thread]');
         if (link) { event.preventDefault(); open(parseInt(link.dataset.aiThread, 10)); }
+    });
+
+    // The page changed under the window (htmx swapped the main region): "this" now means the new record.
+    document.addEventListener('bomnado:main-swapped', () => {
+        const form = document.getElementById('aiChatComposer');
+        if (!form) { return; }
+        form.querySelector('input[name="context"]').value = currentContext();
+        let chip = form.querySelector('.bomnado-ai-chat-page');
+        const reference = currentReference();
+        if (reference) {
+            if (!chip) {
+                chip = document.createElement('div');
+                chip.className = 'bomnado-ai-chat-page';
+                form.querySelector('.bomnado-ai-chat-input').insertAdjacentElement('beforebegin', chip);
+            }
+            chip.innerHTML = '&#8627; ' + reference;
+        } else if (chip) {
+            chip.remove();
+        }
     });
 
     document.addEventListener('keydown', (event) => {

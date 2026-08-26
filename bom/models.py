@@ -82,6 +82,15 @@ class Team(models.Model):
     """ How this team names part references, for the AI to follow (see `bom.ai.naming`). Blank = the default guide. """
     naming_guide = models.TextField(blank=True)
 
+    """ Where an HS / commodity code links out to, with {code} standing for the digits. Blank = the UK Trade Tariff. """
+    hs_lookup = models.CharField(max_length=300, blank=True)
+
+    HS_LOOKUP_DEFAULT = 'https://www.trade-tariff.service.gov.uk/commodities/{code}'
+
+    @property
+    def hs_lookup_url(self):
+        return self.hs_lookup or self.HS_LOOKUP_DEFAULT
+
     def projects(self):
         return self.assemblies.filter(is_toplevel=True)
 
@@ -273,7 +282,7 @@ class PartSource(models.Model):
     minimum_order = models.IntegerField(default=1)
 
     """ The number of business days taken to arrive. """
-    lead_time = models.IntegerField(default=1)
+    lead_time = models.IntegerField(default=7)
 
     """ Notes for the purchasing manager and important points for the supplier. Markdown. """
     order_notes = models.TextField(blank=True)
@@ -889,7 +898,7 @@ class Deal(models.Model):
     shipping = models.FloatField(default=0.0)
 
     """ The number of business days taken to arrive. """
-    lead_time = models.IntegerField(default=1)
+    lead_time = models.IntegerField(default=7)
 
     """ Notes for the purchasing manager and important points for the supplier. Markdown. """
     order_notes = models.TextField(blank=True)

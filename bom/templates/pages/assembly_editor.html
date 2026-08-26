@@ -1,6 +1,7 @@
-{% extends "partial/app.html" %}
+{% extends "pages/editor_base.html" %}
 {% load static %}
 {% load ai_tags %}
+{% load library_tags %}
 {% load part_filters %}
 {% load kwacros %}
 {% load utils %}
@@ -12,16 +13,9 @@
 
 <!-- MACRO FOR RENDERING FORM FIELDS -->
 {% kwacro bootstrapfield field %}
-<small class="text-muted">
-    <a href="#" rel="tooltip" tabindex="-1" title="{{ field.help_text }}">️🙋🏽‍♂️</a>
-    <strong>{{ field.label_tag }}</strong>
-</small>
+<label class="bn-label" for="{{ field.id_for_label }}">{{ field.label }}{% if field.help_text %} <button type="button" class="bn-help" data-help="{{ field.help_text }}" aria-label="Help">?</button>{% endif %}</label>
 {{ field }}
-<span class="field-errors">
-    {% for error in field.errors %}
-    <small class="text-danger"> {{ error|escape }}</small> 
-    {% endfor %}
-</span>
+{% for error in field.errors %}<small class="text-danger d-block">{{ error|escape }}</small>{% endfor %}
 {% endkwacro %}
 
 {% block header %}
@@ -60,257 +54,103 @@
         font-size: 80%;
     }
 
-    /* Component Tree */
-    .tree { padding-inline-start: 1em; }
-    .tree ul { list-style: none;  box-sizing: content-box; padding-inline-start: 0px; }
-    .tree label { margin-bottom: 0; user-select: none; }
-
-    /* Tree core styles */
-    .tree input { position: absolute; clip: rect(0, 0, 0, 0); }
-    .tree input ~ ul { display: none; }
-    .tree input:checked ~ ul { display: block; }
-
-    .tree kbd { display: block; margin-left: 2px; margin-right: 2px; }
-
-    /* Tree rows */
-    .tree li {
-        position: relative;
-        padding: 0 0 1em 1em;
-        display: flex;
-        flex-direction: column;
-    }
-    .tree ul li { padding: 1em 0 0 1em; }
-    .tree > li:last-child { padding-bottom: 0; }
-
-    .tree li > span>.labelcontent,
-    .tree li > label>.labelcontent {
-        display: flex;
-        align-items: center;
-        padding: 2px;
-        border-radius: 5px;
-        /* border: 1px solid #cccccc; */
-        border: 1px solid #ced4da;
-        justify-content: space-between;
-    }
-
-    .tree li.selected > span>.labelcontent,
-    .tree li.selected > label>.labelcontent {
-        /* background-color: #b8daff; */
-        /* border-color: #7abaff; */
-        background-color: #beddff59;
-        border-color: #7abaff1c;
-    }
-
-    /* Tree labels */
-    .tree_label { position: relative; display: flex; }
-    label.tree_label { cursor: pointer;  display: flex; }
-    label.tree_label:hover { color: #666; }
-
-    /* Tree Expansion Config */
-    /* Expand button - expanded. */
-    label.tree_label:before {
-        /* background: #007bff; */
-        background: #cccccc;
-        color: #fff;
-        z-index: 1;
-        margin: 0 1em 0 -2em;
-        width: 1em;
-        min-width: 1em;
-        border-radius: 2px;
-        content: '+';
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    /* Expand button - collapsed. */
-    :checked ~ label.tree_label:before { content: '–'; }
-
-    /* Tree branches */
-    /* Vertical branch lines. */
-    .tree li:before {
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        left: -.5em;
-        display: block;
-        width: 0;
-        border-left: 1px solid #ced4da;
-        content: "";
-    }
-
-    /* Curved corner to leaf lines.  */
-    .tree_label:after {
-        position: absolute;
-        top: 0;
-        left: -1.5em;
-        display: block;
-        width: 1em;
-        border-bottom: 1px solid #ced4da;
-        border-left: 1px solid #ced4da;
-        border-radius: 0 0 0 .2em;
-        content: '';
-        box-sizing: content-box;
-        height: 50%;
-    }
-
-    /* Curved corner to leaf lines - AWAY from leaf if leaf is open */
-    :checked ~ label.tree_label:after {
-        border-radius: 0 .2em 0 0;
-        border-top: 1px solid #ced4da;
-        border-right: 1px solid #ced4da;
-        border-bottom: 0;
-        border-left: 0;
-        bottom: 0;
-        /* top: 0.5em; */
-        height: 100%;
-        top: 50%;
-    }
-
-    /* Show the toggle sidebar button on this screen. */
-    #app_sidebar_toggle_btn { display: block; }
-
-    /* Hide straight line to leaf if leaf contains children and is closed. */
-    /* label.tree_label:after { border-bottom: 0; } */
-
-    /* Internal branch lines reach siblings.  */
-    .tree li:last-child:before { height: 1em; bottom: auto; }
-
-    /* Trunk branch line is hidden. */
-    .tree > li:last-child:before { display: none; }
 </style>
 {% endblock %}
 
 
 {% block ai_context %}assembly:{{ assembly.id }}{% endblock %}
+{% block ai_reference %}{{ assembly.reference }}{% endblock %}
+{% block page_data %}data-page="assembly-editor" data-assembly-id="{{ assembly.id }}" data-assembly-reference="{{ assembly.reference }}" data-root-id="{{ root.pk }}" data-url-line-add="{% url 'bom:assembly_line_item_add' pk=assembly.id %}" data-url-line-delete="{% url 'bom:assembly_line_item_delete' pk=assembly.id line_id=0 %}" data-url-after-delete="{% if assembly.is_toplevel %}{% url 'bom:start' %}{% else %}{% url 'bom:assembly_editor_update' pk=root.id %}{% endif %}" data-placeholder-part="{% static 'assets/placeholders/part_placeholder.svg' %}" data-placeholder-assembly="{% static 'assets/placeholders/assembly_placeholder.svg' %}" data-placeholder-root="{% static 'assets/placeholders/root_assembly_placeholder.svg' %}"{% endblock %}
 
-{% block content-right %}
-{% ai_status as ai %}
-<div class="p-3" style="min-width: 550px;">
-    <div class="bomnado-assembly-header">
-        <h5>Edit Assembly</h5>
-        <h5><a class="btn-docs btn btn-outline-primary" target="_blank" href="{% url "bom:assembly_documentation_view" pk=assembly.id %}">View 📖</a></h5>
-    </div>
-
-    <!-- Open comments warning -->
-    {% if assembly.has_open_feedback %}
-    <div class="alert alert-warning" role="alert">
-        👀 <strong>Open feedback</strong> - review this document before use. <a href="#activity">See the comments.</a>
-    </div>
-    {% endif %}
-
-    <!-- Deprecation warnings -->
-    {% if form.deprecated.value|date_in_past %}
-    <div class="alert alert-warning" role="alert">
-        ⚠️ Deprecated on {{ form.deprecated.value|date:"dS M Y" }} ≈V{{ form.deprecated.value|date:"yW" }}
-    </div>
-    {% endif %}
-
-
-    <div class="row">
-        <div class="col-12 p-3">
-            <form id="bomando-assembly-form" method="post" action="{% url "bom:assembly_editor_update" pk=assembly.id %}" enctype="multipart/form-data">
-                {% csrf_token %}
-
-                {% for hidden_field in form.hidden_fields %}
-                    {{ hidden_field }}
-                {% endfor %}
-
-                {% if form.non_field_errors %}
-                <div class="alert alert-danger" role="alert">
-                    {% for error in form.non_field_errors %}
-                    {{ error }}
-                    {% endfor %}
+{% block editor_id %}assembly-editor{% endblock %}
+{% block editor_form_open %}
+    <form id="bomando-assembly-form" method="post" action="{% url "bom:assembly_editor_update" pk=assembly.id %}" enctype="multipart/form-data"
+        hx-post="{% url "bom:assembly_editor_update" pk=assembly.id %}" hx-encoding="multipart/form-data" hx-target="#app_main" hx-select="#app_main" hx-swap="outerHTML show:none" hx-push-url="true">
+{% endblock %}
+{% block editor_crumbs %}<a href="{% url 'bom:assembly_start' %}">Assemblies</a> <span class="bn-crumb-sep">/</span> {% if assembly.project and assembly.project != assembly %}<a class="bn-ref is-assembly" href="{% url 'bom:assembly_editor_update' pk=assembly.project.id %}">{{ assembly.project.reference }}</a> <span class="bn-crumb-sep">/</span> {% endif %}<span class="bn-ref is-assembly">{{ assembly.reference }}</span>{% endblock %}
+{% block editor_title %}{{ assembly.name|default:assembly.reference }}{% endblock %}
+{% block editor_badges %}{% with status=assembly|assembly_status %}{% if not status.quiet %}<span class="bn-status is-{{ status.tone }}">{{ status.label }}</span>{% endif %}{% endwith %} <span class="bn-tag">v{{ assembly.revision }}</span>{% endblock %}
+{% block editor_buttons %}<a class="btn btn-outline-secondary" target="_blank" href="{% url "bom:assembly_documentation_view" pk=assembly.id %}" title="The build documentation for this assembly, in a new tab">View docs</a>{% endblock %}
+{% block editor_more %}
+<a class="dropdown-item" href="{% url 'bom:tools_reviews' pk=assembly.project_id|default:assembly.id %}">Reviews in this project</a>
+<a class="dropdown-item" href="{% url 'bom:tools_production_phases' pk=assembly.project_id|default:assembly.id %}">Production phases</a>
+<div class="dropdown-divider"></div>
+<button type="button" class="dropdown-item text-danger" data-action="delete-assembly">Delete assembly</button>
+{% endblock %}
+{% block editor_jumps %}
+                <a href="#sec-overview" class="active">Overview</a>
+                <a href="#sec-docs">Documentation</a>
+                <a href="#sec-bom">Bill of materials</a>
+                <a href="#sec-documents">Documents</a>
+                <a href="#sec-usage">Usage</a>
+                <a href="#sec-history">History</a>
+{% endblock %}
+{% block editor_alerts %}
+        {% if assembly.has_open_feedback %}
+        <div class="alert alert-warning" role="alert">
+            <strong>Needs review</strong> &middot; there is open feedback on this assembly. <a href="#sec-history">See the comments.</a>
+        </div>
+        {% endif %}
+        {% if form.deprecated.value|date_in_past %}
+        <div class="alert alert-warning" role="alert">
+            <strong>Deprecated</strong> on {{ form.deprecated.value|date:"dS M Y" }} &asymp;V{{ form.deprecated.value|date:"yW" }}
+        </div>
+        {% endif %}
+        
+{% endblock %}
+{% block editor_sections %}
+        <section class="bn-section" id="sec-overview">
+            <h2>Overview</h2>
+            <div class="bn-card bn-overview">
+                <div class="bn-overview-picture">
+                    {% usekwacro bootstrapfield form.picture %}
                 </div>
-                {% endif %} 
-
-                {% if form.errors %}
-                <div class="alert alert-danger" role="alert">
-                    <strong>Please correct the errors below.</strong>
-                    <!-- {{ form.errors }} -->
-                </div>
-                {% endif %}
-
-                <div class="form-row">
-                    <div class="col-4" style="display: flex;">
-                        <!-- PICTURE -->
-                        <div class="form-group" style="flex-grow: 1; display: flex; flex-direction: column;">
-                            {% usekwacro bootstrapfield form.picture %}
+                <div class="bn-overview-fields">
+                    <div class="bn-grid-2">
+                        <div class="form-group">{% usekwacro bootstrapfield form.reference %}</div>
+                        <div class="form-group">{% usekwacro bootstrapfield form.name %}</div>
+                        <div class="form-group">{% usekwacro bootstrapfield form.revision %}</div>
+                        <div class="form-group">{% usekwacro bootstrapfield form.production_phase %}</div>
+                        <div class="form-group">{% usekwacro bootstrapfield form.sale_code %}</div>
+                        <div class="form-group" data-hs-lookup="{{ assembly.team.hs_lookup_url }}">
+                            <label class="bn-label" for="{{ form.hs_code.id_for_label }}">{{ form.hs_code.label }}{% if form.hs_code.help_text %} <button type="button" class="bn-help" data-help="{{ form.hs_code.help_text }}" aria-label="Help">?</button>{% endif %}
+                                <a class="bn-hs-link" target="_blank" rel="noopener" hidden title="Open this code on the tariff site" aria-label="Open this HS code on the tariff site">&#8599;</a>
+                                {% if ai.ready %}<button type="button" class="btn btn-link btn-sm p-0 bn-label-ai" data-ai-send="1" data-ai-prompt="Suggest an HS (commodity) code for `{{ assembly.reference }}`: read its spec and supplier pages, and give one full code as plain digits with no separators, with a one-line reason. Answer here; do not change the record.">{% include "partial/ai_icon.html" %} suggest</button>{% endif %}</label>
+                            {{ form.hs_code }}
+                            {% for error in form.hs_code.errors %}<small class="text-danger d-block">{{ error|escape }}</small>{% endfor %}
                         </div>
-                    </div>
-
-                    <div class="col-8">
-                        <!-- REFERENCE -->
-                        <div class="form-group">
-                            {% usekwacro bootstrapfield form.reference %}
-                        </div>
-                        <!-- NAME -->
-                        <div class="form-group">
-                            {% usekwacro bootstrapfield form.name %}
-                        </div>
-                        <!-- REVISION NUMBER -->
-                        <div class="row">
-                            <div class="form-group col-6 pr-1">
-                                {% usekwacro bootstrapfield form.revision %}
-                            </div>
-                        </div>
-                        <div class="row">
-                            <!-- SALES CODE -->
-                            <div class="form-group col-6 pr-1">
-                                {% usekwacro bootstrapfield form.sale_code %}
-                            </div>
-                            <!-- HS CODE -->
-                            <div class="form-group col-6 pl-1">
-                                {% usekwacro bootstrapfield form.hs_code %}
-                            </div>
-                        </div>
+                        <div class="form-group">{% usekwacro bootstrapfield form.deprecated %}</div>
+                        <div class="form-group bn-check">{% usekwacro bootstrapfield form.shared %}</div>
                     </div>
                 </div>
+            </div>
+        </section>
 
-                <div class="form-row">
-                    <!-- DEPRECATED  DATE-->
-                    <div class="form-group col-4 pl-1">
-                        {% usekwacro bootstrapfield form.deprecated %}
-                    </div>
-                    <!-- PRODUCTION PHASE -->
-                    <div class="form-group col-4 pl-1">
-                        {% usekwacro bootstrapfield form.production_phase %}
-                    </div>
-                    <!-- SHARED -->
-                    <div class="form-group col-4 pl-1">
-                        {% usekwacro bootstrapfield form.shared %}
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    {% usekwacro bootstrapfield form.spec %}
-                </div>
-
+        <section class="bn-section" id="sec-docs">
+            <h2>Documentation</h2>
+            <div class="bn-card">
+                <div class="form-group">{% usekwacro bootstrapfield form.spec %}</div>
                 <div class="form-group">
                     {% usekwacro bootstrapfield form.instructions %}
                     {% if ai.ready %}<div class="bomnado-ai-callouts"><button type="button" class="btn btn-link btn-sm p-0" data-ai-prompt="Draft assembly instructions for `{{ assembly.reference }}` from its line items, referring to parts as `REFERENCE`, and set them on the assembly.">{% include "partial/ai_icon.html" %} Draft instructions from the line items</button>
                     &middot; <button type="button" class="btn btn-link btn-sm p-0" data-ai-send="1" data-ai-prompt="Check the bill of materials of `{{ assembly.reference }}`: anything missing (fasteners, cables), parts without a supplier or price, quantities that look wrong, deprecated parts. Report; fix only what is obvious.">{% include "partial/ai_icon.html" %} Check this BOM for gaps</button></div>{% endif %}
                 </div>
+                <div class="form-group mb-0">{% usekwacro bootstrapfield form.qc_steps %}</div>
+            </div>
+        </section>
 
-                <div class="form-group">
-                    {% usekwacro bootstrapfield form.qc_steps %}
-                </div>
-
-                <div class="form-group">
-                    <small class="text-muted mb-2 d-block">
-                        <a href="#" rel="tooltip" title="A list of parts and sub-assemblies used in this assembly.">🙋🏽‍♂️</a>
-                        <strong>Components:</strong>
-                    </small>
-
-
+        <section class="bn-section" id="sec-bom">
+            <h2>Bill of materials</h2>
+            <div class="bn-card">
+                <label class="bn-label">Add a part or assembly <button type="button" class="bn-help" data-help="Search the catalogue and insert it as a line item. The magnifier finds references written in the instructions that are not yet line items." aria-label="Help">?</button></label>
                     <div class="input-group mb-3">
                         <div class="input-group-prepend">
                             <button
                                 type="button"
                                 class="btn btn-outline-secondary"
-                                onclick="findUnreferencedItems()"
+                                data-action="find-unreferenced"
                                 title="Search the assembly text for part or assembly references.">
-                                🔍
+                                &#128269;&#xFE0E;
                             </button>
                         </div>
 
@@ -328,7 +168,7 @@
                             </optgroup> -->
                         </select>
                         <div class="input-group-append">
-                            <button type="button" class="btn btn-outline-primary" id="partQuerySubmit">
+                            <button type="button" class="btn btn-outline-primary" id="partQuerySubmit" data-action="insert-line">
                                 <span>Insert</span>
                             </button>
                         </div>
@@ -336,37 +176,23 @@
 
 
                     {% include "partial/assembly_line_items.html" %}
-                </div>
+                    {% include "partial/legend.html" %}
+            </div>
+        </section>
 
-                <!-- ATTACHMENTS -->
-                <div class="form-group">
-                    <small class="text-muted mb-2 d-block">
-                        <a href="#" rel="tooltip"
-                            title="A list of files attached to this assembly. They can be referenced by the markdown fields.">🙋🏽‍♂️</a>
-                        <strong>Attachments:</strong>
-                    </small>
-                    {%with entity=assembly widget_id="mainAttachments" %}
-                        {% include "partial/attachment_list.html" %}
-                    {%endwith%}
-                </div>
+        <section class="bn-section" id="sec-documents">
+            <h2>Documents</h2>
+            <div class="bn-card">
+                <label class="bn-label">Attachments <button type="button" class="bn-help" data-help="Files attached to this assembly. They can be referenced from the markdown fields." aria-label="Help">?</button></label>
+                {%with entity=assembly widget_id="mainAttachments" %}
+                    {% include "partial/attachment_list.html" %}
+                {%endwith%}
+            </div>
+        </section>
 
-                <!-- BUTTONS -->
-                <div class="text-right w-100">
-                    <button type="button" onclick="deleteAssembly('{{assembly.id}}', '{{assembly.reference}}')"
-                        class="btn btn-outline-danger float-left">Delete Assembly</button>
-                    <button type="submit" class="btn btn-success">Save Changes</button>
-                </div>
-
-            </form>
-
-            <br />
-
-            <!-- RELATED ASSEMBLIES -->
-            <div>
-                <small class="text-muted">
-                    <a href="#" tabindex="-1" rel="tooltip" title="List of assemblies that use this assembly.">🙋🏽‍♂️</a>
-                    <strong><label>Assemblies using this assembly:</label></strong>
-                </small>
+        <section class="bn-section" id="sec-usage">
+            <h2>Usage</h2>
+            <div class="bn-card">
                 <div class="alert alert-secondary bomnado-usedby-list" role="alert">
                     {% find_assemblies_using_part form.instance as assemblies %}
                     {% for assy in assemblies %}
@@ -376,417 +202,17 @@
                     {% endfor %}
                 </div>
             </div>
-
-            <!-- FEEDBACK AND HISTORY: last on the page, under a rule, so the form above reads as finished. -->
-            <hr class="bomnado-activity-rule" />
+        </section>
+{% endblock %}
+{% block editor_after %}
+    <section class="bn-section" id="sec-history">
+        <h2>History</h2>
+        <div class="bn-card">
             {% activity_strip assembly %}
         </div>
-    </div>
-</div>
+    </section>
 {% endblock %}
-
-
-
 {% block content-left %}
-<div class="p-3" style="min-width: 250px;">
-    {% if error_message %}
-    <div class="alert alert-danger" role="alert">
-        {{ error_message }}
-    </div>
-    {% endif %}
-
-    <h5>New Assembly</h5>
-
-    {% if pcb_upload_message %}
-    <div class="alert alert-success" role="alert">
-        {{ pcb_upload_message }}
-    </div>
-    {% endif %}
-    {% if pcb_upload_error %}
-    <div class="alert alert-danger" role="alert">
-        {{ pcb_upload_error }}
-    </div>
-    {% endif %}
-
-    <form method="post" action="{% url "bom:assembly_editor_create" %}" enctype="multipart/form-data" class="mt-3">
-        {% csrf_token %}
-        <input name="project" type="hidden" value="{{assembly.project_id}}">
-        <input name="parent" type="hidden" value="{{assembly.id}}">
-
-        <div class="form-group">
-            <label for="referenceInput">New Assembly Reference</label>
-            <div class="input-group mb-2">
-                <input id="referenceInput" placeholder="e.g. ASSEMBLY-REFERENCE" type="text" name="reference" class="form-control">
-                <div class="input-group-append">
-                    <button type="submit" name="action" value="create" class="btn btn-outline-primary"><span>Create</span></button>
-                </div>
-            </div>
-            <small class="text-muted">Provide a reference name for the new assembly.</small>
-        </div>
-
-        <div class="form-check mb-3">
-            <input class="form-check-input" type="checkbox" checked id="showCsvUploadCheckbox">
-            <label class="form-check-label" for="showCsvUploadCheckbox">
-                Show CSV upload section
-            </label>
-        </div>
-
-        <div id="csvUploadContainer">
-            <div class="form-group">
-                <label for="csvFile">KiCAD BOM CSV file</label>
-                <div class="input-group mb-2">
-                    <div class="custom-file">
-                        <input id="csvFile" name="csv_file" type="file" class="custom-file-input" accept=".csv">
-                        <label id="csvFileLabel" class="custom-file-label" for="csvFile">Choose CSV file</label>
-                    </div>
-                    <div class="input-group-append">
-                        <button type="submit" name="action" value="upload" class="btn btn-outline-primary">Upload</button>
-                    </div>
-                </div>
-                <small class="form-text text-muted">Upload a KiCAD BOM CSV file to create a new assembly. It will be added under the selected parent if the checkbox is checked.</small>
-            </div>
-        </div>
-
-        <div class="form-check">
-            <input class="form-check-input" type="checkbox" checked name="insert" id="insertCheckbox">
-            <label class="form-check-label" for="insertCheckbox">
-                <small>Add to </small>{{ assembly|stylised_assembly}}
-            </label>
-        </div>
-    </form>
-
-    <hr/>
-
-    <hr/>
-    <h5>Assembly Tree</h5>
-
-    <ul id="assemblyTree" class="tree">
-        {%with treename="assembly" node=tree template_name="partial/component_tree.html" %}
-            {% include template_name %}
-        {%endwith%}
-    </ul>
-
-    {% if orphans %}
-    <h5>Unused Assemblies</h5>
-
-    <ul id="orphanTree" class="tree">
-    {% for orphan in orphans %}
-        {%with treename="orphans" node=orphan template_name="partial/component_tree.html" %}
-            {% include template_name %}
-        {%endwith%}
-    {% endfor %}
-    </ul>
-    {% endif %}
-
-</div>
+{% library_panel assembly 'assemblies' %}
 {% endblock %}
 
-{% block jslibs %}
-
-{% csrf_token %}
-<script type="application/javascript">
-
-    /** Delete a given sub assembly line item ID. */
-    async function deleteAssembly(id, name) {
-        bootbox.confirm(`Are you sure you want to delete ${name}?
-        If this is a top level assembly it will delete ALL children assemblies"`, (result) => {
-            if (!result) { return; }
-            const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-            let call = async () => {
-                let response = await fetch(`/api/subassemblies/${id}/`, {
-                    method: 'DELETE',
-                    headers: { 'X-CSRFToken': csrftoken },
-                    mode: 'same-origin'
-                });
-                await processErrors(response);
-                {% if assembly.is_toplevel %}
-                    window.location = '{% url "bom:start" %}';
-                {% else %}
-                    window.location = '{% url "bom:assembly_editor_update" pk=root.id %}';
-                {% endif %}
-            }
-            call();
-        });
-    }
-
-    /**
-     * Swap the line-items table for the fragment returned by `url` (an htmx endpoint),
-     * then wire the new table up again. Resolves once the swap is complete.
-     */
-    async function swapLineItems(url, values) {
-        await htmx.ajax('POST', url, {
-            target: '#existingsubComponentsContainer',
-            swap: 'outerHTML',
-            values: values,
-        });
-        configurePartsTable();
-        refreshColourise();
-    }
-
-    /** Delete a given sub assembly line item ID. */
-    async function deleteSubAssemblyLineItem(el, lineID, name) {
-        bootbox.confirm(`Are you sure you want to delete ${name}?`, (result) => {
-            if (!result) { return; }
-            const url = '{% url "bom:assembly_line_item_delete" pk=assembly.id line_id=0 %}'.replace('/0/', `/${lineID}/`);
-            swapLineItems(url, {});
-        });
-    }
-
-    /**
-     * Create the select2 element and request the data required
-     * from the server.
-     */
-    async function createInsertables() {
-
-        // Assemblies available to this project are few, so load them once. Parts can
-        // run to thousands, so they are searched on the server as the user types.
-        const assembliesResponse = await fetch('/api/subassemblies/{{ root.pk }}/available');
-        const assemblies = await assembliesResponse.json();
-
-        // Search text transformer - combine reference, name, and (optionally) spec.
-        const searchText = (p) => `${p.has_open_feedback ? '👀review' : ''}${p.reference} ${p.name}`.toUpperCase();
-
-        // Transform a "part" into a select2-compatible data item.
-        const txPart = p => { return { type: 'part', id: `part-${p.id}`, text: `🔩 ${p.reference}`, data: p }; };
-
-        // Transform an "assembly" into a select2-compatible data item.
-        const txAssembly = p => { return { type: 'assembly', id: `assembly-${p.id}`, text: `📦 ${p.reference}`, data: p }; };
-
-        /** Assemblies whose reference or name contains the term (or the part of it before a dot). */
-        function matchingAssemblies(term) {
-            const needle = term.toUpperCase();
-            let found = assemblies.filter(a => searchText(a).includes(needle));
-            if (!found.length && needle.includes('.')) {
-                const parent = needle.split('.', 1)[0];
-                found = assemblies.filter(a => searchText(a).includes(parent));
-            }
-            return found.map(txAssembly);
-        }
-
-        /** Format the dropdown list that contains the parts. */
-        function formatInsertable(item) {
-            if (!item.id) {
-                return item.text;
-            }
-            let deprecated = item.data.deprecated ? '⚠️ ' : '';
-            let sale_code = item.data.sale_code ? ' 📑' : '';
-            let review = item.data.has_open_feedback ? '👀 ' : '';
-
-            if (item.type === 'part'){
-                return $(`<span><div class="table-icon"><img src="${item.data.picture_url || '{% static "assets/placeholders/part_placeholder.svg" %}'}"/></div> <a class="bomlink part"><kbd>${review}${deprecated}${item.data.reference}${sale_code}</kbd></a> <small>${item.data.name}</small></span>`)
-            } else {
-                const placeholder = item.data.is_toplevel
-                    ? '{% static "assets/placeholders/root_assembly_placeholder.svg" %}'
-                    : '{% static "assets/placeholders/assembly_placeholder.svg" %}';
-                return $(`<span><div class="table-icon"><img src="${item.data.picture_url || placeholder}"/></div> <a class="bomlink assembly"><kbd>${review}${deprecated}${item.data.reference}${sale_code}</kbd></a> <small>${item.data.name}</small></span>`)
-            }
-        };
-
-        // Create the select2 element. `delay` debounces requests while typing.
-        // Typing `PARENT>SUFFIX` matches on PARENT (server side too), so selecting
-        // the result adds the parent part.
-        const partSearch = $("#componentSearch").select2({
-            allowClear: true,
-            placeholder: "Choose a part or assembly to insert...",
-            ajax: {
-                url: '/api/parts/search/',
-                delay: 150,
-                data: params => ({ search: params.term || '' }),
-                // The page uses the slim jQuery build, which has no $.ajax, so
-                // select2's default transport cannot be used: fetch instead.
-                transport: (params, success, failure) => {
-                    const controller = new AbortController();
-                    fetch(`${params.url}?${new URLSearchParams(params.data)}`, {
-                        signal: controller.signal,
-                        headers: { 'Accept': 'application/json' },
-                    })
-                        .then(response => processErrors(response).then(r => r.json()))
-                        .then(success)
-                        .catch(err => { if (err.name !== 'AbortError') { failure(err); } });
-                    return { abort: () => controller.abort() };
-                },
-                processResults: (parts, params) => ({
-                    results: [...matchingAssemblies(params.term || ''), ...parts.map(txPart)]
-                }),
-            },
-            templateResult: formatInsertable
-        });
-
-        // Now it has loaded, undisable it.  It was disabled to prevent clicking on it when it's in a broken state.
-        partSearch.removeAttr('disabled');
-
-    }
-
-    /** Insert the part in the selection dropdown into the BOM. */
-    async function insertSelected() {
-
-        // Determine the selected part.
-        const selected = $("#componentSearch").select2('data')[0];
-        if (!selected) {
-            bootbox.alert('Please select a part to insert.');
-            return;
-        }
-
-        // Prepare a request. The server answers with the refreshed line-items
-        // table (or the table plus an inline error, e.g. a circular reference).
-        let request = { quantity: '1' };
-        if (selected.type === 'part') {
-            request['child_part'] = selected.data.id;
-        }
-        else {
-            request['child_subassembly'] = selected.data.id;
-        }
-
-        await swapLineItems('{% url "bom:assembly_line_item_add" pk=assembly.id %}', request);
-        $("#componentSearch").val(null).trigger('change');
-    }
-
-
-    /**
-     * Change the colour of the references in the assembly components list if
-     * its reference appears within backticks in the instructions field.
-     */
-    let refreshColourise = () => {};
-    async function colouriseUsed() {
-        const textarea = document.querySelector('textarea[name=instructions]');
-        const update = refreshColourise = () => {
-            const references = document.querySelectorAll('#subComponentsTable .bomlink .reference');
-            for (const ref of references) {
-                ref.parentNode.classList.remove('in-instructions');
-                const searchText = `\`${ref.innerText}\``;
-                if (textarea.value.indexOf(searchText) > -1) {
-                    ref.parentNode.classList.add('in-instructions');
-                }
-            }
-        };
-
-        // Re-check whenever the instructions editor changes.
-        const field = MarkdownField.forTextarea('instructions');
-        if (field) {
-            field.editor.on('change', update);
-        }
-        update();
-    }
-
-    /**
-     * Look through the instructions to find things in backticks.  Check to make
-     * sure there is a corresponding item in the list of components.
-     */
-    async function findUnreferencedItems() {
-        // Find backtick quoted items references (remove the backticks) from the assembly instructions.
-        const field = MarkdownField.forTextarea('instructions');
-        let markdown = field ? field.editor.getMarkdown() : document.querySelector('textarea[name=instructions]').value;
-        let entries = markdown.match(/`.*?`/g) || [];
-        entries = entries.map(e => `${e}`.toUpperCase().replace(/^`(.*)`$/, '$1'));
-        entries = [...new Set(entries)];
-
-        // Find item references components table for this assembly.
-        let references = [...document.querySelectorAll('#subComponentsTable .bomlink .reference')];
-        references = references.map(r => `${r.innerText}`.toUpperCase());
-        references = [...new Set(references)];
-
-        // Get the intersection.
-        let delta = entries.filter(x => !references.includes(x));
-
-        // Find those that are parts or assemblies (e.g. exclude `10MM`).
-        // NOTE: This requests all the parts and assemblies from the database that we can access.
-        const parts = await (await fetch('/api/parts/')).json();
-        const assemblies = await (await fetch('/api/subassemblies/')).json();
-        const txName = p => `${p.reference}`.toUpperCase();
-        const itemsInDB = [...assemblies.map(txName), ...parts.map(txName)];
-
-        // Get the intersection.
-        let deltaInDB = delta.filter(x => itemsInDB.includes(x)).sort();
-        let deltaOutDB = delta.filter(x => !itemsInDB.includes(x)).sort();
-
-        // TODO: check if they are children of a part in the references (e.g. DECAL-PACK contains LOGO)
-        bootbox.alert(`
-            <p>There are ${deltaInDB.length} items referenced in the assembly instructions that are not listed as components.</p>
-            <p>This may be fine (e.g. a part in a subassembly) but you may want to double check these:</p>
-            <ul>
-                ${deltaInDB.map(r => '<li><code>' + r + '</code></li>').join('\n')}
-            </ul>
-            <p>These quoted strings were not recognised (e.g. measurements and labels):</p>
-            <ul>
-                ${deltaOutDB.map(r => '<li><code>' + r + '</code></li>').join('\n')}
-            </ul>
-        `);
-    }
-
-    async function configurePartsTable() {
-        const options = {
-            bPaginate: false,
-            dom: '<"top"if>rt<"bottom"lp>',
-            language: {
-                info: "Showing _TOTAL_ components",
-                search: "Search:",
-                zeroRecords: "No matching parts or sub-assemblies found",
-            },
-
-            autoWidth: false,
-            columnDefs: [
-                { width: "20px", targets: 0 },
-                { width: "20px", targets: 1 },
-                { width: "50px", targets: 2 },
-                { width: "60px", targets: 3 },
-                { className: 'lineitem-reference', targets: 4 },
-                { className:'lineitem-buttons', targets: 6 }
-            ]
-        };
-
-        lineItemsTable = $('#subComponentsTable').DataTable(options);
-    }
-
-    // The current DataTable over #subComponentsTable (replaced whenever the table is swapped).
-    let lineItemsTable = null;
-
-    // Ensure all the parts / subcomponts are rendered in datatables.
-    configurePartsTable();
-
-    // Force all table elements back into the DOM before submit.
-    // NOTE: This is quite ugly and relies on no pagination!
-    document.querySelector('#bomando-assembly-form').addEventListener('submit', (e) => {
-        if (lineItemsTable) { lineItemsTable.search('').draw(); }
-        return true;
-    });
-
-    document.addEventListener('DOMContentLoaded', async () => {
-
-        // Create the list of parts / assemblies that can be inserted.
-        createInsertables();
-
-        // Handle clicking "Insert" new part / assembly.
-        document.querySelector('#partQuerySubmit').addEventListener('click', insertSelected)
-
-        // Flag the inserted sub-components to show the note if they are discribed in the markdown.
-        colouriseUsed();
-
-        // Allow the user to submit the assembly form without the warning.
-        const assyForm = document.querySelector('#bomando-assembly-form');
-        PageChanges.allow(assyForm);
-        PageChanges.enableCtrlS(assyForm);
-        PageChanges.installActivity();
-
-        const csvToggle = document.getElementById('showCsvUploadCheckbox');
-        const csvContainer = document.getElementById('csvUploadContainer');
-        const csvFileInput = document.getElementById('csvFile');
-        const csvFileLabel = document.getElementById('csvFileLabel');
-
-        if (csvToggle && csvContainer) {
-            const updateCsvVisibility = () => {
-                csvContainer.style.display = csvToggle.checked ? 'block' : 'none';
-            };
-            csvToggle.addEventListener('change', updateCsvVisibility);
-            updateCsvVisibility();
-        }
-
-        if (csvFileInput && csvFileLabel) {
-            csvFileInput.addEventListener('change', () => {
-                const filename = csvFileInput.files.length > 0 ? csvFileInput.files[0].name : 'Choose CSV file';
-                csvFileLabel.textContent = filename;
-            });
-        }
-    });
-
-</script>
-{% endblock %}

@@ -1,19 +1,9 @@
-{%extends "registration/base.html"%}
-{% load static %}
-{% load part_filters %}
-{% load kwacros %}
+{% extends "registration/base.html" %}
 
-{%  block body %}
+{% block title %}<title>Not found / Bomnado</title>{% endblock %}
 
-
-    <section class="app-body app-viewport">
-
-        <div class="text-center mt-5">
-                <h1 class="h3 mb-3 font-weight-normal">Page Not Found</h1>
-                <p>Please return to your <a  href="{% url "bom:start" %}">Dashboard</a> or <a href="{{request.META.HTTP_REFERER}}">go back</a>.</p>
-
-        </div>
-
-    </section>
-
+{% block body %}
+<h1>Page not found</h1>
+<p class="bn-auth-lead">There is nothing at that address. It may have been deleted, or the link may be wrong.</p>
+<a class="btn btn-primary btn-block" href="{% url "bom:start" %}">Go to the dashboard</a>
 {% endblock %}

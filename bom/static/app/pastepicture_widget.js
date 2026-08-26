@@ -21,7 +21,8 @@ class PastePictureField {
         // Make the instances available by name so we can reference in other parts of the application.
         PastePictureField._instanceCounter += 1;
         const instanceName = `${element.id || PastePictureField._instanceCounter}`;
-        if (PastePictureField.instances[instanceName] !== undefined) {
+        const previous = PastePictureField.instances[instanceName];
+        if (previous !== undefined && previous.element && document.body.contains(previous.element)) {
             throw new Error(`PastePictureField "${instanceName}" already registered.`);
         }
         PastePictureField.instances[instanceName] = this;

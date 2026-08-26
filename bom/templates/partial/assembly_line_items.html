@@ -53,11 +53,7 @@
                 <th class="align-middle" scope="row">{{ forloop.counter }}</th>
 
                 <td class="align-middle">
-                    {% if sub_form.instance.child_part %}
-                    🔩
-                    {% elif sub_form.instance.child_subassembly %}
-                    📦
-                    {% endif %}
+                    <span class="bn-tag">{% if sub_form.instance.child_part %}part{% elif sub_form.instance.child_subassembly %}assy{% endif %}</span>
 
                     {% for hidden_field in sub_form.hidden_fields %}
                         {{ hidden_field }}
@@ -104,9 +100,9 @@
                             class="btn btn-sm btn-outline-secondary">
                             📋
                         </button>
-                        <button onclick="deleteSubAssemblyLineItem(this, '{{sub_form.instance.id}}', '{{ sub_form.instance.item }}')" type="button"
-                            class="btn btn-sm btn-outline-danger">
-                            🗑️
+                        <button data-action="delete-line" data-id="{{sub_form.instance.id}}" data-name="{{ sub_form.instance.item }}" type="button"
+                            class="btn btn-sm btn-outline-danger" aria-label="Remove">
+                            &times;
                         </button>
                     </div>
                 </td>

@@ -5,7 +5,7 @@ from django.core import mail
 from django.test import TestCase
 from django.urls import reverse
 
-from bom.tests.factories import TeamFactory
+from bom.tests.factories import PartFactory, TeamFactory
 
 
 class AddToTeamViewTests(TestCase):
@@ -123,3 +123,37 @@ class AddToTeamViewTests(TestCase):
         response = self.client.post(self.url, {'username': 'member'})
         self.assertEqual(response.status_code, 403)
         self.assertFalse(self.team.users.filter(pk=self.member.pk).exists())
+
+
+class HsLookupTests(TestCase):
+    """ Where HS codes link out to is a team setting, with the UK Trade Tariff as the default. """
+
+    def setUp(self):
+        self.owner = User.objects.create_user(username='alice', email='alice@example.com', password='pw')
+        self.team = TeamFactory(owner=self.owner)
+        self.team.users.add(self.owner)
+        self.client.force_login(self.owner)
+
+    def test_the_default_and_the_editors_carry_it(self):
+        self.assertEqual(self.team.hs_lookup_url, 'https://www.trade-tariff.service.gov.uk/commodities/{code}')
+        part = PartFactory(team=self.team, picture=None)
+        html = self.client.get(reverse('bom:part_editor_update', kwargs={'pk': part.id})).content.decode()
+        self.assertIn('data-hs-lookup="https://www.trade-tariff.service.gov.uk/commodities/{code}"', html)
+        self.assertIn('bn-hs-link', html)
+
+    def test_the_owner_sets_it_and_others_cannot(self):
+        response = self.client.post(reverse('bom:teams_hs_lookup', kwargs={'pk': self.team.id}),
+                                    {'hs_lookup': 'https://example.com/hs/{code}'})
+        self.assertRedirects(response, reverse('bom:teams'), fetch_redirect_response=False)
+        self.team.refresh_from_db()
+        self.assertEqual(self.team.hs_lookup_url, 'https://example.com/hs/{code}')
+        member = User.objects.create_user(username='bob', email='bob@example.com', password='pw')
+        self.team.users.add(member)
+        self.client.force_login(member)
+        response = self.client.post(reverse('bom:teams_hs_lookup', kwargs={'pk': self.team.id}), {'hs_lookup': 'x'})
+        self.assertEqual(response.status_code, 403)
+    def test_hs_codes_lose_their_separators(self):
+        from bom.forms import PartCreationForm, SubAssemblyForm
+        for form in (PartCreationForm(), SubAssemblyForm()):
+            form.cleaned_data = {'hs_code': ' 7318.16.31 90 '}
+            self.assertEqual(form.clean_hs_code(), '7318163190')

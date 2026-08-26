@@ -1,0 +1,13 @@
+{# The search overlay: opened from the top bar's magnifier or with "/" (Ctrl+/ anywhere); results are htmx #}
+{# fragments from /library/search/ (partial/search_results.html). Arrow keys move, Enter opens, Esc closes. #}
+<div id="app_search_overlay" class="bn-search" hidden role="dialog" aria-label="Search parts and assemblies">
+    <div class="bn-search-box">
+        <div class="bn-search-input">
+            <span class="bn-search-glyph" aria-hidden="true">&#128269;&#xFE0E;</span>
+            <input type="search" id="app_search_input" name="q" class="form-control" placeholder="Search parts and assemblies" autocomplete="off" aria-label="Search"
+                   hx-get="{% url 'bom:library_search' %}" hx-trigger="input changed delay:200ms, search, focus" hx-target="#app_search_results" hx-swap="innerHTML">
+            <kbd class="bn-search-esc">Esc</kbd>
+        </div>
+        <div id="app_search_results" class="bn-search-results"></div>
+    </div>
+</div>

@@ -181,8 +181,8 @@ class NamedPieceMarkdownTests(TestCase):
         html = as_markdown('Glue `CHASSIS>TOP` to `CHASSIS`.', None)
 
         url = reverse('bom:part_editor_update', kwargs={'pk': chassis.id})
-        self.assertIn(f'<a class="bomlink part piece" href="{url}#named_pieces">CHASSIS&gt;TOP</a>', html)
-        self.assertIn(f'<a class="bomlink part" href="{url}">CHASSIS</a>', html)
+        self.assertIn(f'<a class="bn-ref is-part bomlink part piece" href="{url}#named_pieces">CHASSIS&gt;TOP</a>', html)
+        self.assertIn(f'class="bn-ref is-part bomlink part" href="{url}"', html)
 
     def test_piece_link_carries_note_and_picture_for_hover_preview(self):
         chassis = PartFactory(reference='CHASSIS')  # has a picture
@@ -308,8 +308,11 @@ class PartEditorNamedPieceTests(TestCase):
 
     def test_page_flags_duplicate_suffixes_before_submitting(self):
         html = self.client.get(self.url).content.decode()
-        self.assertIn('flagDuplicateSuffixes()', html)
-        self.assertIn('is already used on this part', html)
+        self.assertIn('data-page="part-editor"', html)  # the behaviour lives in app/pages/part_editor.js
+        with open('bom/static/app/pages/part_editor.js', encoding='utf-8') as script:
+            self.assertIn('flagDuplicateSuffixes()', script.read())
+        with open('bom/static/app/pages/part_editor.js', encoding='utf-8') as script:
+            self.assertIn('is already used on this part', script.read())
 
     def test_delete_flag_removes_a_piece(self):
         top = NamedPieceFactory(part=self.chassis, suffix='TOP')
@@ -447,7 +450,7 @@ class NamedPiecesAreNotBomItemsTests(TestCase):
         html = self.client.get(reverse('bom:tools_orphan_finder', kwargs={'pk': self.project.id})).content.decode()
         self.assertIn('>ORPHAN<', html)
         self.assertNotIn('ORPHAN>LEG', html)
-        self.assertIn('There are <code>1</code> orphan parts', html)
+        self.assertIn('1 orphan part.', html)
 
     def test_exports_are_unchanged_by_pieces(self):
         exporters = {

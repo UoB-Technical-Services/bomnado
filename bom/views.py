@@ -17,6 +17,7 @@ from PIL import Image
 from django.apps import apps
 from django.conf import settings
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
@@ -43,6 +44,7 @@ from bom.forms import PartCreationForm, PartSourceFormset, SubAssemblyForm, SubA
 from bom.models import Part, PartSource, SubAssembly, SubAssemblyLineItem, NamedPiece, Attachment, Team, Deal, PCBPart, \
     PCBSubAssembly, Feedback, UserAISettings, AIJob, get_default_reference, AIThread, AIMessage
 from bom.utils import activity as activity_log
+from bom import library
 from bom.ai import chat as ai_chat_module
 from bom.ai import client as ai_client
 from bom.ai import jobs as ai_jobs
@@ -341,6 +343,58 @@ def PartEditorUpdateView(request, pk):
         context['part_error_message'] = request.session.pop('part_error_message')
 
     return render(request, os.path.join('pages', 'part_editor.html'), context)
+
+
+def _library_selected(request):
+    """ The record the editor is showing, so the list can mark it: `?selected=part:12`. """
+    text = request.GET.get('selected', '')
+    kind, _, pk = text.partition(':')
+    model = {'part': Part, 'assembly': SubAssembly}.get(kind)
+    return model.objects.filter(pk=pk).first() if model and pk.isdigit() else None
+
+
+@login_required(login_url='/accounts/login/')
+def library_parts(request):
+    """ The library's parts list, swapped by htmx on search, filter and page. """
+    query = (request.GET.get('q') or '').strip()[:100]
+    which = request.GET.get('which') or 'all'
+    page = library.parts(request.user, query, which, request.GET.get('page') or 1)
+    return render(request, 'partial/library_parts.html',
+                  {'page': page, 'query': query, 'which': which if which in library.FILTERS else 'all',
+                   'selected': _library_selected(request), 'selected_key': request.GET.get('selected', '')})
+
+
+@login_required(login_url='/accounts/login/')
+def library_assemblies(request):
+    query = (request.GET.get('q') or '').strip()[:100]
+    selected = _library_selected(request)
+    view = 'tree' if request.GET.get('view') == 'tree' else 'list'
+    context = {'query': query, 'selected': selected, 'selected_key': request.GET.get('selected', ''), 'view': view,
+               'page': library.assemblies(request.user, query, request.GET.get('page') or 1)}
+    if view == 'tree':
+        context['tree'], context['orphans'] = library.assembly_tree(
+            request.user, selected.pk if isinstance(selected, SubAssembly) else None, query)
+    return render(request, 'partial/library_assemblies.html', context)
+
+
+@login_required(login_url='/accounts/login/')
+def library_search(request):
+    """ The search overlay's results: the best parts and assemblies for the words typed. """
+    query = (request.GET.get('q') or '').strip()[:100]
+    parts = list(library.parts(request.user, query))[:8] if query else []
+    assemblies = list(library.assemblies(request.user, query))[:6] if query else []
+    return render(request, 'partial/search_results.html', {'query': query, 'parts': parts, 'assemblies': assemblies})
+
+
+class AssemblyStartView(LoginRequiredMixin, View):
+    """ The Assemblies tab: the first project's editor (the dashboard when there are none). """
+    login_url = '/accounts/login/'
+
+    def get(self, request, *args, **kwargs):
+        first = SubAssembly.objects.filter(team__in=request.user.team_set.all()).order_by('-is_toplevel', 'reference').first()
+        if first:
+            return redirect(reverse_lazy('bom:assembly_editor_update', kwargs={'pk': first.id}))
+        return redirect(reverse_lazy('bom:assembly_editor'))
 
 
 class PartStartView(LoginRequiredMixin, View):
@@ -1087,6 +1141,11 @@ class UserSettingsView(LoginRequiredMixin, TemplateView):
         return self.render_to_response(self.get_context_data(ai_form=form))
 
 
+def _project_crumb(project):
+    """ What a tool page's header needs: the project it belongs to, and the way back to it. """
+    return {'project': project, 'project_url': reverse_lazy('bom:assembly_editor_update', kwargs={'pk': project.id})}
+
+
 class ToolProductionPhases(LoginRequiredMixin, TemplateView):
     """ Production phases view to show what assemblies are allocated to what phases. """
     template_name = 'pages/tool_production_phases.html'
@@ -1115,6 +1174,7 @@ class ToolProductionPhases(LoginRequiredMixin, TemplateView):
         context['phases'] = dict(phases)
         context['assemblies'] = assemblies
         context['counted_assemblies'] = counted_assemblies
+        context.update(_project_crumb(root))
         return context
 
 
@@ -1137,6 +1197,27 @@ class ToolOrphanFinder(LoginRequiredMixin, TemplateView):
         context = super(ToolOrphanFinder, self).get_context_data(**kwargs)
         context['orphan_parts'] = orphan_parts
         context['orphan_assemblies'] = orphan_assemblies
+        context.update(_project_crumb(project))
+        return context
+
+
+class ToolReviews(LoginRequiredMixin, TemplateView):
+    """ What needs a look in a project: open feedback on its assemblies and parts, and parts missing data. """
+    template_name = 'pages/tool_reviews.html'
+    login_url = '/accounts/login/'
+
+    def get_context_data(self, **kwargs):
+        project = get_object_or_404(SubAssembly, id=self.kwargs.get('pk'))
+        if not project.can_access(self.request.user):
+            raise PermissionDenied("You don't have access to this project")
+        assemblies, parts = library.project_contents(project)
+        for assembly in assemblies:
+            assembly.is_assembly = True
+        attention = [(record, list(Feedback.objects.open_for(record)))
+                     for record in assemblies + parts if record.has_open_feedback]
+        missing = [(part, status) for part in parts for status in [library.part_status(part)] if status.is_missing]
+        context = super().get_context_data(**kwargs)
+        context.update({'attention': attention, 'missing': missing}, **_project_crumb(project))
         return context
 
 
@@ -1166,6 +1247,7 @@ class ToolSalesCodes(LoginRequiredMixin, TemplateView):
         context['assemblies'] = assemblies
         context['parts_without_hs'] = parts_without_hs
         context['assemblies_without_hs'] = assemblies_without_hs
+        context.update(_project_crumb(project))
         return context
 
 
@@ -1201,6 +1283,7 @@ class ToolDeals(LoginRequiredMixin, TemplateView):
         context['new_dform'] = DealForm()
         context['pk'] = product_id
         context['product'] = root
+        context.update(_project_crumb(root))
         return context
 
 
@@ -1273,7 +1356,8 @@ def export_purchasing(request, pk=None):
 
     # Open the excel file.
     with io.BytesIO() as output:
-        workbook = export_purchasing_spreadsheet(project, output, request.user)
+        workbook = export_purchasing_spreadsheet(project, output, request.user,
+                                                 base_url=request.build_absolute_uri('/'))
         workbook.close()
         response = HttpResponse(
             output.getvalue(),
@@ -1296,7 +1380,7 @@ def export_bom_as_xlsx(request, pk=None):
 
     # Open the excel file.
     with io.BytesIO() as output:
-        workbook = export_database_to_excel(project, output)
+        workbook = export_database_to_excel(project, output, request.user)
         workbook.close()
         response = HttpResponse(
             output.getvalue(),
@@ -1750,13 +1834,6 @@ def ai_chat(request):
 
 
 @login_required(login_url='/accounts/login/')
-def ai_chat_threads(request):
-    """ The list of conversations, for the window's menu. """
-    threads = AIThread.objects.filter(user=request.user)[:30]
-    return render(request, 'partial/ai_chat_threads.html', {'threads': threads})
-
-
-@login_required(login_url='/accounts/login/')
 @require_POST
 def ai_chat_send(request):
     """ A message from the person: stored on the thread (a new one if there is none), with any files
@@ -1836,12 +1913,23 @@ def ai_chat_retry(request, thread_id):
 @login_required(login_url='/accounts/login/')
 @require_POST
 def ai_chat_delete(request, thread_id):
-    thread = _thread(request, thread_id)
-    job = thread.latest_job
-    if job is not None:
-        ai_jobs.cancel(job)
-    thread.delete()
-    return render_thread(request, None)
+    """ Delete a conversation: the thread and its messages go; its job rows stay for the month's
+    spend but leave the activity list. From the activity page (a plain form) it returns there. """
+    thread = AIThread.objects.filter(pk=thread_id).first()
+    if thread is not None:
+        if not thread.can_access(request.user):
+            raise PermissionDenied("You don't have access to this conversation")
+        if thread.latest_job is not None:
+            ai_jobs.cancel(thread.latest_job)
+    # A conversation deleted before its rows were cleared leaves rows pointing at nothing: clearing
+    # by the id works whether the thread still exists or not.
+    AIJob.objects.filter(user=request.user, object_id=thread_id,
+                         content_type=ContentType.objects.get_for_model(AIThread)).update(cleared=True)
+    if thread is not None:
+        thread.delete()
+    if request.headers.get('HX-Request'):
+        return render_thread(request, None)
+    return HttpResponseRedirect(reverse_lazy('bom:ai_jobs'))
 
 
 @login_required(login_url='/accounts/login/')
@@ -1871,11 +1959,36 @@ class AIJobsView(LoginRequiredMixin, TemplateView):
 
 @login_required(login_url='/accounts/login/')
 @require_POST
+def ai_job_clear(request, job_id):
+    """ Take one finished row off the activity list (the month's spend is unaffected). """
+    job = get_object_or_404(AIJob, pk=job_id, user=request.user)
+    if job.is_finished:
+        job.cleared = True
+        job.save(update_fields=['cleared'])
+    return HttpResponseRedirect(reverse_lazy('bom:ai_jobs'))
+
+
+@login_required(login_url='/accounts/login/')
+@require_POST
 def ai_jobs_clear(request):
     """ Clear the activity list: finished jobs are hidden (they still count towards the month's spend). """
     AIJob.objects.filter(user=request.user, cleared=False).exclude(
         status__in=[AIJob.STATUS_QUEUED, AIJob.STATUS_RUNNING]).update(cleared=True)
     return HttpResponseRedirect(reverse_lazy('bom:ai_jobs'))
+
+
+class TeamHsLookupView(LoginRequiredMixin, RedirectView):
+    """ Where the team's HS codes link out to ({code} stands for the digits). POST only. """
+    login_url = '/accounts/login/'
+
+    def post(self, request, *args, **kwargs):
+        team = get_object_or_404(Team, pk=kwargs['pk'])
+        if not team.is_owner(request.user):
+            raise PermissionDenied('Only the team owner can change the HS code lookup.')
+        team.hs_lookup = (request.POST.get('hs_lookup') or '').strip()[:300]
+        team.save()
+        request.session['success_message'] = f'HS code lookup for {team.name} saved.'
+        return redirect(reverse_lazy('bom:teams'))
 
 
 class TeamNamingGuideView(LoginRequiredMixin, RedirectView):

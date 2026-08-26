@@ -1,4 +1,8 @@
 from django import template
+
+from bom import library
+from bom.models import SubAssembly
+from django.utils.html import escape
 from django.contrib.auth.models import AbstractUser
 from django.urls import reverse_lazy
 from django.utils.safestring import mark_safe
@@ -18,75 +22,52 @@ def numeric_range(value):
     return range(value)
 
 
+def _is_pcb(item, model_name, attr):
+    """ Whether a part / assembly has the PCB multi-table child. """
+    try:
+        pcb_model = apps.get_model('bom', model_name)
+        getattr(item, attr)
+        return True
+    except (pcb_model.DoesNotExist, AttributeError, LookupError):
+        return False
+
+
+def reference_html(item, kind=None, marks=True, href=None, extra_class=''):
+    """ A part or assembly reference as it appears everywhere: an underline coloured by kind, the
+    reference, then its marks - a red dot for open feedback, an amber dot for missing data, struck
+    through when deprecated, a small tag for a sale code or a PCB. The same markup the library, the
+    BOM table, the tree, markdown and the AI's answers use; `Bomnado.marks` builds it in the browser. """
+    kind = kind or ('assembly' if isinstance(item, SubAssembly) else 'part')
+    href = href or reverse_lazy('bom:part_editor_update' if kind == 'part' else 'bom:assembly_editor_update',
+                                kwargs={'pk': item.id})
+    classes = f'bn-ref is-{kind} bomlink {kind}'
+    if extra_class:
+        classes += ' ' + extra_class
+    titles = [item.name] if getattr(item, 'name', '') else []
+    bits = [f'<span class="reference">{escape(item.reference)}</span>']
+    if marks:
+        for mark, label in library.marks(item):
+            if mark == 'deprecated':
+                classes += ' is-deprecated'
+                titles.append(label)
+            elif mark == 'sale':
+                bits.append(f'<span class="bn-tag" title="{escape(label)}">sale</span>')
+            else:
+                bits.append(f'<span class="bn-mark is-{mark}" title="{escape(label)}" aria-label="{escape(label)}"></span>')
+    if _is_pcb(item, 'PCBPart' if kind == 'part' else 'PCBSubAssembly', 'pcbpart' if kind == 'part' else 'pcbsubassembly'):
+        bits.append('<span class="bn-tag">PCB</span>')
+    title = f' title="{escape("; ".join(titles))}"' if titles else ''
+    return mark_safe(f'<a class="{classes}" href="{href}"{title}>{"".join(bits)}</a>')
+
+
 @register.filter
 def stylised_part(item):
-    deprecated = ''
-    if item.deprecated:
-        deprecated_date = item.deprecated.strftime('%b %Y')
-        deprecated = f'<span class="icon" title="Deprecated in {deprecated_date}.">⚠️</span> '
-
-    reference = f'<span class="reference" title="{item.name}">{item.reference}</span>'
-    url = reverse_lazy('bom:part_editor_update', kwargs={'pk': item.id})
-    review = '<span title="Open feedback">👀 </span>' if item.has_open_feedback else ''
-
-    sale_code = ''
-    if item.sale_code:
-        sale_code = f' <span class="icon" title="Sales Code = {item.sale_code}"> 📑</span>'
-
-    kbd = f'<kbd>{review}{deprecated}{reference}{sale_code}'
-    # Detect whether this part has a PCBPart multi-table child
-    is_pcb_part = False
-    try:
-        pcb_model = apps.get_model('bom', 'PCBPart')
-        try:
-            _ = item.pcbpart
-            is_pcb_part = True
-        except pcb_model.DoesNotExist:
-            is_pcb_part = False
-    except Exception:
-        is_pcb_part = False
-
-    badge = ' <span class="badge bom-badge">PCB</span>' if is_pcb_part else ''
-    # put the badge inside the kbd so it stays inline with the reference
-    kbd = f'{kbd}{badge}</kbd>'
-    link = f'<a class="bomlink part" href="{url}">{kbd}</a>'
-    return mark_safe(link)
+    return reference_html(item, 'part')
 
 
 @register.filter(is_safe=True)
 def stylised_assembly(item):
-    deprecated = ''
-    if item.deprecated:
-        deprecated_date = item.deprecated.strftime('%b %Y')
-        deprecated = f'<span class="icon" title="Deprecated in {deprecated_date}.">⚠️</span> '
-
-    reference = f'<span class="reference" title="{item.name}">{item.reference}</span>'
-    url = reverse_lazy('bom:assembly_editor_update', kwargs={'pk': item.id})
-    review = '<span title="Open feedback">👀 </span>' if item.has_open_feedback else ''
-
-    sale_code = ''
-    if item.sale_code:
-        sale_code = f' <span class="icon" title="Sales Code = {item.sale_code}"> 📑</span>'
-
-    kbd = f'<kbd>{review}{deprecated}{reference}{sale_code}'
-    # Detect whether this assembly has a PCBSubAssembly child (multi-table inheritance)
-    is_pcb = False
-    try:
-        pcb_model = apps.get_model('bom', 'PCBSubAssembly')
-        try:
-            # Accessing the related object will raise pcb_model.DoesNotExist if not present
-            _ = item.pcbsubassembly
-            is_pcb = True
-        except pcb_model.DoesNotExist:
-            is_pcb = False
-    except Exception:
-        is_pcb = False
-
-    badge = ' <span class="badge bom-badge">PCB</span>' if is_pcb else ''
-    # put the badge inside the kbd so it stays inline with the reference
-    kbd = f'{kbd}{badge}</kbd>'
-    link = f'<a class="bomlink assembly" href="{url}">{kbd}</a>'
-    return mark_safe(link)
+    return reference_html(item, 'assembly')
 
 
 @register.simple_tag
@@ -155,3 +136,14 @@ def is_pcb_part_missing_lcsc(item):
     except Exception:
         return False
     return not bool((pcb.LCSCPartNo or '').strip())
+
+
+@register.filter
+def initials(user):
+    """ "HE" for Hugh Evans, "J" for john, "?" for nobody: the avatar in the top bar. """
+    if user is None or not getattr(user, 'is_authenticated', False):
+        return '?'
+    names = [n for n in (user.first_name, user.last_name) if n]
+    if names:
+        return ''.join(n[0] for n in names)[:2].upper()
+    return (user.email or user.username or '?')[:1].upper()
