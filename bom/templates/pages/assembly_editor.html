@@ -281,10 +281,10 @@
                 {% if assembly.forked %}
                 <div class="form-group">
                     <small class="text-muted mb-1 d-block">
-                        <strong>Forked:</strong>
+                        <strong>Forked from:</strong>
                     </small>
                     <a class="btn btn-sm btn-outline-secondary" href="{% url "bom:assembly_editor_update" pk=assembly.forked.id %}">
-                        {{ assembly.forked.reference }} - {{ assembly.forked.name }}
+                        {{ assembly.forked_reference_with_project }}
                     </a>
                 </div>
                 {% endif %}

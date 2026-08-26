@@ -172,9 +172,21 @@ class SubAssemblyForkTests(TestCase):
 
         self.assertEqual(copied_root.reference, 'PROJECT-A-FORK')
         self.assertEqual(copied_root.forked, self.root)
+        self.assertEqual(copied_root.forked_reference_with_project, self.root.reference)
 
         copied_branch = models.SubAssembly.objects.get(project=copied_root, original=self.branch_a)
         self.assertEqual(copied_branch.forked, self.branch_a)
+        self.assertEqual(copied_branch.forked_reference_with_project, f'{self.branch_a.reference} ({self.root.reference})')
+
+    def test_copy_tree_resets_created_and_updated_timestamps(self):
+        source_created = self.root.created
+        source_updated = self.root.updated
+
+        copied_root = self.root.copy_tree(new_reference='PROJECT-A-FORK-TIME')
+
+        self.assertNotEqual(copied_root.created, source_created)
+        self.assertNotEqual(copied_root.updated, source_updated)
+        self.assertGreaterEqual(copied_root.updated, copied_root.created)
 
     def test_copy_tree_copies_attachments(self):
         copied_root = self.root.copy_tree()

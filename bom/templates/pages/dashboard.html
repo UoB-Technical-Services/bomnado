@@ -77,6 +77,13 @@
                     <p class="card-text">{{ product.name }}
                         <br />
                         <small class="text-muted">Created {{ product.created|date:"M d Y" }}</small>
+                        {% if product.forked %}
+                        <br />
+                        <small class="text-muted d-block">Forked from:</small>
+                        <a class="btn btn-sm btn-outline-secondary mt-1" href="{% url "bom:assembly_editor_update" pk=product.forked.id %}">
+                            {{ product.forked_reference_with_project }}
+                        </a>
+                        {% endif %}
                         {% if product.deprecated|date_in_past %}
                         <span class="badge badge-light">⚠️ Deprecated</span>
                         {% endif %}
