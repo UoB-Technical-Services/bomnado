@@ -65,7 +65,7 @@ docker compose -f docker-compose.eval.yml up -d --build
 pdm install
 
 # Set up environment
-cp .env.eval.example .env
+cp .env.example .env
 
 # Generate secret key
 pdm run ./generate_secret_key.py -o .env

@@ -654,12 +654,11 @@
             }
         };
 
-        // Get the ACE editor for this field.
-        let editor = ace.edit(document.querySelector('textarea[name=instructions] +  .ace_editor'));
-        const session = editor.getSession();
-
-        // When the text changes, re-check.
-        session.on('change', update);
+        // Re-check whenever the instructions editor changes.
+        const field = MarkdownField.forTextarea('instructions');
+        if (field) {
+            field.editor.on('change', update);
+        }
         update();
     }
 
@@ -669,9 +668,9 @@
      */
     async function findUnreferencedItems() {
         // Find backtick quoted items references (remove the backticks) from the assembly instructions.
-        let editor = ace.edit(document.querySelector('textarea[name=instructions] +  .ace_editor'));
-        let markdown = editor.getValue();
-        let entries = markdown.match(/`.*?`/g);
+        const field = MarkdownField.forTextarea('instructions');
+        let markdown = field ? field.editor.getMarkdown() : document.querySelector('textarea[name=instructions]').value;
+        let entries = markdown.match(/`.*?`/g) || [];
         entries = entries.map(e => `${e}`.toUpperCase().replace(/^`(.*)`$/, '$1'));
         entries = [...new Set(entries)];
 
