@@ -22,6 +22,7 @@ from django.contrib.auth.models import User
 from django.core import management
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.base import ContentFile
+from django.db import transaction
 from django.db.models import Case, When, BooleanField
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse, HttpResponseNotAllowed
 from django.shortcuts import render, get_object_or_404, redirect
@@ -375,6 +376,58 @@ class PartDuplicateView(LoginRequiredMixin, RedirectView):
             source.save()
 
         return reverse_lazy('bom:part_editor_update', kwargs={'pk': part.id})
+
+
+class SubAssemblyDuplicateView(LoginRequiredMixin, RedirectView):
+    """Create a deep fork of a top-level subassembly project."""
+    login_url = '/accounts/login/'
+
+    def get_redirect_url(self, *args, **kwargs):
+        source_id = self.request.GET.get('source_id')
+        target_reference = self.request.GET.get('target_reference')
+        if not source_id:
+            raise Exception('source_id was not specified - cannot duplicate assembly')
+
+        if target_reference:
+            target_reference = target_reference.strip().upper()
+
+        assembly = get_object_or_404(SubAssembly, id=source_id)
+
+        if not assembly.team.can_access(self.request.user):
+            raise PermissionDenied("You don't have access to this assembly")
+
+        if not assembly.is_toplevel:
+            allowed_views = {
+                'assembly_editor_update': ('bom:assembly_editor_update', 'pk'),
+                'start': ('bom:start', None),
+                'dashboard': ('bom:start', None),
+            }
+            return redirect_back_with_message(
+                request=self.request,
+                message='Only top-level assemblies can be forked right now.',
+                message_key='error_message',
+                default_url=reverse_lazy('bom:start'),
+                allowed_views=allowed_views
+            )
+
+        try:
+            with transaction.atomic():
+                copied_root = assembly.copy_tree(new_reference=target_reference)
+        except ValidationError as e:
+            allowed_views = {
+                'assembly_editor_update': ('bom:assembly_editor_update', 'pk'),
+                'start': ('bom:start', None),
+                'dashboard': ('bom:start', None),
+            }
+            return redirect_back_with_message(
+                request=self.request,
+                message=', '.join(e.messages) if hasattr(e, 'messages') else str(e),
+                message_key='error_message',
+                default_url=reverse_lazy('bom:start'),
+                allowed_views=allowed_views
+            )
+
+        return reverse_lazy('bom:assembly_editor_update', kwargs={'pk': copied_root.id})
 
 
 class MainPageTester(TemplateView):
@@ -883,7 +936,9 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         teams = self.request.user.team_set.values_list('id')
 
         # Use annotate to create a custom field based on the deprecation date.
-        products = SubAssembly.objects.filter(team__in=teams, is_toplevel=True).annotate(
+        products = SubAssembly.objects.filter(team__in=teams, is_toplevel=True).select_related(
+            'team', 'original', 'original__project', 'original__team'
+        ).annotate(
             is_deprecated=Case(
                 When(deprecated__lte=datetime.date.today(), then=True),
                 default=False,
