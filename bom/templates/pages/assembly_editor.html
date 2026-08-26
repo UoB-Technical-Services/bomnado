@@ -285,8 +285,7 @@
                     </small>
                     <a class="btn btn-sm btn-outline-secondary" href="{% url "bom:assembly_editor_update" pk=assembly.forked.id %}">
                         {{ assembly.forked_reference_with_project }}
-                    </a>
-                    <small class="text-muted d-block mt-1">By {{ assembly.forked.team.name }}</small>
+                    </a><small class="text-muted d-block mt-1">By {{ assembly.forked.team.name }}</small>
                 </div>
                 {% endif %}
 
