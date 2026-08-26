@@ -109,7 +109,19 @@ class AttachmentList {
         return filename;
     }
 
-    /** 
+    /** The stored name of the attachment served at `url`, or null if this list does not have it. */
+    nameForUrl(url) {
+        const file = this.dropzone.files.find(f => f.existing_url && f.existing_url === url);
+        return file ? AttachmentList.getServerFilename(file) : null;
+    }
+
+    /** The URL of the attachment stored under `name`, or null if this list does not have it. */
+    urlForName(name) {
+        const file = this.dropzone.files.find(f => f.existing_url && AttachmentList.getServerFilename(f) === name);
+        return file ? file.existing_url : null;
+    }
+
+    /**
      * Add an existing file ("non-uploaded") to the preview table.
      * @param file Fields include: name, size, delete_link, existing_url
      */
@@ -136,6 +148,7 @@ class AttachmentList {
     _success(file, response) {
         // Store the delete link (needed for files uploaded, not inserted with displayExistingFile)
         file.delete_link = response.delete_link;
+        file.existing_url = response.url;
         // file.name = response.filename;
 
         // Update the "name" and "url" with the new file.

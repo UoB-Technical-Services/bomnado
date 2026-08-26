@@ -1,4 +1,6 @@
-{# Upload pictures by pasting in from the clipboard or browsing the disk. #}
+{# A markdown editor (Toast UI) over a hidden textarea. The textarea is what the form submits #}
+{# and always holds markdown, whichever mode (markdown / WYSIWYG) the user edits in. #}
+{# Pasting pictures uploads them to the page's attachment list. #}
 {# This is a `django.forms.widget.` #}
 
 {# Requires: markdown_widget.js #}
@@ -10,7 +12,7 @@
                 <textarea class="bomnado-markdown-widget-textarea d-none bomnado-savechanges {{ widget.custom.textarea_classes|default_if_none:'' }}"
                         name="{{ widget.name }}"
                         {% include "django/forms/widgets/attrs.html" %}>{{ widget.value|default_if_none:'' }}</textarea>
-                <div id="{{ widget.attrs.id }}-ace" class="bomnado-markdown-widget-ace bomnado-savechanges {{ widget.custom.markdown_classes|default_if_none:'' }}">
+                <div id="{{ widget.attrs.id }}-editor" class="bomnado-markdown-widget-editor {{ widget.custom.markdown_classes|default_if_none:'' }}">
                 </div>
         </div>
     </div>

@@ -68,16 +68,40 @@ function fusion360_readAABB(string) {
     return `${getmm(regLength)} x ${getmm(regWidth)} x ${getmm(regHeight)}`
 }
 
+/** Parser for the maths typed into calculator fields (expr-eval, not `eval`). */
+const CALCULATOR_PARSER = (window.exprEval && new exprEval.Parser()) || null;
+
 /**
- * Evaluate maths on the cost and unit fields.
- * Perform some basic unit conversions.
- * @param {} event The UI keydown event.
+ * Evaluate an arithmetic expression typed into a field, e.g. "12.5 * 4 + 3".
+ * Plain arithmetic and the functions expr-eval knows (sqrt, round, ...) only;
+ * no access to the page, unlike `eval`.
+ * @returns The result, or `null` if the text is not a valid expression.
+ */
+function evaluateCalculation(text) {
+    if (!CALCULATOR_PARSER) {
+        console.error('expr-eval is not included on the page; calculator fields are disabled.');
+        return null;
+    }
+    try {
+        const result = CALCULATOR_PARSER.evaluate(`${text}`.trim());
+        return Number.isFinite(result) ? result : null;
+    } catch (error) {
+        return null;
+    }
+}
+
+/**
+ * Evaluate maths on the cost and unit fields when Enter is pressed, replacing the
+ * expression with its result. Invalid expressions are left as typed.
+ * @param {} keyEvent The UI keydown event.
  */
 function calculatePreventSubmit(keyEvent) {
-    if (keyEvent.keyCode === 13) {
-        let calculation = this.value;
-        let result = eval(calculation);
-        this.value = result;
+    if (keyEvent.key === 'Enter' || keyEvent.keyCode === 13) {
+        const result = evaluateCalculation(this.value);
+        if (result !== null) {
+            this.value = result;
+            this.dispatchEvent(new Event('change', { bubbles: true }));
+        }
         keyEvent.preventDefault();
         return false;
     }

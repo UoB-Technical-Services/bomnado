@@ -1,9 +1,110 @@
 /*
- * Style for the "markdown.html" template.
+ * Style for the "markdown.html" template (Toast UI Editor over a hidden textarea).
  */
 
- /** TODO: This should really go in the application pages as a like a component base. */
 .bomnado-markdown-widget {
+    position: relative;
     border: 1px solid #ced4da;
     border-radius: 0.2rem;
+}
+
+/* Sit inside the Bootstrap form styling rather than fighting it. */
+.bomnado-markdown-widget .toastui-editor-defaultUI {
+    border: none;
+    border-radius: 0.2rem;
+}
+.bomnado-markdown-widget .toastui-editor-defaultUI-toolbar {
+    padding: 0 8px;
+    border-radius: 0.2rem 0.2rem 0 0;
+}
+.bomnado-markdown-widget .toastui-editor-contents,
+.bomnado-markdown-widget .toastui-editor-md-container .toastui-editor-md-preview {
+    font-size: 0.9rem;
+}
+.bomnado-markdown-widget .toastui-editor-contents code,
+.bomnado-markdown-widget .toastui-editor-md-code {
+    font-weight: bold;
+}
+
+/* The custom toolbar button for inserting references: sized and spaced like Toast's own buttons. */
+.bomnado-markdown-widget .bomnado-reference-button {
+    display: block;
+    width: 32px;
+    height: 32px;
+    margin: 0; /* the wrapper Toast puts around custom items carries the 7px/5px spacing */
+    padding: 0;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 32px;
+    color: #555;
+    text-align: center;
+    vertical-align: middle;
+    background: none;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+}
+.bomnado-markdown-widget .bomnado-reference-button:hover {
+    background-color: #e9ecef;
+}
+
+/* Reference completion popup. */
+.bomnado-reference-picker {
+    position: absolute;
+    z-index: 1050;
+    width: 320px;
+    max-height: 260px;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid #ced4da;
+    border-radius: 0.2rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+.bomnado-reference-picker input {
+    margin: 6px;
+    width: calc(100% - 12px);
+}
+.bomnado-reference-picker .list-group-item {
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    overflow: hidden;
+}
+.bomnado-reference-picker .list-group-item.active kbd {
+    background-color: #fff;
+    color: #212529;
+}
+
+/*
+ * Markdown mode is the plain-source editor. Toast's "Write / Preview" tabs are
+ * redundant next to the Markdown / WYSIWYG switch (the preview is read-only, and
+ * WYSIWYG is the way to see the text rendered), so they are hidden, and the
+ * source is shown as uniform monospace text rather than styled syntax.
+ */
+.bomnado-markdown-widget .toastui-editor-md-tab-container {
+    display: none !important; /* Toast toggles this with an inline style */
+}
+.bomnado-markdown-widget .toastui-editor-md-container .ProseMirror {
+    font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 0.85rem;
+    line-height: 1.5;
+}
+.bomnado-markdown-widget .toastui-editor-md-container .ProseMirror [class*="toastui-editor-md-heading"],
+.bomnado-markdown-widget .toastui-editor-md-container .ProseMirror .toastui-editor-md-strong,
+.bomnado-markdown-widget .toastui-editor-md-container .ProseMirror .toastui-editor-md-emph,
+.bomnado-markdown-widget .toastui-editor-md-container .ProseMirror .toastui-editor-md-code,
+.bomnado-markdown-widget .toastui-editor-md-container .ProseMirror .toastui-editor-md-code-block {
+    font-size: inherit;
+    font-weight: inherit;
+    font-style: inherit;
+    font-family: inherit;
+    background: none;
+    color: inherit;
+}
+.bomnado-markdown-widget .toastui-editor-md-container .ProseMirror .toastui-editor-md-delimiter,
+.bomnado-markdown-widget .toastui-editor-md-container .ProseMirror .toastui-editor-md-meta {
+    color: #6c757d;
+}
+.bomnado-markdown-widget .toastui-editor-md-container .ProseMirror .toastui-editor-md-code {
+    font-weight: bold;
 }
