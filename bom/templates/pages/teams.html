@@ -72,6 +72,26 @@
     <div class="w-100">
         <h2 class="m-5">Team Management</h2>
 
+        {% if error_message %}
+        <div class="alert alert-danger w-75 mx-auto" role="alert">
+            {{ error_message }}
+        </div>
+        {% endif %}
+
+        {% if success_message %}
+        <div class="alert alert-success w-75 mx-auto" role="alert">
+            <p class="{% if invite_link %}mb-2{% else %}mb-0{% endif %}">{{ success_message }}</p>
+            {% if invite_link %}
+            <div class="input-group">
+                <input type="text" class="form-control" id="invite-link" value="{{ invite_link }}" readonly onclick="this.select();">
+                <div class="input-group-append">
+                    <button type="button" class="btn btn-outline-success" onclick="navigator.clipboard.writeText(document.getElementById('invite-link').value); this.textContent = 'Copied';">Copy</button>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
             {% for team in user.team_set.all %}
                 <div class="card w-75 card-bg-light m-3 mx-auto">
                     <div class="card-body">
@@ -85,7 +105,7 @@
                                 {% for user in team.users.all %}
                                 <tr>
                                     <th scope="row">
-                                        {{ user.username }}
+                                        {{ user.email|default:user.username }}
                                         {% if team.owner and user.id == team.owner.id %}
                                             <span class="badge badge-info">owner</span>
                                         {% endif %}
@@ -109,7 +129,7 @@
                                     {% csrf_token %}
                                     <div class="form-group">
                                         <div class="input-group m-2">
-                                            <input placeholder="Invite User/Email" type="text" name="username" class="form-control">
+                                            <input placeholder="Username or email (an unknown email invites a new user)" type="text" name="username" class="form-control">
                                             <div class="input-group-append">
                                                 <button type="submit" class="btn btn-primary" tabindex="-1" role="button" aria-disabled="true">Invite to Team</button>
                                             </div>
@@ -130,12 +150,6 @@
                 <i class="fa fa-plus fa-lg icon-line-icon"></i>
                 <i></i>
             </div>
-
-        {% if error_message %}
-        <div class="alert alert-danger m-2" role="alert">
-            {{ error_message }}
-        </div>
-        {% endif %}
 
         <div class="mb-5 p-2">
             <form method="post" action="{% url "bom:teams_create" %}">

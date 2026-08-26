@@ -388,3 +388,45 @@ DealPartFormset = inlineformset_factory(
     },
     extra=1
 )
+
+
+class UserAccountForm(forms.ModelForm):
+    """ The details a user may change about their own account.
+
+    Email is required and must be unique (ignoring case) because it is the
+    login identifier - see `bom.auth.backends.EmailBackend`. The username is a
+    display handle (team lists, menus) and must also be unique ignoring case.
+    """
+    username = fields.CharField(required=True, max_length=150, label='Username',
+                                widget=forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
+                                help_text='Internal short handle used by the admin site and command-line tools - '
+                                          'other users see your email address. Letters, digits and @/./+/-/_ only.')
+    first_name = fields.CharField(required=False, max_length=150, label='First name',
+                                  widget=forms.TextInput(attrs={'class': 'form-control'}))
+    last_name = fields.CharField(required=False, max_length=150, label='Last name',
+                                 widget=forms.TextInput(attrs={'class': 'form-control'}))
+    email = fields.EmailField(required=True, label='Email address',
+                              widget=forms.EmailInput(attrs={'class': 'form-control'}),
+                              help_text='You sign in with this address.')
+
+    class Meta:
+        model = models.User
+        fields = ['username', 'first_name', 'last_name', 'email']
+
+    def clean_username(self):
+        username = self.cleaned_data['username'].strip()
+        others = models.User.objects.filter(username__iexact=username)
+        if self.instance.pk:
+            others = others.exclude(pk=self.instance.pk)
+        if others.exists():
+            raise forms.ValidationError('That username is already taken.')
+        return username
+
+    def clean_email(self):
+        email = self.cleaned_data['email'].strip()
+        others = models.User.objects.filter(email__iexact=email)
+        if self.instance.pk:
+            others = others.exclude(pk=self.instance.pk)
+        if others.exists():
+            raise forms.ValidationError('That email address is already in use by another account.')
+        return email

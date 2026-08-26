@@ -25,6 +25,8 @@ urlpatterns = [
     re_path(r'^teams/(?P<pk>([0-9]+))/add', views.AddToTeamView.as_view(), name='teams_add'),
     re_path(r'^teams/(?P<pk>([0-9]+))/remove', views.RemoveFromTeamView.as_view(), name='teams_remove'),
 
+    # User settings
+    path('settings/', views.UserSettingsView.as_view(), name='user_settings'),
 
     # Util pages.
     path('main', views.MainPageTester.as_view(), name='main'),

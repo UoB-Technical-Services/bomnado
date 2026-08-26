@@ -50,6 +50,9 @@ class AttachmentList {
         }
         AttachmentList.instances[instanceName] = this;
 
+        // Keep the options - the upload params carry the CSRF token needed to delete too.
+        this.options = options;
+
         // Important elements.
         this.element = element;
         this.previewContainer = this.element.querySelector('tbody');
@@ -194,7 +197,11 @@ class AttachmentList {
             // Try to delete the attachment from the server.
             // If we had a problem, then let the user know.
             // NOTE: This is useful for future validation (attachment used in text) etc.
-            let response = await fetch(file.delete_link);
+            const body = new FormData();
+            for (const [name, value] of Object.entries(this.options.uploadParams)) {
+                body.append(name, value);
+            }
+            let response = await fetch(file.delete_link, { method: 'POST', body: body });
             if (!response.ok) {
                 alert(`Unable to delete attachment. ${response.statusText}`);
                 console.warn(response);
