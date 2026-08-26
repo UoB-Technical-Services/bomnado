@@ -52,7 +52,6 @@
     .product-head img { margin: 3px; object-fit: cover; transition: transform cubic-bezier(.155,1.105,.295,1.12), 1s; height: 100px; width: 100px; border-radius: 3px; }
     .product-body { flex-grow: 1; margin:10px 10px 10px 10px; }
     .product-buttons { flex-grow: 0; margin:10px 10px 10px 0; display: flex; flex-direction: row; justify-content: flex-end; }
-    .product-buttons > a.product-open { margin-left: 40px!important}
     .card:hover { background-color: rgba(0,0,0,.075)!important; }
 
 </style>
@@ -85,7 +84,7 @@
                         <a class="btn btn-sm btn-outline-secondary mt-1" href="{% url "bom:assembly_editor_update" pk=product.forked.id %}">
                             {{ product.forked_reference_with_project }}
                         </a>
-                        <small class="text-muted d-block mt-1">By {{ product.forked.team.name }}</small>
+                        {% comment %} <small class="text-muted d-block mt-1">By {{ product.forked.team.name }}</small> {% endcomment %}
                         {% endif %}
                         {% if product.deprecated|date_in_past %}
                         <span class="badge badge-light">⚠️ Deprecated</span>
