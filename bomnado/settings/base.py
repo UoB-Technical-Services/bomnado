@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'django_celery_results',
     'dbbackup',
+    'simple_history',
     'general',
 ]
 
@@ -65,6 +66,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'simple_history.middleware.HistoryRequestMiddleware',  # records who made each change
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]

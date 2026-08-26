@@ -71,6 +71,14 @@ urlpatterns = [
     re_path(r'^assembly/doc/(?P<pk>([0-9]+))', views.AssemblyDocumentationView.as_view(),
         name='assembly_documentation_view'),
 
+    # Comments and activity (htmx fragments), for `part` or `subassembly`.
+    path('activity/<str:model_name>/<int:pk>/', views.activity_entries, name='activity_entries'),
+    path('activity/<str:model_name>/<int:pk>/feedback', views.feedback_add, name='feedback_add'),
+    path('activity/<str:model_name>/<int:pk>/revert/<str:historical_model>/<int:history_id>',
+         views.activity_revert, name='activity_revert'),
+    path('feedback/<int:feedback_id>/resolve', views.feedback_resolve, name='feedback_resolve'),
+    path('feedback/<int:feedback_id>/reopen', views.feedback_reopen, name='feedback_reopen'),
+
     # Attachments
     re_path(r'^attachment/attach/(?P<model_name>[\w\-]+)/(?P<model_pk>\d+)/$',
             views.attachment_attach,

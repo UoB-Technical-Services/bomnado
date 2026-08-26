@@ -1,0 +1,39 @@
+{# The activity strip: open feedback (the inbox), a box to add more, and the timeline (the record). #}
+{# Rendered by the `activity_strip` tag on the editors, and returned whole by the feedback endpoints #}
+{# (htmx swaps it in place, so nothing else on the page moves). #}
+
+{# Context: see `bom.utils.activity.activity_context`. #}
+{% load markdown_render %}
+{% load activity_tags %}
+
+<div id="activity" class="bomnado-activity" hx-target="#activity" hx-swap="outerHTML">
+    <small class="text-muted mb-2 d-block">
+        <a href="#" tabindex="-1" rel="tooltip" title="Feedback for the team, and everything that has changed here: who, when and what. Any change can be reverted; the current values are kept in the log.">🙋</a>
+        <strong>Feedback and history:</strong>
+    </small>
+
+    {% for item in open_feedback %}
+    <div class="bomnado-feedback">
+        <span class="bomnado-activity-icon">{% include "partial/activity_icon.html" with icon='feedback' %}</span>
+        <div class="bomnado-activity-body">
+            <strong>{{ item.author|person }}</strong> <span class="text-muted">· open</span>
+            <div class="bomnado-activity-quote">{{ item.text|as_markdown:obj|safe }}</div>
+        </div>
+        <span class="bomnado-activity-when text-muted" title="{{ item.created }}">{{ item.created|ago }}</span>
+        <span class="bomnado-activity-actions">
+            <button type="button" class="btn btn-sm btn-outline-success py-0"
+                hx-post="{% url 'bom:feedback_resolve' item.id %}" title="Mark this feedback as dealt with">Resolve</button>
+        </span>
+    </div>
+    {% endfor %}
+
+    <form class="bomnado-feedback-form mb-3" hx-post="{% url 'bom:feedback_add' model_name obj.id %}">
+        <textarea name="text" class="form-control form-control-sm" rows="2" required
+            placeholder="Leave feedback for the team: what should be looked at, and why."></textarea>
+        <button type="submit" class="btn btn-sm btn-outline-primary">Add feedback</button>
+    </form>
+
+    <ul class="list-unstyled bomnado-activity-list mb-0">
+        {% include "partial/activity_entries.html" %}
+    </ul>
+</div>

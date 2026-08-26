@@ -136,6 +136,34 @@ body {
 .bomnado-tinypicture-widget-button.has-picture { border-style: solid; }
 .bomnado-tinypicture-widget-button:focus { outline: none; box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25); }
 
+/* Comments and activity strip (partial/activity.html). Deliberately small and quiet: every
+   entry is one row - icon, sentence, when, actions - so the eye always lands in the same place. */
+.bomnado-activity { font-size: 0.85rem; }
+.bomnado-activity-entry,
+.bomnado-feedback { display: flex; align-items: flex-start; gap: 0.5rem; padding: 0.3rem 0; border-top: 1px solid #f1f3f5; }
+.bomnado-activity-entry:first-child { border-top: 0; }
+.bomnado-feedback { border: 1px solid #e9ecef; border-radius: 0.2rem; padding: 0.4rem 0.5rem; margin-bottom: 0.5rem; background: #fff; }
+.bomnado-activity-icon { flex: 0 0 1rem; color: #6c757d; line-height: 1.4; }
+.bomnado-activity-svg { vertical-align: -2px; }
+.bomnado-activity-body { flex: 1 1 auto; min-width: 0; }
+.bomnado-activity-when { flex: 0 0 auto; white-space: nowrap; font-size: 0.8rem; }
+.bomnado-activity-actions { flex: 0 0 auto; white-space: nowrap; min-width: 8.5rem; text-align: right; }
+.bomnado-activity-actions .btn-link { font-size: 0.85rem; vertical-align: baseline; }
+.bomnado-activity-quote { margin: 0.15rem 0 0; padding-left: 0.5rem; border-left: 2px solid #dee2e6; color: #495057; }
+.bomnado-activity-quote > :last-child { margin-bottom: 0; }
+.bomnado-activity-changes { font-size: 0.8rem; margin-top: 0.35rem; }
+.bomnado-activity-changes th { width: 9rem; font-weight: 600; }
+.bomnado-activity-entry del { color: #b02a37; text-decoration: line-through; }
+.bomnado-activity-entry ins { color: #146c43; text-decoration: none; }
+.bomnado-activity-diff { font-size: 0.75rem; white-space: pre-wrap; }
+.bomnado-activity-empty, .bomnado-activity-more { padding: 0.3rem 0; }
+.bomnado-feedback-form { display: flex; align-items: stretch; gap: 0.5rem; }
+.bomnado-feedback-form textarea { flex: 1 1 auto; }
+.bomnado-feedback-form button { flex: 0 0 auto; white-space: nowrap; }
+.bomnado-activity-rule { margin: 1.5rem 0 1rem; border-top: 1px solid #dee2e6; }
+a.bomnado-person { color: inherit; text-decoration: none; border-bottom: 1px dotted #adb5bd; }
+a.bomnado-person:hover { color: inherit; border-bottom-style: solid; }
+
 a.bomlink.part { text-decoration: none; }
 a.bomlink.part > kbd {
     text-decoration: none;

@@ -5,7 +5,7 @@
 groups = ["default", "dev"]
 strategy = ["inherit_metadata"]
 lock_version = "4.4.1"
-content_hash = "sha256:18c7e88e8ffdee7c9e2770f649511f000784fa6c1bfaf0f1940cf014a45f5e64"
+content_hash = "sha256:88418dfc7e5b72ad567a012639a1f8ed20b24b895601152697fce918c754d4ef"
 
 [[package]]
 name = "amqp"
@@ -352,6 +352,20 @@ dependencies = [
 files = [
     {file = "django-redis-5.0.0.tar.gz", hash = "sha256:048f665bbe27f8ff2edebae6aa9c534ab137f1e8fa7234147ef470df3f3aa9b8"},
     {file = "django_redis-5.0.0-py3-none-any.whl", hash = "sha256:97739ca9de3f964c51412d1d7d8aecdfd86737bb197fce6e1ff12620c63c97ee"},
+]
+
+[[package]]
+name = "django-simple-history"
+version = "3.13.0"
+requires_python = ">=3.10"
+summary = "Store model history and view/revert changes from admin site."
+groups = ["default"]
+dependencies = [
+    "django>=5.2",
+]
+files = [
+    {file = "django_simple_history-3.13.0-py3-none-any.whl", hash = "sha256:1cf1d83054479f64aee022023afc1671843aa0a99888799c5c4c3966b0252521"},
+    {file = "django_simple_history-3.13.0.tar.gz", hash = "sha256:ca3c1e4ccd5f16f45fbbef6015ee2a246465fd9bd924100df8e9dfb368c4f26c"},
 ]
 
 [[package]]

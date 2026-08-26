@@ -1,0 +1,73 @@
+{# One page of activity entries. With `has_more`, ends in a button that htmx replaces with the next page. #}
+{# Every entry has the same shape: icon · sentence (and any quote / changes) · when · actions. #}
+{# Actions belong to the thing (a change, a comment), never to an event like "resolved". #}
+{# Context: see `bom.utils.activity.activity_context`. #}
+{% load markdown_render %}
+{% load activity_tags %}
+
+{% for entry in entries %}
+<li class="bomnado-activity-entry bomnado-activity-{{ entry.kind }}">
+    <span class="bomnado-activity-icon"{% if entry.reason %} title="{{ entry.reason }}"{% endif %}>{% include "partial/activity_icon.html" with icon=entry.icon %}</span>
+    <div class="bomnado-activity-body">
+        {% if entry.kind == 'feedback' %}
+            <strong>{{ entry.user|person }}</strong> left feedback
+            {% if entry.feedback.resolved %}
+                <span class="text-muted">· resolved by {{ entry.feedback.resolved_by|person }} <span title="{{ entry.feedback.resolved }}">{{ entry.feedback.resolved|ago }}</span></span>
+            {% else %}
+                <span class="text-muted">· open</span>
+            {% endif %}
+            <div class="bomnado-activity-quote">{{ entry.feedback.text|as_markdown:obj|safe }}</div>
+        {% elif entry.kind == 'resolved' %}
+            <strong>{{ entry.user|person }}</strong> resolved <span class="text-muted">“{{ entry.feedback.text|striptags|truncatechars:70 }}”</span>
+        {% else %}
+            <strong>{{ entry.user|person }}</strong>
+            {{ entry.verb }} {% if entry.is_self %}{{ self_label }}{% else %}{{ entry.target }}{% endif %}{% if entry.changes %}: {{ entry.summary }}{% endif %}
+            {% if entry.changes %}
+            <table class="table table-sm bomnado-activity-changes mb-1" hidden>
+                {% for change in entry.changes %}
+                <tr>
+                    <th class="text-nowrap">{{ change.label }}</th>
+                    <td>
+                        {% if change.diff %}<pre class="bomnado-activity-diff mb-0">{{ change.diff }}</pre>
+                        {% else %}<del>{{ change.old|default:'(empty)' }}</del> → <ins>{{ change.new|default:'(empty)' }}</ins>{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </table>
+            {% endif %}
+        {% endif %}
+    </div>
+    <span class="bomnado-activity-when text-muted" title="{{ entry.when }}">{{ entry.when|ago }}</span>
+    <span class="bomnado-activity-actions">
+        {% if entry.kind == 'feedback' %}
+            {% if entry.feedback.resolved %}
+            <button type="button" class="btn btn-link btn-sm p-0" hx-post="{% url 'bom:feedback_reopen' entry.feedback.id %}">Reopen</button>
+            {% else %}
+            <button type="button" class="btn btn-link btn-sm p-0" hx-post="{% url 'bom:feedback_resolve' entry.feedback.id %}">Resolve</button>
+            {% endif %}
+        {% elif entry.kind != 'resolved' %}
+            {% if entry.changes %}
+            <button type="button" class="btn btn-link btn-sm p-0 bomnado-activity-toggle">show changes</button>
+            {% endif %}
+            {% if entry.revert %}
+            {% if entry.changes %}<span class="text-muted">·</span>{% endif %}
+            <form method="post" class="d-inline bomnado-activity-revert"
+                action="{% url 'bom:activity_revert' model_name obj.id entry.revert.0 entry.revert.1 %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-link btn-sm p-0" title="Undo this change. The current values stay in the log.">Revert</button>
+            </form>
+            {% endif %}
+        {% endif %}
+    </span>
+</li>
+{% empty %}
+{% if offset == 0 %}<li class="bomnado-activity-empty text-muted">Nothing has happened here yet.</li>{% endif %}
+{% endfor %}
+
+{% if has_more %}
+<li class="bomnado-activity-more">
+    <button type="button" class="btn btn-sm btn-outline-secondary"
+        hx-get="{% url 'bom:activity_entries' model_name obj.id %}?offset={{ next_offset }}"
+        hx-target="closest li" hx-swap="outerHTML">Show more</button>
+</li>
+{% endif %}

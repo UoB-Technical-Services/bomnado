@@ -4,6 +4,7 @@
 {% load kwacros %}
 {% load attachments_tags %}
 {% load utils %}
+{% load activity_tags %}
 
 {% block title %}
 <title>{{part.reference}} / Part / Bomnado</title>
@@ -76,9 +77,9 @@
     <h5>Edit Part</h5>
 
     <!-- Open comments warning -->
-    {% if form.review_notes.value %}
+    {% if part.has_open_feedback %}
     <div class="alert alert-warning" role="alert">
-        👀 <strong>Open feedback</strong> - review this document before use.
+        👀 <strong>Open feedback</strong> - review this document before use. <a href="#activity">See the comments.</a>
     </div>
     {% endif %}
 
@@ -604,14 +605,9 @@
             <button type="submit" class="btn btn-success">Save Changes</button>
         </div>
 
-        <br />
-        <br />
-
-        <!-- REVIEW NOTES -->
-        <div class="form-group">
-            {% usekwacro bootstrapfield form.review_notes %}
-        </div>
     </form>
+
+    <br />
 
     <!-- RELATED ASSEMBLIES -->
     <div>
@@ -628,6 +624,10 @@
             {% endfor %}
         </div>
     </div>
+
+    <!-- FEEDBACK AND HISTORY: last on the page, under a rule, so the form above reads as finished. -->
+    <hr class="bomnado-activity-rule" />
+    {% activity_strip part %}
     <br>
 </div>
 {% endblock %}
@@ -905,6 +905,7 @@
         const partForm = document.querySelector('#bomando-part-form');
         PageChanges.allow(partForm);
         PageChanges.enableCtrlS(partForm);
+        PageChanges.installActivity();
     });
 
 </script>

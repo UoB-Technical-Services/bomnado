@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.contrib.contenttypes.admin import GenericStackedInline
+from simple_history.admin import SimpleHistoryAdmin
 
 from bom import models
 
@@ -28,7 +29,7 @@ class SubAssemblyLineAdmin(admin.TabularInline):
     fk_name = 'subassembly'
 
 
-class PartAdmin(admin.ModelAdmin):
+class PartAdmin(SimpleHistoryAdmin):
     inlines = [PartSourceAdmin, NamedPieceInline, AttachmentInlines]
 
 
@@ -38,8 +39,14 @@ class NamedPieceAdmin(admin.ModelAdmin):
     inlines = [AttachmentInlines]
 
 
-class SubAssemblyAdmin(admin.ModelAdmin):
+class SubAssemblyAdmin(SimpleHistoryAdmin):
     inlines = [SubAssemblyLineAdmin, AttachmentInlines]
+
+
+class FeedbackAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'author', 'created', 'resolved', 'resolved_by')
+    list_filter = ('content_type',)
+    search_fields = ('text',)
 
 
 class PCBPartAdmin(admin.ModelAdmin):
@@ -58,3 +65,4 @@ admin.site.register(models.PCBPart, PCBPartAdmin)
 admin.site.register(models.NamedPiece, NamedPieceAdmin)
 admin.site.register(models.SubAssembly, SubAssemblyAdmin)
 admin.site.register(models.Team, TeamAdmin)
+admin.site.register(models.Feedback, FeedbackAdmin)

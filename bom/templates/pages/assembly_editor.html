@@ -3,6 +3,7 @@
 {% load part_filters %}
 {% load kwacros %}
 {% load utils %}
+{% load activity_tags %}
 
 {% block title %}
 <title>{{assembly.reference}} / Assembly / Bomnado</title>
@@ -188,9 +189,9 @@
     </div>
 
     <!-- Open comments warning -->
-    {% if form.review_notes.value %}
+    {% if assembly.has_open_feedback %}
     <div class="alert alert-warning" role="alert">
-        👀 <strong>Open feedback</strong> - review this document before use.
+        👀 <strong>Open feedback</strong> - review this document before use. <a href="#activity">See the comments.</a>
     </div>
     {% endif %}
 
@@ -350,14 +351,9 @@
                     <button type="submit" class="btn btn-success">Save Changes</button>
                 </div>
 
-                <br />
-                <br />
-
-                <!-- REVIEW NOTES -->
-                <div class="form-group">
-                    {% usekwacro bootstrapfield form.review_notes %}
-                </div>
             </form>
+
+            <br />
 
             <!-- RELATED ASSEMBLIES -->
             <div>
@@ -374,6 +370,10 @@
                     {% endfor %}
                 </div>
             </div>
+
+            <!-- FEEDBACK AND HISTORY: last on the page, under a rule, so the form above reads as finished. -->
+            <hr class="bomnado-activity-rule" />
+            {% activity_strip assembly %}
         </div>
     </div>
 </div>
@@ -538,7 +538,7 @@
         const assemblies = await assembliesResponse.json();
 
         // Search text transformer - combine reference, name, and (optionally) spec.
-        const searchText = (p) => `${p.review_notes ? '👀review' : ''}${p.reference} ${p.name}`.toUpperCase();
+        const searchText = (p) => `${p.has_open_feedback ? '👀review' : ''}${p.reference} ${p.name}`.toUpperCase();
 
         // Transform a "part" into a select2-compatible data item.
         const txPart = p => { return { type: 'part', id: `part-${p.id}`, text: `🔩 ${p.reference}`, data: p }; };
@@ -564,7 +564,7 @@
             }
             let deprecated = item.data.deprecated ? '⚠️ ' : '';
             let sale_code = item.data.sale_code ? ' 📑' : '';
-            let review = item.data.review_notes ? '👀 ' : '';
+            let review = item.data.has_open_feedback ? '👀 ' : '';
 
             if (item.type === 'part'){
                 return $(`<span><div class="table-icon"><img src="${item.data.picture_url || '{% static "assets/placeholders/part_placeholder.svg" %}'}"/></div> <a class="bomlink part"><kbd>${review}${deprecated}${item.data.reference}${sale_code}</kbd></a> <small>${item.data.name}</small></span>`)
@@ -759,6 +759,7 @@
         const assyForm = document.querySelector('#bomando-assembly-form');
         PageChanges.allow(assyForm);
         PageChanges.enableCtrlS(assyForm);
+        PageChanges.installActivity();
 
         const csvToggle = document.getElementById('showCsvUploadCheckbox');
         const csvContainer = document.getElementById('csvUploadContainer');
