@@ -39,7 +39,7 @@ def rename_part_references(sender, instance=None, created=False, **kwargs):
         # Find all occurances of the old part.reference string and replace it with the new one.
         _rename_reference(instance, old_object.reference, instance.reference)
 
-        # A piece reference is `PARENT.SUFFIX`, which a search for `PARENT` does not
+        # A piece reference is `PARENT>SUFFIX`, which a search for `PARENT` does not
         # match (the closing backtick is part of the search), so rename each one too.
         for suffix in instance.named_pieces.values_list('suffix', flat=True):
             _rename_reference(instance, f'{old_object.reference}{NamedPiece.SEPARATOR}{suffix}',
@@ -49,7 +49,7 @@ def rename_part_references(sender, instance=None, created=False, **kwargs):
 @receiver(pre_save, sender=NamedPiece)
 @disable_for_loaddata
 def rename_piece_references(sender, instance=None, **kwargs):
-    """ Renaming a piece's suffix (or moving it to another part) rewrites its `PARENT.SUFFIX` references. """
+    """ Renaming a piece's suffix (or moving it to another part) rewrites its `PARENT>SUFFIX` references. """
     if not instance.pk:
         return
     old_object = NamedPiece.objects.filter(pk=instance.pk).select_related('part').first()

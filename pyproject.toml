@@ -33,6 +33,8 @@ dependencies = [
     "python-dotenv>=1.1.1",
     "whitenoise>=6.11.0",
     "django-simple-history>=3.8",
+    "anthropic>=0.60",
+    "mcp<3,>=1.26",
 ]
 classifiers = [
   "Programming Language :: Python :: 3",

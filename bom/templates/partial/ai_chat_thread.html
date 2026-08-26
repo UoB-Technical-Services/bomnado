@@ -1,0 +1,26 @@
+{# The window's body for one conversation (or none yet): the messages (polled while a turn runs) and the composer. #}
+{# Context: `thread` (AIThread or None), `job` (latest AIJob or None), `messages`, `touched`, `error`, `ai_ready`, `suggestions`. #}
+{% load ai_tags %}
+<div id="aiChatThread" data-thread-id="{{ thread.id|default:'' }}" data-title="{{ thread.title|default:'New conversation' }}">
+    {% include "partial/ai_chat_messages.html" %}
+    <form id="aiChatComposer" class="bomnado-ai-chat-composer" hx-post="{% url 'bom:ai_chat_send' %}" hx-encoding="multipart/form-data"
+        hx-target="#aiChatThread" hx-swap="outerHTML" hx-disabled-elt="find button[type=submit]">
+        {% csrf_token %}
+        <input type="hidden" name="thread" value="{{ thread.id|default:'' }}">
+        <input type="hidden" name="context" value="">
+        <input type="file" name="files" multiple hidden id="aiChatFiles" accept=".pdf,image/*,.txt,.csv,.md,.zip,.xlsx,.xls">
+        <ul class="bomnado-ai-chat-files" id="aiChatFileList" hidden></ul>
+        {% if error %}<div class="text-danger small px-1">{{ error }}</div>{% endif %}
+        {% if not ai_ready %}
+        <div class="text-muted small px-1">Add an AI API key, or raise the budget, under <a href="{% url 'bom:user_settings' %}#ai-settings">Settings</a> to talk to the AI.</div>
+        {% endif %}
+        {% if page %}<div class="bomnado-ai-chat-page" title="What &quot;this&quot; means: the {{ page.kind }} on this page">&#8627; {{ page.reference }}</div>{% endif %}
+        <div class="bomnado-ai-chat-input">
+            <textarea name="text" id="aiChatText" rows="2" placeholder="Ask, or tell it what to do. Drop or paste files." {% if not ai_ready %}disabled{% endif %}></textarea>
+            <div class="bomnado-ai-chat-buttons">
+                <button type="button" class="btn btn-sm btn-link" id="aiChatAttach" title="Attach files">&#128206;</button>
+                <button type="submit" class="btn btn-sm btn-ai" id="aiChatSend" title="Send (Enter)" {% if not ai_ready or job.is_running %}disabled{% endif %}>Send</button>
+            </div>
+        </div>
+    </form>
+</div>

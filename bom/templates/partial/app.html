@@ -1,4 +1,5 @@
 {% load static %}
+{% load ai_tags %}
 {% load part_filters %}
 {% load kwacros %}
 {% load utils %}
@@ -68,7 +69,7 @@
 
 </head>
 
-<body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+<body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}' data-ai-context="{% block ai_context %}{% endblock %}">
 
     {% if SHOW_KEY_WARNING %}
     <div class="alert alert-danger m-0 text-center" role="alert" style="border-radius: 0;">
@@ -108,6 +109,9 @@
                     <li class="nav-item {% usekwacro isactiveurl "part" "active" %}">
                         <a class="nav-link" href="{% url "bom:part_editor" %}">Part Editor</a>
                     </li>
+                    {% ai_status as ai %}
+                    <li class="d-none">
+                    </li>
 
                 </ul>
             </div>
@@ -120,6 +124,15 @@
                     <span class="navbar-toggler-icon"></span>
                 </button>
 
+                {% if ai.configured %}
+                <button type="button" class="btn btn-sm btn-ai bomnado-ai-toggle" id="aiChatToggle" title="Talk to the AI (Ctrl+K)">
+                    {% include "partial/ai_icon.html" with mono=True %} AI
+                </button>
+                <a class="btn btn-sm btn-outline-ai bomnado-ai-spend" href="{% url "bom:ai_jobs" %}"
+                    title="{% if ai.percent is not None %}{{ ai.percent }}% of this month's AI budget used ({{ ai.model }}). {% else %}${{ ai.spend|floatformat:2 }} spent on AI this month ({{ ai.model }}). {% endif %}What the AI is doing, and settings.">
+                    {% if ai.percent is not None %}{{ ai.percent }}%<span class="progress"><span class="progress-bar" style="width: {% if ai.percent > 100 %}100{% else %}{{ ai.percent }}{% endif %}%"></span></span>{% else %}${{ ai.spend|floatformat:2 }}{% endif %}
+                </a>
+                {% endif %}
                 <div class="nav-item dropdown ml-2" id="app_user_menu">
                     <button type="button" class="btn btn-outline-light dropdown-toggle" data-toggle="dropdown" aria-haspopup="true"
                                 aria-expanded="false" title="{{ user.email|default:user.username }}">🧑🏽‍🤝‍🧑🏼</button>
@@ -456,6 +469,12 @@
 
     {% block jslibs %}
     {% endblock %}
+
+    {% if ai.configured %}
+    {% include "partial/ai_chat.html" %}
+    <script src="{% static 'app/ai_tornado.js' %}"></script>
+    <script src="{% static 'app/ai_chat.js' %}"></script>
+    {% endif %}
 </body>
 
 </html>

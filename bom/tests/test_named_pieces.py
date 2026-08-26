@@ -1,4 +1,4 @@
-""" Named pieces: `PARENT.SUFFIX` named_pieces of a part that instructions can reference,
+""" Named pieces: `PARENT>SUFFIX` named_pieces of a part that instructions can reference,
 but that are not BOM items. """
 import io
 import zipfile
@@ -32,29 +32,30 @@ class NamedPieceModelTests(TestCase):
     def test_reference_joins_parent_and_suffix(self):
         chassis = _part('3D-PRINTED-CHASSIS')
         top = NamedPieceFactory(part=chassis, suffix='TOP', note='Top half')
-        self.assertEqual(top.reference, '3D-PRINTED-CHASSIS.TOP')
-        self.assertEqual(str(top), '3D-PRINTED-CHASSIS.TOP')
+        self.assertEqual(top.reference, '3D-PRINTED-CHASSIS>TOP')
+        self.assertEqual(str(top), '3D-PRINTED-CHASSIS>TOP')
 
     def test_split_and_find_by_reference(self):
         chassis = _part('CHASSIS')
         top = NamedPieceFactory(part=chassis, suffix='TOP')
 
-        self.assertEqual(NamedPiece.split_reference('CHASSIS.TOP'), ('CHASSIS', 'TOP'))
-        for not_piece_syntax in ('CHASSIS', '.TOP', 'CHASSIS.', '', None):
+        self.assertEqual(NamedPiece.split_reference('CHASSIS>TOP'), ('CHASSIS', 'TOP'))
+        for not_piece_syntax in ('CHASSIS', '>TOP', 'CHASSIS>', '', None):
             self.assertIsNone(NamedPiece.split_reference(not_piece_syntax), not_piece_syntax)
 
-        self.assertEqual(NamedPiece.find_by_reference('CHASSIS.TOP'), top)
-        self.assertIsNone(NamedPiece.find_by_reference('CHASSIS.BOTTOM'))
-        self.assertIsNone(NamedPiece.find_by_reference('OTHER.TOP'))
+        self.assertEqual(NamedPiece.find_by_reference('CHASSIS>TOP'), top)
+        self.assertIsNone(NamedPiece.find_by_reference('CHASSIS>BOTTOM'))
+        self.assertIsNone(NamedPiece.find_by_reference('OTHER>TOP'))
         self.assertIsNone(NamedPiece.find_by_reference('CHASSIS'))
 
     def test_suffix_must_look_like_a_reference(self):
         chassis = _part('CHASSIS')
-        for bad in ('top', 'TOP HALF', 'TOP.A', ''):
+        for bad in ('top', 'TOP HALF', 'TOP>A', '.TOP', 'TOP.', ''):
             with self.subTest(suffix=bad):
                 with self.assertRaises(ValidationError):
                     NamedPiece(part=chassis, suffix=bad).full_clean()
         NamedPiece(part=chassis, suffix='TOP-2').full_clean()
+        NamedPiece(part=chassis, suffix='V1.2').full_clean()  # dots are fine in the middle
 
     def test_suffix_is_unique_per_part_only(self):
         chassis, lid = _part('CHASSIS'), _part('LID')
@@ -87,15 +88,15 @@ class NamedPieceModelTests(TestCase):
 
 
 class NamedPieceRenameTests(TestCase):
-    """ `PARENT.SUFFIX` references follow renames of either half, exactly like part references do. """
+    """ `PARENT>SUFFIX` references follow renames of either half, exactly like part references do. """
 
     def setUp(self):
         self.team = TeamFactory()
         self.chassis = _part('CHASSIS', team=self.team,
-                             spec='Print `CHASSIS` then glue `CHASSIS.TOP` to `CHASSIS.BOTTOM`.',
-                             qc_steps='Check `CHASSIS.TOP` for warping.')
-        self.top = NamedPieceFactory(part=self.chassis, suffix='TOP', note='Mates with `CHASSIS.BOTTOM`')
-        self.bottom = NamedPieceFactory(part=self.chassis, suffix='BOTTOM', note='Under `CHASSIS.TOP`')
+                             spec='Print `CHASSIS` then glue `CHASSIS>TOP` to `CHASSIS>BOTTOM`.',
+                             qc_steps='Check `CHASSIS>TOP` for warping.')
+        self.top = NamedPieceFactory(part=self.chassis, suffix='TOP', note='Mates with `CHASSIS>BOTTOM`')
+        self.bottom = NamedPieceFactory(part=self.chassis, suffix='BOTTOM', note='Under `CHASSIS>TOP`')
 
         # Something else with the same suffix, and a part whose reference merely starts the same.
         self.other = _part('OTHER', team=self.team)
@@ -103,46 +104,46 @@ class NamedPieceRenameTests(TestCase):
         self.lookalike = _part('CHASSIS-TOP', team=self.team)
 
         self.project = SubAssemblyFactory(team=self.team, picture=None, is_toplevel=True,
-                                          instructions='Fit `CHASSIS.TOP`, not `OTHER.TOP` or `CHASSIS-TOP`. Use `CHASSIS`.')
+                                          instructions='Fit `CHASSIS>TOP`, not `OTHER>TOP` or `CHASSIS-TOP`. Use `CHASSIS`.')
         self.line = SubAssemblyLineItemFactory(subassembly=self.project, child_part=self.chassis, child_subassembly=None,
-                                               notes='Drill `CHASSIS.BOTTOM`')
-        self.source = PartSourceFactory(part=self.chassis, order_notes='Ask for `CHASSIS.TOP` separately')
-        self.user_part = _part('USER', team=self.team, spec='See `CHASSIS.TOP` and `CHASSIS`')
+                                               notes='Drill `CHASSIS>BOTTOM`')
+        self.source = PartSourceFactory(part=self.chassis, order_notes='Ask for `CHASSIS>TOP` separately')
+        self.user_part = _part('USER', team=self.team, spec='See `CHASSIS>TOP` and `CHASSIS`')
 
     def test_renaming_the_parent_rewrites_every_piece_reference(self):
         self.chassis.reference = 'FRAME'
         self.chassis.save()
 
         self.chassis.refresh_from_db()
-        self.assertEqual(self.chassis.spec, 'Print `FRAME` then glue `FRAME.TOP` to `FRAME.BOTTOM`.')
-        self.assertEqual(self.chassis.qc_steps, 'Check `FRAME.TOP` for warping.')
-        self.assertEqual(NamedPiece.objects.get(pk=self.top.pk).note, 'Mates with `FRAME.BOTTOM`')
-        self.assertEqual(NamedPiece.objects.get(pk=self.bottom.pk).note, 'Under `FRAME.TOP`')
+        self.assertEqual(self.chassis.spec, 'Print `FRAME` then glue `FRAME>TOP` to `FRAME>BOTTOM`.')
+        self.assertEqual(self.chassis.qc_steps, 'Check `FRAME>TOP` for warping.')
+        self.assertEqual(NamedPiece.objects.get(pk=self.top.pk).note, 'Mates with `FRAME>BOTTOM`')
+        self.assertEqual(NamedPiece.objects.get(pk=self.bottom.pk).note, 'Under `FRAME>TOP`')
         self.assertEqual(SubAssembly.objects.get(pk=self.project.pk).instructions,
-                         'Fit `FRAME.TOP`, not `OTHER.TOP` or `CHASSIS-TOP`. Use `FRAME`.')
-        self.assertEqual(SubAssemblyLineItem.objects.get(pk=self.line.pk).notes, 'Drill `FRAME.BOTTOM`')
-        self.assertEqual(PartSource.objects.get(pk=self.source.pk).order_notes, 'Ask for `FRAME.TOP` separately')
-        self.assertEqual(Part.objects.get(pk=self.user_part.pk).spec, 'See `FRAME.TOP` and `FRAME`')
+                         'Fit `FRAME>TOP`, not `OTHER>TOP` or `CHASSIS-TOP`. Use `FRAME`.')
+        self.assertEqual(SubAssemblyLineItem.objects.get(pk=self.line.pk).notes, 'Drill `FRAME>BOTTOM`')
+        self.assertEqual(PartSource.objects.get(pk=self.source.pk).order_notes, 'Ask for `FRAME>TOP` separately')
+        self.assertEqual(Part.objects.get(pk=self.user_part.pk).spec, 'See `FRAME>TOP` and `FRAME`')
 
         # The named_pieces themselves now resolve under the new name and not the old.
-        self.assertEqual(NamedPiece.find_by_reference('FRAME.TOP'), self.top)
-        self.assertIsNone(NamedPiece.find_by_reference('CHASSIS.TOP'))
-        self.assertEqual(sum(ReferenceSearch('CHASSIS.TOP').count().values()), 0)
+        self.assertEqual(NamedPiece.find_by_reference('FRAME>TOP'), self.top)
+        self.assertIsNone(NamedPiece.find_by_reference('CHASSIS>TOP'))
+        self.assertEqual(sum(ReferenceSearch('CHASSIS>TOP').count().values()), 0)
 
     def test_renaming_the_suffix_rewrites_only_that_piece(self):
         self.top.suffix = 'UPPER'
         self.top.save()
 
         self.assertEqual(Part.objects.get(pk=self.chassis.pk).spec,
-                         'Print `CHASSIS` then glue `CHASSIS.UPPER` to `CHASSIS.BOTTOM`.')
-        self.assertEqual(Part.objects.get(pk=self.chassis.pk).qc_steps, 'Check `CHASSIS.UPPER` for warping.')
-        self.assertEqual(NamedPiece.objects.get(pk=self.bottom.pk).note, 'Under `CHASSIS.UPPER`')
-        self.assertEqual(NamedPiece.objects.get(pk=self.top.pk).note, 'Mates with `CHASSIS.BOTTOM`')
+                         'Print `CHASSIS` then glue `CHASSIS>UPPER` to `CHASSIS>BOTTOM`.')
+        self.assertEqual(Part.objects.get(pk=self.chassis.pk).qc_steps, 'Check `CHASSIS>UPPER` for warping.')
+        self.assertEqual(NamedPiece.objects.get(pk=self.bottom.pk).note, 'Under `CHASSIS>UPPER`')
+        self.assertEqual(NamedPiece.objects.get(pk=self.top.pk).note, 'Mates with `CHASSIS>BOTTOM`')
         self.assertEqual(SubAssembly.objects.get(pk=self.project.pk).instructions,
-                         'Fit `CHASSIS.UPPER`, not `OTHER.TOP` or `CHASSIS-TOP`. Use `CHASSIS`.')
-        self.assertEqual(SubAssemblyLineItem.objects.get(pk=self.line.pk).notes, 'Drill `CHASSIS.BOTTOM`')
-        self.assertEqual(PartSource.objects.get(pk=self.source.pk).order_notes, 'Ask for `CHASSIS.UPPER` separately')
-        self.assertEqual(Part.objects.get(pk=self.user_part.pk).spec, 'See `CHASSIS.UPPER` and `CHASSIS`')
+                         'Fit `CHASSIS>UPPER`, not `OTHER>TOP` or `CHASSIS-TOP`. Use `CHASSIS`.')
+        self.assertEqual(SubAssemblyLineItem.objects.get(pk=self.line.pk).notes, 'Drill `CHASSIS>BOTTOM`')
+        self.assertEqual(PartSource.objects.get(pk=self.source.pk).order_notes, 'Ask for `CHASSIS>UPPER` separately')
+        self.assertEqual(Part.objects.get(pk=self.user_part.pk).spec, 'See `CHASSIS>UPPER` and `CHASSIS`')
         self.assertEqual(NamedPiece.objects.get(pk=self.other_top.pk).suffix, 'TOP')
 
     def test_saving_without_a_rename_changes_nothing(self):
@@ -152,21 +153,21 @@ class NamedPieceRenameTests(TestCase):
         self.chassis.save()
 
         self.assertEqual(Part.objects.get(pk=self.chassis.pk).spec,
-                         'Print `CHASSIS` then glue `CHASSIS.TOP` to `CHASSIS.BOTTOM`.')
+                         'Print `CHASSIS` then glue `CHASSIS>TOP` to `CHASSIS>BOTTOM`.')
         self.assertEqual(SubAssembly.objects.get(pk=self.project.pk).instructions,
-                         'Fit `CHASSIS.TOP`, not `OTHER.TOP` or `CHASSIS-TOP`. Use `CHASSIS`.')
+                         'Fit `CHASSIS>TOP`, not `OTHER>TOP` or `CHASSIS-TOP`. Use `CHASSIS`.')
 
     def test_moving_a_piece_to_another_part_rewrites_its_references(self):
         self.top.part = self.lookalike
         self.top.save()
 
         self.assertEqual(SubAssembly.objects.get(pk=self.project.pk).instructions,
-                         'Fit `CHASSIS-TOP.TOP`, not `OTHER.TOP` or `CHASSIS-TOP`. Use `CHASSIS`.')
+                         'Fit `CHASSIS-TOP>TOP`, not `OTHER>TOP` or `CHASSIS-TOP`. Use `CHASSIS`.')
         self.assertEqual(Part.objects.get(pk=self.chassis.pk).spec,
-                         'Print `CHASSIS` then glue `CHASSIS-TOP.TOP` to `CHASSIS.BOTTOM`.')
+                         'Print `CHASSIS` then glue `CHASSIS-TOP>TOP` to `CHASSIS>BOTTOM`.')
 
     def test_findreferences_counts_piece_references(self):
-        counter = ReferenceSearch('CHASSIS.TOP').count()
+        counter = ReferenceSearch('CHASSIS>TOP').count()
         self.assertEqual(counter[f'bom.SubAssembly.instructions@{self.project}'], 1)
         self.assertEqual(counter[f'bom.Part.spec@{self.chassis}'], 1)
         self.assertEqual(counter[f'bom.NamedPiece.note@{self.bottom}'], 1)
@@ -177,16 +178,16 @@ class NamedPieceMarkdownTests(TestCase):
     def test_piece_reference_links_to_the_parent_editor(self):
         chassis = _part('CHASSIS')
         NamedPieceFactory(part=chassis, suffix='TOP', note='')
-        html = as_markdown('Glue `CHASSIS.TOP` to `CHASSIS`.', None)
+        html = as_markdown('Glue `CHASSIS>TOP` to `CHASSIS`.', None)
 
         url = reverse('bom:part_editor_update', kwargs={'pk': chassis.id})
-        self.assertIn(f'<a class="bomlink part piece" href="{url}#named_pieces">CHASSIS.TOP</a>', html)
+        self.assertIn(f'<a class="bomlink part piece" href="{url}#named_pieces">CHASSIS&gt;TOP</a>', html)
         self.assertIn(f'<a class="bomlink part" href="{url}">CHASSIS</a>', html)
 
     def test_piece_link_carries_note_and_picture_for_hover_preview(self):
         chassis = PartFactory(reference='CHASSIS')  # has a picture
         top = NamedPieceFactory(part=chassis, suffix='TOP', note='Top "half" <glued>')
-        html = as_markdown('Glue `CHASSIS.TOP`.', None)
+        html = as_markdown('Glue `CHASSIS>TOP`.', None)
 
         self.assertIn('title="Top &quot;half&quot; &lt;glued&gt;"', html)
         self.assertIn(f'data-picture-preview="{top.picture_url}"', html)  # inherits the part picture
@@ -195,12 +196,12 @@ class NamedPieceMarkdownTests(TestCase):
         # No picture anywhere: no preview attribute at all.
         bare = _part('BARE')
         NamedPieceFactory(part=bare, suffix='X', note='')
-        self.assertNotIn('data-picture-preview', as_markdown('See `BARE.X`.', None))
+        self.assertNotIn('data-picture-preview', as_markdown('See `BARE>X`.', None))
 
     def test_unknown_dotted_reference_stays_as_code(self):
         _part('CHASSIS')
-        html = as_markdown('Glue `CHASSIS.NOPE`.', None)
-        self.assertIn('<code>CHASSIS.NOPE</code>', html)
+        html = as_markdown('Glue `CHASSIS>NOPE`.', None)
+        self.assertIn('<code>CHASSIS&gt;NOPE</code>', html)
         self.assertNotIn('bomlink', html)
 
 
@@ -232,16 +233,16 @@ class PartEditorNamedPieceTests(TestCase):
         return self.client.post(self.url, data)
 
     def test_editor_shows_pieces_a_blank_row_and_a_row_template(self):
-        NamedPieceFactory(part=self.chassis, suffix='TOP', note='Glue to `CHASSIS.BOTTOM`')
+        NamedPieceFactory(part=self.chassis, suffix='TOP', note='Glue to `CHASSIS>BOTTOM`')
         html = self.client.get(self.url).content.decode()
 
         self.assertIn('id="named_pieces"', html)
         self.assertIn('name="named_pieces-TOTAL_FORMS"', html)
         self.assertIn('value="TOP"', html)
-        self.assertIn('value="Glue to `CHASSIS.BOTTOM`"', html)
-        self.assertEqual(html.count('<div class="input-group-text">CHASSIS.</div>'), 3)  # saved, blank, template
+        self.assertIn('value="Glue to `CHASSIS&gt;BOTTOM`"', html)
+        self.assertEqual(html.count('<div class="input-group-text">CHASSIS&gt;</div>'), 3)  # saved, blank, template
         self.assertEqual(html.count('class="input-group bomnado-savechanges-note input-group-sm bomnado-piece-reference"'), 3)
-        self.assertIn('pattern="[0-9A-Z-]*"', html)
+        self.assertIn('pattern="[0-9A-Z]([0-9A-Z.-]*[0-9A-Z-])?"', html)
         self.assertIn('name="named_pieces-__prefix__-suffix"', html)
         self.assertIn('id="pieceRowTemplate"', html)
         self.assertIn('name="named_pieces-0-DELETE"', html)
@@ -253,13 +254,13 @@ class PartEditorNamedPieceTests(TestCase):
 
     def test_quick_add_creates_pieces(self):
         response = self._post([
-            {'suffix': 'TOP', 'note': 'Glue to `CHASSIS.BOTTOM`'},
+            {'suffix': 'TOP', 'note': 'Glue to `CHASSIS>BOTTOM`'},
             {'suffix': 'BOTTOM', 'note': ''},
             {'suffix': '', 'note': ''},  # the untouched blank row
         ])
         self.assertRedirects(response, self.url)
         self.assertEqual(list(self.chassis.named_pieces.values_list('suffix', 'note')), [
-            ('BOTTOM', ''), ('TOP', 'Glue to `CHASSIS.BOTTOM`')])
+            ('BOTTOM', ''), ('TOP', 'Glue to `CHASSIS>BOTTOM`')])
 
     def test_quick_add_accepts_a_picture(self):
         picture = SimpleUploadedFile('top.png', _png(), content_type='image/png')
@@ -283,7 +284,7 @@ class PartEditorNamedPieceTests(TestCase):
         self.assertEqual(response.status_code, 200)
         html = response.content.decode()
         self.assertIn('already exists', html)
-        self.assertIn('Only uppercase letters, numbers, and dashes are allowed.', html)
+        self.assertIn('Only uppercase letters, numbers, dashes and dots are allowed (a dot only in the middle).', html)
         self.assertEqual(self.chassis.named_pieces.count(), 1)
 
     def test_two_new_rows_with_the_same_suffix_are_both_flagged(self):
@@ -322,10 +323,10 @@ class PartEditorNamedPieceTests(TestCase):
 
     def test_renaming_a_suffix_through_the_editor_rewrites_references(self):
         top = NamedPieceFactory(part=self.chassis, suffix='TOP')
-        assembly = SubAssemblyFactory(team=self.team, picture=None, is_toplevel=True, instructions='Fit `CHASSIS.TOP`')
+        assembly = SubAssemblyFactory(team=self.team, picture=None, is_toplevel=True, instructions='Fit `CHASSIS>TOP`')
         response = self._post([{'id': top.id, 'suffix': 'UPPER', 'note': ''}], initial=1)
         self.assertRedirects(response, self.url)
-        self.assertEqual(SubAssembly.objects.get(pk=assembly.pk).instructions, 'Fit `CHASSIS.UPPER`')
+        self.assertEqual(SubAssembly.objects.get(pk=assembly.pk).instructions, 'Fit `CHASSIS>UPPER`')
 
     def test_other_teams_cannot_see_the_editor(self):
         other = _part('THEIRS', team=TeamFactory())
@@ -355,11 +356,11 @@ class NamedPieceSearchTests(TestCase):
         bottom = NamedPieceFactory(part=chassis, suffix='BOTTOM', note='')
         _part('LID', team=self.team)
 
-        rows = self.client.get('/api/parts/search/', {'search': 'CHASSIS.T'}).json()
+        rows = self.client.get('/api/parts/search/', {'search': 'CHASSIS>T'}).json()
         self.assertEqual([row['reference'] for row in rows], ['CHASSIS'])  # dot syntax offers the parent
         self.assertEqual(rows[0]['named_pieces'], [
-            {'id': bottom.id, 'suffix': 'BOTTOM', 'reference': 'CHASSIS.BOTTOM', 'note': ''},
-            {'id': top.id, 'suffix': 'TOP', 'reference': 'CHASSIS.TOP', 'note': 'Top half'},
+            {'id': bottom.id, 'suffix': 'BOTTOM', 'reference': 'CHASSIS>BOTTOM', 'note': ''},
+            {'id': top.id, 'suffix': 'TOP', 'reference': 'CHASSIS>TOP', 'note': 'Top half'},
         ])
 
     def test_pieces_do_not_cost_a_query_per_row(self):
@@ -445,7 +446,7 @@ class NamedPiecesAreNotBomItemsTests(TestCase):
 
         html = self.client.get(reverse('bom:tools_orphan_finder', kwargs={'pk': self.project.id})).content.decode()
         self.assertIn('>ORPHAN<', html)
-        self.assertNotIn('ORPHAN.LEG', html)
+        self.assertNotIn('ORPHAN>LEG', html)
         self.assertIn('There are <code>1</code> orphan parts', html)
 
     def test_exports_are_unchanged_by_pieces(self):
@@ -460,12 +461,12 @@ class NamedPiecesAreNotBomItemsTests(TestCase):
         for name in exporters:
             with self.subTest(export=name):
                 self.assertEqual(before[name][0], after[name][0])  # same number of rows on every sheet
-                self.assertNotIn('CHASSIS.TOP', after[name][1])
-                self.assertNotIn('ORPHAN.LEG', after[name][1])
+                self.assertNotIn('CHASSIS>TOP', after[name][1])
+                self.assertNotIn('ORPHAN>LEG', after[name][1])
 
     def test_piece_references_in_notes_do_not_make_line_items(self):
         self._add_pieces()
-        self.project.instructions = 'Glue `CHASSIS.TOP` to `CHASSIS.BOTTOM`'
+        self.project.instructions = 'Glue `CHASSIS>TOP` to `CHASSIS>BOTTOM`'
         self.project.save()
         self.assertEqual(SubAssemblyLineItem.objects.filter(subassembly=self.project).count(), 1)
         self.assertEqual(self.project.kgs, self.chassis.kgs * 3)

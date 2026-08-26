@@ -1,0 +1,12 @@
+{# The mark on anything that works with AI: a small colour sparkle. Twinkles on hover; pulses while running. #}
+{# Usage: {% include "partial/ai_icon.html" %} - or with running=True, or mono=True (current text colour, for coloured buttons). #}
+<svg class="bomnado-ai-icon{% if running %} is-running{% endif %}{% if mono %} is-mono{% endif %}" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+    {% if not mono %}<defs>
+        <linearGradient id="bomnado-ai-gradient" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#f59e0b"/>
+            <stop offset="1" stop-color="#7c3aed"/>
+        </linearGradient>
+    </defs>{% endif %}
+    <path class="bomnado-ai-icon-big" fill="{% if mono %}currentColor{% else %}url(#bomnado-ai-gradient){% endif %}" d="M7 1.5c.4 3.2 1.8 4.6 5 5-3.2.4-4.6 1.8-5 5-.4-3.2-1.8-4.6-5-5 3.2-.4 4.6-1.8 5-5z"/>
+    <path class="bomnado-ai-icon-small" fill="{% if mono %}currentColor{% else %}url(#bomnado-ai-gradient){% endif %}" d="M12.5 9.5c.2 1.5.8 2.1 2.3 2.3-1.5.2-2.1.8-2.3 2.3-.2-1.5-.8-2.1-2.3-2.3 1.5-.2 2.1-.8 2.3-2.3z"/>
+</svg>

@@ -59,6 +59,18 @@ if TESTING:
     # Remove nose-specific configuration as nose is incompatible with Python 3.12
     pass
 
+# Bomnado working with Claude (see `bom.ai`). Users' API keys are stored encrypted with this
+# Fernet key; when unset, one is derived from SECRET_KEY (so rotating SECRET_KEY orphans them).
+BOMNADO_FERNET_KEY = os.environ.get('BOMNADO_FERNET_KEY', '')
+
+# AI work runs as Celery tasks. Without a broker they run inline (tests) or in a background thread
+# (development, see BOMNADO_AI_THREADS) so pages can show progress.
+CELERY_TASK_ALWAYS_EAGER = TESTING
+CELERY_TASK_EAGER_PROPAGATES = True
+BOMNADO_AI_THREADS = False
+# Stream chat answers from the provider so the window shows them as they are written (off in tests: mocked).
+BOMNADO_AI_STREAM = not TESTING
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -190,3 +202,8 @@ VERSION = '0.19.0'
 # Program settings
 BOM_MAX_RECENT_ASSEMBLIES = 5
 """The number of recently viewed assemblies to keep a record for users"""
+
+# Tests write uploads (pictures, attachments) to a throwaway directory, not the real media folder.
+if TESTING:
+    import tempfile
+    MEDIA_ROOT = tempfile.mkdtemp(prefix='bomnado-test-media-')

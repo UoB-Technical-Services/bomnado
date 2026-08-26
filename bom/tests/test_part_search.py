@@ -51,11 +51,11 @@ class PartSearchEndpointTests(TestCase):
         self.assertEqual(self._refs('M8'), ['BOLT-M8', 'HEX-NUT'])
 
     def test_dot_syntax_matches_the_parent_reference(self):
-        """ Typing `PARENT.SUFFIX` offers PARENT, so selecting it adds the parent part. """
+        """ Typing `PARENT>SUFFIX` offers PARENT, so selecting it adds the parent part. """
         self._part('3D-PRINTED-CHASSIS')
         self._part('3D-PRINTED-LID')
-        self.assertEqual(self._refs('3D-PRINTED-CHASSIS.TOP'), ['3D-PRINTED-CHASSIS'])
-        self.assertEqual(self._refs('3d-printed-chassis.'), ['3D-PRINTED-CHASSIS'])
+        self.assertEqual(self._refs('3D-PRINTED-CHASSIS>TOP'), ['3D-PRINTED-CHASSIS'])
+        self.assertEqual(self._refs('3d-printed-chassis>'), ['3D-PRINTED-CHASSIS'])
 
     def test_reference_containing_a_dot_still_matches_directly(self):
         self._part('V1.2-BRACKET')

@@ -1,0 +1,63 @@
+{# The "Bomnado AI" card on the settings page. #}
+{# Context: `ai_form` (UserAISettingsForm), `ai_settings` (UserAISettings or None), `ai_spend` (Decimal, USD this month). #}
+
+<div class="card mb-4" id="ai-settings">
+    <div class="card-body">
+        <h5 class="card-title">AI assistant</h5>
+        <p class="text-muted mb-3">
+            Bomnado can read supplier pages and datasheets, find alternative suppliers and turn notes into parts,
+            using <em>your</em> AI API key. Anything it creates is flagged for human review and can be reverted.
+            Keys are Anthropic API keys, from <a href="https://console.anthropic.com/" target="_blank" rel="noopener">console.anthropic.com</a>.
+        </p>
+
+        <dl class="row account-details mb-3">
+            <dt class="col-sm-3">API key</dt>
+            <dd class="col-sm-9">
+                {% if ai_settings and ai_settings.is_configured %}
+                    <code>{{ ai_settings.masked_key }}</code>
+                    <span id="ai-connection" class="ml-2"></span>
+                    <button type="button" class="btn btn-sm btn-outline-secondary ml-2"
+                        hx-post="{% url 'bom:ai_test_connection' %}" hx-target="#ai-connection" hx-swap="innerHTML">Test connection</button>
+                {% else %}
+                    <span class="text-muted">Not set</span>
+                {% endif %}
+            </dd>
+            <dt class="col-sm-3">Spend this month</dt>
+            <dd class="col-sm-9">${{ ai_spend|floatformat:2 }}
+                {% if ai_settings and ai_settings.monthly_budget %}<span class="text-muted">of a ${{ ai_settings.monthly_budget|floatformat:2 }} budget ({{ ai_settings.percent_used }}%)</span>{% endif %}
+                <small class="text-muted d-block">Worked out from the tokens each call used, at list prices. Your Anthropic console has the bill.</small>
+            </dd>
+        </dl>
+
+        <form method="post" id="ai-form">
+            {% csrf_token %}
+            <input type="hidden" name="form_name" value="ai">
+            {% if ai_form.non_field_errors %}
+            <div class="alert alert-danger" role="alert">{% for error in ai_form.non_field_errors %}{{ error|escape }}{% endfor %}</div>
+            {% endif %}
+            <div class="form-row">
+                <div class="form-group col-md-6">
+                    <label for="{{ ai_form.api_key.id_for_label }}"><strong>{{ ai_form.api_key.label }}</strong></label>
+                    {{ ai_form.api_key }}
+                    <small class="form-text text-muted">{{ ai_form.api_key.help_text }}</small>
+                    {% for error in ai_form.api_key.errors %}<small class="text-danger d-block">{{ error|escape }}</small>{% endfor %}
+                </div>
+                <div class="form-group col-md-3">
+                    <label for="{{ ai_form.model.id_for_label }}"><strong>{{ ai_form.model.label }}</strong></label>
+                    {{ ai_form.model }}
+                    <small class="form-text text-muted">{{ ai_form.model.help_text }}</small>
+                </div>
+                <div class="form-group col-md-3">
+                    <label for="{{ ai_form.monthly_budget.id_for_label }}"><strong>{{ ai_form.monthly_budget.label }}</strong></label>
+                    {{ ai_form.monthly_budget }}
+                    <small class="form-text text-muted">{{ ai_form.monthly_budget.help_text }}</small>
+                    {% for error in ai_form.monthly_budget.errors %}<small class="text-danger d-block">{{ error|escape }}</small>{% endfor %}
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Save</button>
+            {% if ai_settings and ai_settings.is_configured %}
+            <button type="submit" name="remove_key" value="1" class="btn btn-outline-danger ml-2">Remove key</button>
+            {% endif %}
+        </form>
+    </div>
+</div>

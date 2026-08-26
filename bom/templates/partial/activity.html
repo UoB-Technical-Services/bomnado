@@ -14,9 +14,9 @@
 
     {% for item in open_feedback %}
     <div class="bomnado-feedback">
-        <span class="bomnado-activity-icon">{% include "partial/activity_icon.html" with icon='feedback' %}</span>
+        <span class="bomnado-activity-icon" title="Open feedback">👀</span>
         <div class="bomnado-activity-body">
-            <strong>{{ item.author|person }}</strong> <span class="text-muted">· open</span>
+            <strong>{{ item.author|person }}</strong> <span class="text-muted">· open feedback</span>
             <div class="bomnado-activity-quote">{{ item.text|as_markdown:obj|safe }}</div>
         </div>
         <span class="bomnado-activity-when text-muted" title="{{ item.created }}">{{ item.created|ago }}</span>

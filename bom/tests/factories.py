@@ -39,7 +39,7 @@ class PartFactory(DjangoModelFactory):
     dimensions = LazyAttribute(
         lambda a: f'{random.uniform(1, 10000)} X {random.uniform(1, 10000)} X {random.uniform(1, 10000)}')
     colour = FuzzyText(length=100, chars=string.ascii_letters)
-    nature = FuzzyChoice(Part.NATURE)
+    nature = FuzzyChoice([nature for nature, _ in Part.NATURE])
     spec = FuzzyText(length=1000, chars=string.ascii_letters)
     picture = ImageField(color='blue', width=300, height=300, format='JPEG')
     sale_code = FuzzyText(length=100, chars=string.ascii_letters)

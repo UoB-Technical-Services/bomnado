@@ -370,8 +370,8 @@ class MarkdownField {
             .filter(a => !needle || `${a.reference} ${a.name}`.toUpperCase().includes(needle))
             .slice(0, 10)
             .map(a => ({ icon: '📦', reference: a.reference, name: a.name }));
-        // Each part is followed by its `PARENT.SUFFIX` pieces that start with the term
-        // (so `CHASSIS` lists `CHASSIS.TOP` beneath it, and `CHASSIS.T` narrows to it).
+        // Each part is followed by its `PARENT>SUFFIX` pieces that start with the term
+        // (so `CHASSIS` lists `CHASSIS>TOP` beneath it, and `CHASSIS>T` narrows to it).
         const rows = parts.flatMap(p => [
             { icon: '🔩', reference: p.reference, name: p.name },
             ...(p.named_pieces || [])

@@ -142,7 +142,7 @@ body {
 .bomnado-activity-entry,
 .bomnado-feedback { display: flex; align-items: flex-start; gap: 0.5rem; padding: 0.3rem 0; border-top: 1px solid #f1f3f5; }
 .bomnado-activity-entry:first-child { border-top: 0; }
-.bomnado-feedback { border: 1px solid #e9ecef; border-radius: 0.2rem; padding: 0.4rem 0.5rem; margin-bottom: 0.5rem; background: #fff; }
+.bomnado-feedback { border: 1px solid #dfe9b8; border-radius: 0.2rem; padding: 0.4rem 0.5rem; margin-bottom: 0.5rem; background: #f7ffe0; }
 .bomnado-activity-icon { flex: 0 0 1rem; color: #6c757d; line-height: 1.4; }
 .bomnado-activity-svg { vertical-align: -2px; }
 .bomnado-activity-body { flex: 1 1 auto; min-width: 0; }
@@ -163,6 +163,94 @@ body {
 .bomnado-activity-rule { margin: 1.5rem 0 1rem; border-top: 1px solid #dee2e6; }
 a.bomnado-person { color: inherit; text-decoration: none; border-bottom: 1px dotted #adb5bd; }
 a.bomnado-person:hover { color: inherit; border-bottom-style: solid; }
+
+/* The sparkle on anything that works with AI (partial/ai_icon.html). */
+.bomnado-ai-icon { vertical-align: -3px; transition: transform 0.25s ease; transform-origin: 50% 50%; }
+.bomnado-ai-icon-small { transform-origin: 12.5px 12px; transition: transform 0.25s ease; }
+a:hover > .bomnado-ai-icon, button:hover > .bomnado-ai-icon, .bomnado-ai-hover:hover .bomnado-ai-icon,
+label:hover > .bomnado-ai-icon { transform: rotate(15deg) scale(1.15); }
+a:hover > .bomnado-ai-icon .bomnado-ai-icon-small, button:hover > .bomnado-ai-icon .bomnado-ai-icon-small { transform: scale(1.5); }
+.bomnado-ai-icon.is-running { animation: bomnado-ai-twinkle 1.4s ease-in-out infinite; }
+@keyframes bomnado-ai-twinkle {
+    0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    50% { transform: scale(1.2) rotate(20deg); opacity: 0.7; }
+}
+
+/* AI actions: one look everywhere - a violet-to-magenta button with a white sparkle - so it is always
+   obvious that pressing it calls the AI. Banners and panels about AI work use the same violet tint. */
+.btn-ai, .btn-ai:not(:disabled):not(.disabled):active {
+    color: #fff; border: 0; background: linear-gradient(135deg, #6d28d9, #c026d3);
+    box-shadow: 0 1px 2px rgba(76, 29, 149, 0.3);
+}
+.btn-ai:hover, .btn-ai:focus { color: #fff; background: linear-gradient(135deg, #5b21b6, #a21caf); box-shadow: 0 0 0 0.2rem rgba(124, 58, 237, 0.25); }
+.btn-ai:disabled, .btn-ai.disabled { color: #fff; background: linear-gradient(135deg, #6d28d9, #c026d3); opacity: 0.5; }
+.btn-outline-ai { color: #6d28d9; border-color: #c4b5fd; background: #fff; }
+.btn-outline-ai:hover, .btn-outline-ai.active, .btn-outline-ai:not(:disabled):not(.disabled).active { color: #fff; background: #6d28d9; border-color: #6d28d9; }
+.bomnado-ai-tint { background: #f5f3ff; border-color: #ddd6fe; color: #3b0764; }
+.bomnado-ai-banner { font-size: 0.9rem; }
+.bomnado-ai-banner.alert-info { background: #f5f3ff; border-color: #ddd6fe; color: #3b0764; }
+.bomnado-ai-banner .bomnado-ai-progress { color: #6d28d9; }
+/* The spend button sits on the dark top bar: light text, a visible track, and the bar itself in the AI colours. */
+.bomnado-ai-spend, .bomnado-ai-spend:hover, .bomnado-ai-spend:focus {
+    font-size: 0.8rem; white-space: nowrap; padding: 0.15rem 0.5rem; margin-right: 0.25rem;
+    color: #f5f3ff; background: rgba(255, 255, 255, 0.12); border-color: rgba(221, 214, 254, 0.7);
+}
+.bomnado-ai-spend:hover, .bomnado-ai-spend:focus { background: rgba(255, 255, 255, 0.22); color: #fff; }
+.bomnado-ai-spend .progress { height: 6px; width: 4rem; background: rgba(255, 255, 255, 0.3); display: inline-block; vertical-align: middle; margin-left: 0.35rem; border-radius: 3px; }
+.bomnado-ai-spend .progress-bar { background: linear-gradient(90deg, #fbbf24, #e879f9); }
+.bomnado-ai-toggle { margin-right: 0.25rem; padding: 0.15rem 0.5rem; font-size: 0.8rem; }
+.bomnado-ai-callouts { margin: -0.5rem 0 0.75rem; font-size: 0.8rem; }
+.bomnado-ai-callouts .btn-link { font-size: 0.8rem; color: #6d28d9; vertical-align: baseline; }
+
+/* The floating chat window (partial/ai_chat.html, ai_chat.js): movable, resizable, over everything. */
+.bomnado-ai-chat {
+    position: fixed; z-index: 1060; display: flex; flex-direction: column; min-width: 320px; min-height: 260px;
+    background: #fff; border: 1px solid #c4b5fd; border-radius: 0.4rem; box-shadow: 0 8px 30px rgba(59, 7, 100, 0.25);
+    resize: both; overflow: hidden; font-size: 0.875rem;
+}
+.bomnado-ai-chat.is-over { outline: 3px dashed #7c3aed; outline-offset: -6px; }
+.bomnado-ai-chat-header {
+    display: flex; align-items: center; justify-content: space-between; padding: 0.3rem 0.5rem; cursor: move;
+    color: #fff; background: linear-gradient(135deg, #6d28d9, #c026d3); user-select: none;
+}
+.bomnado-ai-chat-title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bomnado-ai-chat-controls { white-space: nowrap; }
+.bomnado-ai-chat-controls .btn { color: #fff; padding: 0 0.35rem; line-height: 1.4; font-size: 0.9rem; }
+.bomnado-ai-chat-controls .btn:hover { background: rgba(255, 255, 255, 0.2); color: #fff; }
+.bomnado-ai-chat-threads { max-height: 40%; overflow: auto; padding: 0.4rem 0.6rem; border-bottom: 1px solid #ede9fe; background: #faf5ff; }
+.bomnado-ai-chat-threads-item { display: flex; align-items: center; gap: 0.4rem; }
+.bomnado-ai-chat-threads-item a { flex: 1; min-width: 0; }
+.bomnado-ai-chat-body { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+#aiChatThread { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.bomnado-ai-chat-messages { flex: 1; overflow: auto; padding: 0.6rem; background: #fcfbff; }
+.bomnado-ai-chat-empty { color: #4c1d95; }
+.bomnado-ai-chat-msg { max-width: 92%; margin-bottom: 0.5rem; padding: 0.4rem 0.6rem; border-radius: 0.5rem; }
+.bomnado-ai-chat-msg.is-user { margin-left: auto; background: #ede9fe; color: #2e1065; }
+.bomnado-ai-chat-msg.is-ai { background: #fff; border: 1px solid #ede9fe; }
+.bomnado-ai-chat-text p:last-child, .bomnado-ai-chat-text ul:last-child { margin-bottom: 0; }
+.bomnado-ai-chat-text pre { font-size: 0.8rem; }
+.bomnado-ai-chat-tools { margin: 0 0 0.4rem; }
+.bomnado-ai-chat-chip {
+    display: inline-block; margin: 0 0.25rem 0.25rem 0; padding: 0.05rem 0.45rem; border-radius: 1rem; font-size: 0.75rem;
+    background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle;
+}
+.bomnado-ai-chat-chip.is-write { background: #ecfdf5; color: #065f46; border-color: #a7f3d0; }
+.bomnado-ai-chat-chip.is-web { background: #eff6ff; color: #1e40af; border-color: #bfdbfe; }
+.bomnado-ai-chat-chip.is-error { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
+.bomnado-ai-chat-chip.is-link { background: #f5f3ff; color: #5b21b6; border-color: #ddd6fe; text-decoration: none; }
+.bomnado-ai-chat-progress { display: flex; align-items: center; gap: 0.4rem; color: #6d28d9; padding: 0.3rem 0.2rem; }
+.bomnado-ai-chat-error { display: flex; align-items: center; color: #991b1b; background: #fef2f2; border-radius: 0.3rem; padding: 0.3rem 0.5rem; }
+.bomnado-ai-chat-touched { margin-top: 0.25rem; }
+.bomnado-ai-chat-cost { font-size: 0.7rem; text-align: right; }
+.bomnado-ai-chat-composer { border-top: 1px solid #ede9fe; padding: 0.4rem; background: #fff; }
+.bomnado-ai-chat-page { font-size: 0.72rem; color: #6d28d9; padding: 0 0.2rem 0.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bomnado-ai-chat-input { display: flex; gap: 0.3rem; align-items: flex-end; }
+.bomnado-ai-chat-input textarea { flex: 1; resize: none; border: 1px solid #ddd6fe; border-radius: 0.3rem; padding: 0.35rem 0.5rem; font-size: 0.875rem; }
+.bomnado-ai-chat-input textarea:focus { outline: none; border-color: #7c3aed; box-shadow: 0 0 0 0.15rem rgba(124, 58, 237, 0.2); }
+.bomnado-ai-chat-buttons { display: flex; flex-direction: column; gap: 0.2rem; }
+.bomnado-ai-chat-files { list-style: none; margin: 0 0 0.3rem; padding: 0 0.2rem; font-size: 0.75rem; color: #4c1d95; }
+.bomnado-ai-chat-pill { position: fixed; right: 1.5rem; bottom: 1.5rem; z-index: 1060; border-radius: 2rem; box-shadow: 0 4px 16px rgba(59, 7, 100, 0.3); max-width: 16rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bomnado-new-part .btn-group-toggle .btn.disabled { opacity: 0.5; }
 
 a.bomlink.part { text-decoration: none; }
 a.bomlink.part > kbd {

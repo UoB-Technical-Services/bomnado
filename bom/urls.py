@@ -24,9 +24,23 @@ urlpatterns = [
     path('teams/', views.TeamsView.as_view(), name='teams'),
     re_path(r'^teams/(?P<pk>([0-9]+))/add', views.AddToTeamView.as_view(), name='teams_add'),
     re_path(r'^teams/(?P<pk>([0-9]+))/remove', views.RemoveFromTeamView.as_view(), name='teams_remove'),
+    path('teams/<int:pk>/naming_guide', views.TeamNamingGuideView.as_view(), name='teams_naming_guide'),
 
     # User settings
     path('settings/', views.UserSettingsView.as_view(), name='user_settings'),
+    path('settings/ai/test', views.ai_test_connection, name='ai_test_connection'),
+
+    # The AI chat window (htmx fragments) and the activity page.
+    path('ai/chat/', views.ai_chat, name='ai_chat'),
+    path('ai/chat/threads/', views.ai_chat_threads, name='ai_chat_threads'),
+    path('ai/chat/send', views.ai_chat_send, name='ai_chat_send'),
+    path('ai/chat/<int:thread_id>/', views.ai_chat_status, name='ai_chat_status'),
+    path('ai/chat/<int:thread_id>/stop', views.ai_chat_stop, name='ai_chat_stop'),
+    path('ai/chat/<int:thread_id>/retry', views.ai_chat_retry, name='ai_chat_retry'),
+    path('ai/chat/<int:thread_id>/delete', views.ai_chat_delete, name='ai_chat_delete'),
+    path('ai/jobs/<int:job_id>/cancel', views.ai_job_cancel, name='ai_job_cancel'),
+    path('ai/jobs/', views.AIJobsView.as_view(), name='ai_jobs'),
+    path('ai/jobs/clear', views.ai_jobs_clear, name='ai_jobs_clear'),
 
     # Util pages.
     path('main', views.MainPageTester.as_view(), name='main'),
