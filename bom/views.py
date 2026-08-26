@@ -29,7 +29,7 @@ from django.db.models import Case, When, BooleanField, Q
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse, HttpResponseNotAllowed, \
     HttpResponseBadRequest
 from django.shortcuts import render, get_object_or_404, redirect
-from django.urls import reverse, reverse_lazy, resolve
+from django.urls import Resolver404, reverse, reverse_lazy, resolve
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from django.views import View
@@ -106,7 +106,8 @@ def redirect_back_with_message(
                     return reverse_lazy(url_name, kwargs={kwarg_key: resolved.kwargs.get(kwarg_key)})
                 else:
                     return reverse_lazy(url_name)
-        except (ValueError, AttributeError):
+        except (ValueError, AttributeError, Resolver404):
+            # A referer we cannot parse, or one that is not a page of ours.
             pass
 
     # Default fallback if the referrer couldn't be resolved or wasn't in allowed_views
@@ -198,10 +199,11 @@ class PartEditorCreateView(LoginRequiredMixin, RedirectView):
         # Otherwise we have a URL!  Let's try and scrape information from the page.
         scrape = scrapeURL(url)
 
-        # If the scraper failed.
+        # No scraper knows this site: hand back a blank part (keeping the URL the
+        # user pasted) for them to fill in.
         if not scrape:
-            part = Part.objects.create(spec=url)
-            part.save()
+            part = Part.objects.create(spec=url, team=team)
+            PartSource.objects.create(part=part, url=url)
             return _redirect(part)
 
         def _safe(prop, default):
@@ -246,8 +248,9 @@ class PartEditorCreateView(LoginRequiredMixin, RedirectView):
             kgs=_safe('kgs', 0),
             dimensions=_safe('dimensions', ''),
             colour=_safe('colour', ''),
-            nature=_safe('nature', ''),
-            spec=_safe('spec', 'S'),
+            # Scrapers that do not know the nature return '' - that is not a valid choice.
+            nature=_safe('nature', '') or Part.NATURE_STANDARD,
+            spec=_safe('spec', ''),
             team=team
         )
 
@@ -797,13 +800,19 @@ def AssemblyEditorUpdateView(request, pk):
         form = SubAssemblyForm(instance=assembly)
         formset = SubAssemblyItemFormset(instance=assembly)
 
-    # Build the tree to render.
-    root = assembly.project
+    # Build the tree to render. An assembly whose project has been deleted has no
+    # project (SET_DEFAULT None) - show it as its own root rather than failing.
+    root = assembly.project or assembly
 
-    # List of all subassemblies and line items.
+    # Every line item in this team, grouped by parent assembly, in one query. Only
+    # this team's assemblies can appear in the tree, so nothing else is loaded.
+    # (`stylised_assembly` checks each node for a PCB sub-type, so that is joined too.)
     line_items_by_assy = dict()
-    for line in SubAssemblyLineItem.objects.filter(subassembly__isnull=False).select_related('subassembly'):
-        line_items_by_assy.setdefault(line.subassembly.id, []).append(line)
+    lines = SubAssemblyLineItem.objects.filter(
+        subassembly__team=assembly.team, child_subassembly__isnull=False,
+    ).select_related('child_subassembly', 'child_subassembly__pcbsubassembly')
+    for line in lines:
+        line_items_by_assy.setdefault(line.subassembly_id, []).append(line)
 
     # Collect assemblies used in the main product tree.
     used = set()
@@ -835,8 +844,7 @@ def AssemblyEditorUpdateView(request, pk):
     assembly_tree = traverse(root, 0)
 
     # Determine any objects that are not within the tree.
-    orphans = assembly.project.children.exclude(
-        id=assembly.project.id).exclude(reference__in=[s.reference for s in used])
+    orphans = root.children.exclude(id=root.id).exclude(id__in=[s.id for s in used]).select_related('pcbsubassembly')
 
     # Prepare template context.
     # Get any error messages from the session and add to context
@@ -848,6 +856,7 @@ def AssemblyEditorUpdateView(request, pk):
         'form': form,
         'formset': formset,
         'assembly': assembly,
+        'root': root,
         'tree': assembly_tree,
         'orphans': [traverse(orphan, 0) for orphan in orphans],
         'error_message': error_message,

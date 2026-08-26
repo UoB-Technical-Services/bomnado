@@ -612,7 +612,7 @@
                 {% if assembly.is_toplevel %}
                     window.location = '{% url "bom:start" %}';
                 {% else %}
-                    window.location = '{% url "bom:assembly_editor_update" pk=assembly.project.id %}';
+                    window.location = '{% url "bom:assembly_editor_update" pk=root.id %}';
                 {% endif %}
             }
             call();
@@ -646,7 +646,7 @@
         // Query the DB for parts and asssembles.
         const partsResponse = await fetch('/api/parts/');
         const parts = await partsResponse.json();
-        const assembliesResponse = await fetch('/api/subassemblies/{{ assembly.project.pk }}/available');
+        const assembliesResponse = await fetch('/api/subassemblies/{{ root.pk }}/available');
         const assemblies = await assembliesResponse.json();
 
         // Search text transformer - combine reference, name, and (optionally) spec.
