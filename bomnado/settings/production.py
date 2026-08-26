@@ -100,36 +100,6 @@ elif EMAIL_MODE == EmailMode.CONSOLE:
 
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL')
 
-USE_DROPBOX_BACKUPS = get_bool_environment_var('USE_DROPBOX_BACKUPS', False)
-if USE_DROPBOX_BACKUPS:
-    # Store the backups in dropbox for extra security
-    DBBACKUP_STORAGE = 'storages.backends.dropbox.DropBoxStorage'
-    # TODO validate that all of these are set when using USE_DROPBOX_BACKUPS
-    DROPBOX_ROOT_PATH = os.environ.get('DROPBOX_ROOT_PATH')
-    DROPBOX_APP_KEY = os.environ.get('DROPBOX_APP_KEY')
-    DROPBOX_APP_SECRET = os.environ.get('DROPBOX_APP_SECRET')
-    DROPBOX_OAUTH2_TOKEN = os.environ.get('DROPBOX_OAUTH2_TOKEN')
-    DROPBOX_OAUTH2_REFRESH_TOKEN = os.environ.get('DROPBOX_OAUTH2_REFRESH_TOKEN')
-
-    if all([DROPBOX_ROOT_PATH, DROPBOX_APP_KEY, DROPBOX_APP_SECRET, DROPBOX_OAUTH2_TOKEN, DROPBOX_OAUTH2_REFRESH_TOKEN]):
-        # Store the backups in dropbox for extra security
-        # Preserve the staticfiles backend from base settings
-        STORAGES = {
-            **STORAGES,  # Include base STORAGES configuration
-            "dbbackup": {
-                "BACKEND": "storages.backends.dropbox.DropBoxStorage",
-                "OPTIONS": {
-                    "oauth2_access_token": DROPBOX_OAUTH2_TOKEN,
-                    "oauth2_refresh_token": DROPBOX_OAUTH2_REFRESH_TOKEN,
-                    "app_key": DROPBOX_APP_KEY,
-                    "app_secret": DROPBOX_APP_SECRET,
-                    "root_path": DROPBOX_ROOT_PATH,
-                },
-            },
-        }
-    else:
-        raise ValueError("Please ensure that all Dropbox backup settings are configured: DROPBOX_ROOT_PATH, DROPBOX_APP_KEY, DROPBOX_APP_SECRET, DROPBOX_OAUTH2_TOKEN, DROPBOX_OAUTH2_REFRESH_TOKEN")
-
 BACKUP_TIME = get_time_environment_var('BACKUP_TIME', (5, 00))
 
 # Celery settings

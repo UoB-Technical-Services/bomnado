@@ -154,7 +154,7 @@ class UserMenuTests(TestCase):
         menu = self._menu(self.client.get(self.url))
         for text in ('>Settings<', '>Teams<', 'Logout', 'Django Admin', 'Export Database Backup'):
             self.assertIn(text, menu)
-        self.assertEqual(menu.count('>Admin<'), 2)
+        self.assertEqual(menu.count('>Admin<'), 3)   # admin, export, back up now
 
     def _menu(self, response):
         html = response.content.decode()

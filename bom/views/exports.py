@@ -9,12 +9,15 @@ from django.conf import settings
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core import management
 from django.core.exceptions import PermissionDenied
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
+from django.urls import reverse_lazy
+from django.views.decorators.http import require_POST
 
 from bom.models import SubAssembly
 from bom.utils.export import is_superuser
 from bom.utils.export.excel import export_database_to_excel, export_purchasing_spreadsheet
+from general.utils import perform_backup
 
 
 @login_required(login_url='/accounts/login/')
@@ -89,3 +92,16 @@ def export_backup(request):
         download_name = datetime.datetime.now().strftime('bomnado-%Y%V--%Y-%m-%d-%H-%M-%S')
         response['Content-Disposition'] = (f'attachment;filename={download_name}.zip')
         return response
+
+
+@login_required(login_url='/accounts/login/')
+@user_passes_test(is_superuser, login_url='/accounts/login/')
+@require_POST
+def backup_now(request):
+    """ The user menu's "Back Up Now": a database dump and a media archive into the backup
+    storage (`backups/` by default), keeping the newest few of each - the same
+    `general.utils.perform_backup` the nightly task runs. README.md says how to restore. """
+    perform_backup()
+    request.session['settings_success_message'] = ('Backed up the database and the media files to the backup '
+                                                   'folder. README.md says how to restore.')
+    return HttpResponseRedirect(reverse_lazy('bom:user_settings'))

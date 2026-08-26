@@ -5,7 +5,9 @@
 {% block body %}
 <h1>Sign in</h1>
 <p class="bn-auth-lead">With the email address you were invited with.</p>
-{% if form.errors %}
+{% if throttled %}
+<div class="alert alert-danger" role="alert">Too many attempts. Wait a minute and try again.</div>
+{% elif form.errors %}
 <div class="alert alert-danger" role="alert">That email address and password did not match. Both are case-sensitive.</div>
 {% endif %}
 <form method="post">

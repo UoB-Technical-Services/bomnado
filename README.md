@@ -197,3 +197,23 @@ Want to help improve Bomnado? See [`CONTRIBUTING.md`](CONTRIBUTING.md) for devel
 ## License
 
 This project is licensed under the MIT License - see the [`LICENSE`](LICENSE) file for details.
+
+## Backups
+
+Bomnado backs itself up with django-dbbackup into `backups/` next to the project (the `dbbackup`
+storage in `bomnado/settings/base.py`). In production a nightly Celery beat task does it
+(`BACKUP_TIME`, 05:00 by default). An administrator can also press **Back Up Now** in the user
+menu: it writes a database dump and a media archive and keeps the newest few of each
+(`DBBACKUP_CLEANUP_KEEP`, 7 by default).
+
+### Restoring
+
+1. Stop the server.
+2. List what you have: `pdm run python manage.py listbackups`
+3. Restore the newest database dump: `pdm run python manage.py dbrestore --uncompress --noinput`
+   (add `-i <filename>` for a specific one).
+4. Restore the media files: `pdm run python manage.py mediarestore --uncompress --replace --noinput`
+5. Start the server and check a few records.
+
+A restore overwrites the current database and media, so take a fresh backup first if the
+current state matters.

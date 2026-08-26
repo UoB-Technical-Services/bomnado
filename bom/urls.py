@@ -50,6 +50,7 @@ urlpatterns = [
     path('ai/jobs/clear', views.ai_jobs_clear, name='ai_jobs_clear'),
 
     path('export/backup', views.export_backup, name='export_backup'),
+    path('backup/now', views.backup_now, name='backup_now'),
 
     # Parts
     re_path(r'^part/(?P<pk>([0-9]+))', views.PartEditorUpdateView, name='part_editor_update'),

@@ -85,8 +85,12 @@ class DangerViewGuardTests(TestCase):
             response = self._post(views.reset_database, self.admin)
         self.assertEqual(response.status_code, 204)
         command.assert_called_with('migrate', '--noinput')
-        # The test database is SQLite, so the file-removal branch runs.
-        remove.assert_called_once()
+        # Only SQLite has a file to remove; on Postgres the view drops and recreates instead.
+        from django.db import connection
+        if connection.vendor == 'sqlite':
+            remove.assert_called_once()
+        else:
+            remove.assert_not_called()
         # The first-time-setup latch is released so the wizard runs again.
         self.assertIsNone(cache.get(SETUP_COMPLETE_CACHE_KEY))
 

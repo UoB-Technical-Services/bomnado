@@ -71,3 +71,28 @@ class BomSpreadsheetTests(TestCase):
             everything = b''.join(archive.read(name) for name in archive.namelist() if name.endswith('.xml'))
         self.assertIn(b'MINE-PART', everything)
         self.assertNotIn(b'THEIRS-PART', everything)
+
+
+class BackupNowTests(TestCase):
+    """ The user menu's Back Up Now: superusers only, POST only, runs both backup commands. """
+
+    def test_the_button_backs_up_and_reports(self):
+        from unittest import mock
+        boss = User.objects.create_superuser(username='boss', email='boss@example.com', password='pw')
+        self.client.force_login(boss)
+        with mock.patch('bom.views.exports.perform_backup') as run:
+            response = self.client.post(reverse('bom:backup_now'))
+        self.assertRedirects(response, reverse('bom:user_settings'))
+        run.assert_called_once_with()
+
+    def test_only_superusers_and_only_post(self):
+        from unittest import mock
+        user = User.objects.create_user(username='pleb', password='pw')
+        self.client.force_login(user)
+        with mock.patch('bom.views.exports.perform_backup') as run:
+            response = self.client.post(reverse('bom:backup_now'))
+        self.assertEqual(response.status_code, 302)                   # bounced to login
+        self.assertEqual(run.call_count, 0)
+        boss = User.objects.create_superuser(username='boss', email='boss@example.com', password='pw')
+        self.client.force_login(boss)
+        self.assertEqual(self.client.get(reverse('bom:backup_now')).status_code, 405)

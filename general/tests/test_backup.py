@@ -1,33 +1,24 @@
 import os
+import tempfile
 
-from django.test import TestCase
 from django.conf import settings
+from django.test import TestCase, override_settings
 
 from general.utils import perform_backup
 
 
 class HTMLTests(TestCase):
     def test_backup(self):
-        """
-        Basic test on database + media backup
-        :return: none
-        """
+        """ A backup writes a database dump and a media archive - into a scratch folder, so test
+        runs stop littering the real backups/, and named for whichever backend is running (the
+        SQLite connector writes .sqlite3.gz; the Postgres one .psql-flavoured files). """
+        with tempfile.TemporaryDirectory() as scratch:
+            storages = dict(settings.STORAGES)
+            storages['dbbackup'] = {'BACKEND': 'django.core.files.storage.FileSystemStorage',
+                                    'OPTIONS': {'location': scratch}}
+            with override_settings(STORAGES=storages):
+                perform_backup()
+                files = os.listdir(scratch)
 
-        perform_backup()
-        database_dump_found = False
-        media_backup_found = False
-
-        # Get backup location from STORAGES configuration
-        backup_location = settings.STORAGES['dbbackup']['OPTIONS']['location']
-
-        for file in os.listdir(backup_location):
-            # Check for database backups - extension depends on database backend
-            if file.endswith(".sqlite3.gz"):
-                database_dump_found = True
-
-        for file in os.listdir(backup_location):
-            if file.endswith(".tar.gz"):
-                media_backup_found = True
-
-        self.assertEqual(database_dump_found, True)
-        self.assertEqual(media_backup_found, True)
+        self.assertTrue(any('.sqlite3' in name or '.psql' in name or '.dump' in name for name in files), files)
+        self.assertTrue(any(name.endswith('.tar.gz') or name.endswith('.tar') for name in files), files)

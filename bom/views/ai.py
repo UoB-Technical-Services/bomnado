@@ -17,6 +17,13 @@ from bom.ai import client as ai_client
 from bom.ai import jobs as ai_jobs
 
 
+CHAT_FILE_COUNT = 10
+""" Most files one chat message may carry. """
+
+CHAT_FILE_BYTES = 25 * 1024 * 1024
+""" The biggest file one chat message may carry. """
+
+
 @login_required(login_url='/accounts/login/')
 @require_POST
 def ai_test_connection(request):
@@ -126,7 +133,13 @@ def ai_chat_send(request):
     if request.POST.get('thread', '').isdigit():
         thread = AIThread.objects.filter(pk=int(request.POST['thread']), user=request.user).first()
     text = (request.POST.get('text') or '').strip()[:20000]
-    files = request.FILES.getlist('files')[:20]
+    files = request.FILES.getlist('files')
+    if len(files) > CHAT_FILE_COUNT:
+        return render_thread(request, thread, error=f'At most {CHAT_FILE_COUNT} files per message.')
+    too_big = next((f.name for f in files if f.size > CHAT_FILE_BYTES), None)
+    if too_big is not None:
+        return render_thread(request, thread,
+                             error=f'{too_big} is over {CHAT_FILE_BYTES // (1024 * 1024)} MB. Attach it to the record instead.')
     if not text and not files:
         return render_thread(request, thread, error='Say something, or drop a file in.')
     try:

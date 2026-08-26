@@ -8,6 +8,7 @@ from rest_framework import routers
 
 from bom import viewsets
 import bom.urls
+from bom.views.accounts import ThrottledLoginView, ThrottledPasswordResetView
 
 
 router = routers.DefaultRouter()
@@ -20,6 +21,9 @@ router.register(r'deallineitems', viewsets.DealLineItemViewSet, basename=r'deall
 
 urlpatterns = [
     re_path(r'^', include(bom.urls)),
+    # Rate-limited sign-in and reset; the include below supplies the rest under the same names.
+    path('accounts/login/', ThrottledLoginView.as_view(), name='login'),
+    path('accounts/password_reset/', ThrottledPasswordResetView.as_view(), name='password_reset'),
     path('accounts/', include('django.contrib.auth.urls')),
     path('admin/', admin.site.urls),
     re_path(r'^api-auth/', include('rest_framework.urls')),
