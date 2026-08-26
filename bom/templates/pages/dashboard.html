@@ -29,6 +29,7 @@
         <a class="dropdown-item" download href="{% url "bom:export_xlsx" pk=product.id %}">BOM Spreadsheet</a>
     </div>
 </div>
+<button class="btn btn-outline-secondary m-1" type="button" onclick="forkProject('{{ product.id }}', '{{ product.reference }}')">Fork Project</button>
 <a href="{% url "bom:assembly_editor_update" pk=product.id %}" class="btn btn-primary m-1 product-open" tabindex="-1" role="button" aria-disabled="true">Open</a>
 {% endkwacro %}
 
@@ -74,8 +75,10 @@
                 <div class="product-body">
                     <h5 class="card-title">{{ product.reference }}</h5>
                     <p class="card-text">{{ product.name }}
+                        <br />
+                        <small class="text-muted">Created {{ product.created|date:"M d Y" }}</small>
                         {% if product.deprecated|date_in_past %}
-                        <span class="badge bg-light">⚠️ Deprecated</span>
+                        <span class="badge badge-light">⚠️ Deprecated</span>
                         {% endif %}
                     </p>
                 </div>
@@ -135,4 +138,22 @@
 {% endblock %}
 
 {% block jslibs %}
+<script type="application/javascript">
+    function forkProject(projectID, reference) {
+        bootbox.prompt({
+            title: `Enter the new reference for a fork of ${reference}`,
+            value: `${reference}-FORK`,
+            callback: (result) => {
+                if (result === null) { return; }
+                const targetReference = `${result}`.trim();
+                if (!targetReference) {
+                    bootbox.alert('Fork reference is required.');
+                    return;
+                }
+                const url = `{% url "bom:assembly_duplicate" %}?source_id=${projectID}&target_reference=${encodeURIComponent(targetReference)}`;
+                window.location = url;
+            }
+        });
+    }
+</script>
 {% endblock %}

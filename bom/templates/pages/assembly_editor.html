@@ -278,6 +278,17 @@
                     </div>
                 </div>
 
+                {% if assembly.forked %}
+                <div class="form-group">
+                    <small class="text-muted mb-1 d-block">
+                        <strong>Forked:</strong>
+                    </small>
+                    <a class="btn btn-sm btn-outline-secondary" href="{% url "bom:assembly_editor_update" pk=assembly.forked.id %}">
+                        {{ assembly.forked.reference }} - {{ assembly.forked.name }}
+                    </a>
+                </div>
+                {% endif %}
+
                 <div class="form-group">
                     {% usekwacro bootstrapfield form.spec %}
                 </div>
@@ -625,9 +636,18 @@
 
     /** Create a project fork by deep-copying the current top-level assembly tree. */
     async function duplicateAssembly(assemblyID, reference) {
-        bootbox.confirm(`Are you sure you want to fork project ${reference}?`, (result) => {
-            if (!result) { return; }
-            window.location = `{% url "bom:assembly_duplicate" %}?source_id=${assemblyID}`;
+        bootbox.prompt({
+            title: `Enter the new reference for a fork of ${reference}`,
+            value: `${reference}-FORK`,
+            callback: (result) => {
+                if (result === null) { return; }
+                const targetReference = `${result}`.trim();
+                if (!targetReference) {
+                    bootbox.alert('Fork reference is required.');
+                    return;
+                }
+                window.location = `{% url "bom:assembly_duplicate" %}?source_id=${assemblyID}&target_reference=${encodeURIComponent(targetReference)}`;
+            }
         });
     }
 
