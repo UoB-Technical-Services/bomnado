@@ -21,12 +21,14 @@ def as_markdown(text, assembly_or_part):
     If `assembly_or_part` is specified then all relative file names are looked up
     and swapped out for file URLs if they match the name of an attachment.
     """
+    project_id = assembly_or_part.project_id if isinstance(assembly_or_part, SubAssembly) else None
+
     # Find all `SUB_PARTS` mentioned in the text and try to add them as links.
     pattern = r'(?<!`)`{1,2}\b(?!`)(.*?)\b`+'
     for match in re.findall(pattern, text):
         query = match.strip()
         part = Part.objects.filter(reference=query).first()
-        assembly = SubAssembly.objects.filter(reference=query).first()
+        assembly = SubAssembly.objects.filter(reference=query, project_id=project_id).first() if project_id else None
         if part:
             url = reverse_lazy('bom:part_editor_update', kwargs={'pk': part.id})
             text = text.replace(f'`{match}`', f'<a class="bomlink part" href="{url}">{query}</a>')
