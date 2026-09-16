@@ -151,7 +151,7 @@
     function forkProject(projectID, reference) {
         bootbox.prompt({
             title: `Enter the new reference for a copy/remix of ${reference}`,
-            value: `${reference}-FORK`,
+            value: `${reference}-COPY`,
             callback: (result) => {
                 if (result === null) { return; }
                 const targetReference = `${result}`.trim();
